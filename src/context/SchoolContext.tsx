@@ -663,6 +663,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Student Methods
   const addStudent = async (data: Omit<Student, 'id' | 'createdAt'>): Promise<string> => {
+    if (userProfile?.role !== 'admin' && userProfile?.role !== 'teacher') {
+      console.warn("Unauthorized attempt to add student.");
+      await addAuditLog('UNAUTHORIZED_ACTION', 'Student', 'NEW', 'Blocked unauthorized attempt to create student record');
+      return '';
+    }
     const id = `stu-${Date.now()}`;
     const newStudent: Student = {
       ...data,
@@ -680,6 +685,16 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateStudent = async (id: string, data: Partial<Student>) => {
+    // Only Admin, Teacher, or the Student themselves (matching their own UID/linkedEntityId) can update
+    const isSelf = userProfile?.role === 'student' && (userProfile.uid === id || userProfile.linkedEntityId === id);
+    const isStaff = userProfile?.role === 'admin' || userProfile?.role === 'teacher';
+
+    if (!isStaff && !isSelf) {
+      console.warn("Unauthorized attempt to update student record:", id);
+      await addAuditLog('UNAUTHORIZED_ACTION', 'Student', id, 'Blocked unauthorized attempt to modify student record');
+      return;
+    }
+
     setStudents(prev => prev.map(s => s.id === id ? { ...s, ...data, updatedAt: new Date().toISOString() } : s));
     const target = students.find(s => s.id === id);
     await addAuditLog('UPDATE_STUDENT', 'Student', id, `Updated student details for ${target?.name || id}`);
@@ -691,15 +706,28 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deactivateStudent = async (id: string) => {
+    if (userProfile?.role !== 'admin') {
+      console.warn("Unauthorized attempt to deactivate student.");
+      return;
+    }
     await updateStudent(id, { status: 'inactive' });
   };
 
   const activateStudent = async (id: string) => {
+    if (userProfile?.role !== 'admin') {
+      console.warn("Unauthorized attempt to activate student.");
+      return;
+    }
     await updateStudent(id, { status: 'active' });
   };
 
   // Teacher Methods
   const addTeacher = async (data: Omit<Teacher, 'id' | 'createdAt'>): Promise<string> => {
+    if (userProfile?.role !== 'admin') {
+      console.warn("Unauthorized attempt to add teacher.");
+      await addAuditLog('UNAUTHORIZED_ACTION', 'Teacher', 'NEW', 'Blocked unauthorized attempt to register faculty');
+      return '';
+    }
     const id = `tch-${Date.now()}`;
     const newTeacher: Teacher = {
       ...data,
@@ -717,6 +745,14 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateTeacher = async (id: string, data: Partial<Teacher>) => {
+    const isSelf = userProfile?.role === 'teacher' && (userProfile.uid === id || userProfile.linkedEntityId === id);
+    const isAdmin = userProfile?.role === 'admin';
+
+    if (!isAdmin && !isSelf) {
+      console.warn("Unauthorized attempt to update teacher:", id);
+      await addAuditLog('UNAUTHORIZED_ACTION', 'Teacher', id, 'Blocked unauthorized attempt to update faculty details');
+      return;
+    }
     setTeachers(prev => prev.map(t => t.id === id ? { ...t, ...data, updatedAt: new Date().toISOString() } : t));
     const target = teachers.find(t => t.id === id);
     await addAuditLog('UPDATE_TEACHER', 'Teacher', id, `Updated faculty details for ${target?.name || id}`);
@@ -728,6 +764,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deactivateTeacher = async (id: string) => {
+    if (userProfile?.role !== 'admin') {
+      console.warn("Unauthorized attempt to deactivate faculty.");
+      return;
+    }
     await updateTeacher(id, { status: 'inactive' });
   };
 
@@ -819,6 +859,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     subjectId?: string,
     teacherId?: string
   ) => {
+    if (userProfile?.role !== 'admin' && userProfile?.role !== 'teacher') {
+      console.warn("Unauthorized attempt to record attendance.");
+      await addAuditLog('UNAUTHORIZED_ACTION', 'Attendance', `${classId}-${sectionId}`, 'Blocked unauthorized attempt to record attendance');
+      return;
+    }
     const cls = classes.find(c => c.id === classId);
     const sec = sections.find(s => s.id === sectionId);
     const subj = subjects.find(s => s.id === subjectId);
@@ -916,6 +961,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const saveStudentMarks = async (marksData: Omit<Mark, 'id' | 'createdAt' | 'grade' | 'percentage'>[]) => {
+    if (userProfile?.role !== 'admin' && userProfile?.role !== 'teacher') {
+      console.warn("Unauthorized attempt to record marks.");
+      await addAuditLog('UNAUTHORIZED_ACTION', 'Marks', marksData[0]?.examId, 'Blocked unauthorized attempt to enter or modify student marks');
+      return;
+    }
     const newMarks: Mark[] = marksData.map(m => {
       const percentage = Math.round((m.marksObtained / m.maximumMarks) * 100);
       const gradeInfo = calculateGrade(percentage);

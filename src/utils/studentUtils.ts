@@ -12,15 +12,14 @@ export function resolveCurrentStudent(
   const registeredName = (userProfile?.fullName || userProfile?.name || '').trim();
 
   if (userProfile && userProfile.role === 'student') {
-    // 1. Find matching student record in school database
+    // 1. Find matching student record in school database by strict unique identifiers
     const matched = students.find(s => 
       (userProfile.uid && (s.id === userProfile.uid || s.uid === userProfile.uid || s.userId === userProfile.uid)) ||
       (userProfile.linkedEntityId && (s.id === userProfile.linkedEntityId || s.uid === userProfile.linkedEntityId)) ||
       (userProfile.studentId && s.studentId && s.studentId.toUpperCase() === userProfile.studentId.toUpperCase()) ||
       (userProfile.username && s.studentId && s.studentId.toUpperCase() === userProfile.username.toUpperCase()) ||
       (userProfile.admissionNumber && s.admissionNumber && s.admissionNumber.toUpperCase() === userProfile.admissionNumber.toUpperCase()) ||
-      (userProfile.email && s.email && s.email.toLowerCase() === userProfile.email.toLowerCase()) ||
-      (registeredName && s.name && s.name.toLowerCase() === registeredName.toLowerCase())
+      (userProfile.email && s.email && s.email.toLowerCase() === userProfile.email.toLowerCase())
     );
 
     if (matched) {

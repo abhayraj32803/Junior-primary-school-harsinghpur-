@@ -597,6 +597,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDoc(doc(db, 'securityLogs', logEntry.id), logEntry).catch(() => {});
   };
 
+  // Rate-limiting tracker for brute-force protection
+  const failedAttemptsRef = React.useRef<Record<string, { count: number; lockedUntil: number }>>({});
+
+  const checkRateLimit = (id: string): { allowed: boolean; remainingMinutes?: number } => {
+    const key = id.toLowerCase();
+    const record = failedAttemptsRef.current[key];
+    if (!record) return { allowed: true };
+    const now = Date.now();
+    if (record.lockedUntil > now) {
+      const remainingMinutes = Math.ceil((record.lockedUntil - now) / 60000);
+      return { allowed: false, remainingMinutes };
+    }
+    if (record.lockedUntil <= now && record.count >= 5) {
+      // Lock expired, reset
+      delete failedAttemptsRef.current[key];
+      return { allowed: true };
+    }
+    return { allowed: true };
+  };
+
+  const recordFailedAttempt = (id: string) => {
+    const key = id.toLowerCase();
+    const now = Date.now();
+    const current = failedAttemptsRef.current[key] || { count: 0, lockedUntil: 0 };
+    current.count += 1;
+    if (current.count >= 5) {
+      current.lockedUntil = now + 15 * 60 * 1000; // 15-minute lockout
+    }
+    failedAttemptsRef.current[key] = current;
+  };
+
+  const clearFailedAttempts = (id: string) => {
+    delete failedAttemptsRef.current[id.toLowerCase()];
+  };
+
   // 1. Role-Based Login
   const login = async (role: UserRole, identifier: string, pass: string): Promise<{ success: boolean; error?: string; mustChangePassword?: boolean }> => {
     const cleanId = identifier.trim();
@@ -607,6 +642,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     if (!cleanPass) {
       return { success: false, error: "Please enter your password." };
+    }
+
+    // Rate Limiting / Lockout Check
+    const rateCheck = checkRateLimit(cleanId);
+    if (!rateCheck.allowed) {
+      addSecurityLog(cleanId, role, 'BLOCKED', 'ACCOUNT_LOCKED', `Brute force protection: account locked for ${rateCheck.remainingMinutes} more minutes`);
+      return {
+        success: false,
+        error: `Account temporarily locked due to multiple failed login attempts. Please try again in ${rateCheck.remainingMinutes} minute(s) or use password recovery.`
+      };
     }
 
     const lowerId = cleanId.toLowerCase();
@@ -624,6 +669,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // If not found in memory, try looking up in Firestore or Firebase Auth directly
     if (!matched) {
       if (upperId === 'HEAD-KIRAN') {
+        recordFailedAttempt(cleanId);
         addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', 'Attempted deprecated username HEAD-KIRAN');
         return { 
           success: false, 
@@ -701,6 +747,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           matched = fetchedProfile;
           setAllUsers(prev => [fetchedProfile!, ...prev.filter(u => u.uid !== fetchedProfile!.uid)]);
         } catch (authErr: any) {
+          recordFailedAttempt(cleanId);
           const friendly = getFriendlyAuthErrorMessage(authErr.code || authErr.message, 'hi');
           addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', `Direct Firebase login failed: ${friendly}`);
           return { success: false, error: friendly };
@@ -708,6 +755,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!matched) {
+        recordFailedAttempt(cleanId);
         // Check if it matches a pending registration request
         const pendingReq = registrationRequests.find(r => 
           r.preferredUsername.toUpperCase() === upperId || 
@@ -735,14 +783,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Role Verification: Ensure selected role corresponds to account authority
     if (role === 'admin' && matched.role !== 'admin') {
+      recordFailedAttempt(cleanId);
       addSecurityLog(cleanId, role, 'BLOCKED', 'LOGIN', 'Attempted unauthorized Head Teacher login');
       return { success: false, error: "Access Denied: This account does not possess Head Teacher administrative authority." };
     }
     if (role === 'teacher' && matched.role === 'student') {
+      recordFailedAttempt(cleanId);
       addSecurityLog(cleanId, role, 'BLOCKED', 'LOGIN', 'Student attempted teacher login');
       return { success: false, error: "Access Denied: Student accounts cannot log in through the Teacher portal." };
     }
     if (role === 'student' && matched.role !== 'student') {
+      recordFailedAttempt(cleanId);
       addSecurityLog(cleanId, role, 'BLOCKED', 'LOGIN', 'Staff attempted student login');
       return { success: false, error: "Access Denied: Teaching staff must log in through the Teacher/Head Teacher portal." };
     }
@@ -757,11 +808,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: "Your account has been deactivated or suspended. Please contact Head Teacher Smt. Kiran Shakya." };
     }
 
-    // Password Check
+    // Password Check (No backdoor master passwords)
     const isDirectPasswordMatch = matched.password && matched.password === cleanPass;
-    const isMasterDemoPassword = matched.role !== 'admin' && (cleanPass === 'teacher123' || cleanPass === 'student123' || cleanPass === 'demo123');
 
-    if (!isDirectPasswordMatch && !isMasterDemoPassword) {
+    if (!isDirectPasswordMatch) {
       // Attempt Firebase auth
       try {
         if (matched.email) {
@@ -773,6 +823,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error("No registered email associated for auth");
         }
       } catch (err: any) {
+        recordFailedAttempt(cleanId);
         addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', 'Incorrect password entered');
         const friendly = getFriendlyAuthErrorMessage(err.code || err.message, 'hi');
         return { 
@@ -784,7 +835,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Login successful
+    // Login successful - clear failed attempts
+    clearFailedAttempts(cleanId);
     const updatedUser: UserProfile = {
       ...matched,
       emailVerified: auth.currentUser?.emailVerified ?? matched.emailVerified,
