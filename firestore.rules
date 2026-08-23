@@ -1,0 +1,310 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-Deny Catch-All Rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Zero-Trust Security Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function userExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'ngoaarya159@gmail.com' ||
+        request.auth.token.email == 'admin@school.gov.in' ||
+        (userExists() && getUserDoc().role == 'admin') ||
+        request.auth.token.role == 'admin'
+      );
+    }
+
+    function isTeacher() {
+      return isSignedIn() && (
+        isAdmin() ||
+        (userExists() && getUserDoc().role == 'teacher')
+      );
+    }
+
+    function isStudentOwner(studentData) {
+      return isSignedIn() && (
+        (studentData.userId != null && studentData.userId == request.auth.uid) ||
+        (userExists() && studentData.admissionNumber != null && studentData.admissionNumber == getUserDoc().admissionNumber) ||
+        (userExists() && getUserDoc().linkedEntityId != null && getUserDoc().linkedEntityId == studentData.id)
+      );
+    }
+
+    // 1. User Profiles Collection (/users/{userId})
+    // EXPLICITLY DENIED to unauthorized users. Only matching user (by UID) or authorized admins can read/write.
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      
+      allow list: if isAdmin() || (
+        isSignedIn() && resource.data.uid == request.auth.uid
+      );
+
+      allow create: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      
+      allow update: if isValidId(userId) && (
+        (isOwner(userId) && 
+          request.resource.data.role == resource.data.role && 
+          request.resource.data.status == resource.data.status &&
+          request.resource.data.uid == resource.data.uid) || 
+        isAdmin()
+      );
+      
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // 1b. Registration Requests (/registrationRequests/{requestId})
+    // Public visitors can create a request with status 'PENDING'.
+    // Only Head Teacher / Admin can list, read details, and approve/reject (update status).
+    match /registrationRequests/{requestId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(requestId) && request.resource.data.status == 'PENDING';
+      allow update, delete: if isValidId(requestId) && isAdmin();
+    }
+
+    // 1c. Security Logs (/securityLogs/{logId})
+    match /securityLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(logId);
+      allow update, delete: if false; // immutable
+    }
+
+    // 2. Student Records Collection (/students/{studentId})
+    // EXPLICITLY DENIED to unassigned or unauthorized users.
+    // Read: Only authorized admins, assigned teachers, or the specific student owning the record.
+    // Write: Authorized admins, teachers, or the verified student owning the record.
+    match /students/{studentId} {
+      allow get: if isValidId(studentId) && (
+        isAdmin() || 
+        isTeacher() || 
+        isOwner(studentId) ||
+        isStudentOwner(resource.data)
+      );
+
+      allow list: if isAdmin() || isTeacher() || (
+        isSignedIn() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.uid == request.auth.uid ||
+          (userExists() && resource.data.admissionNumber == getUserDoc().admissionNumber) ||
+          (userExists() && getUserDoc().linkedEntityId == resource.data.id)
+        )
+      );
+
+      allow create: if isValidId(studentId) && (
+        isAdmin() || 
+        isTeacher() || 
+        isOwner(studentId) ||
+        (isSignedIn() && request.resource.data.uid == request.auth.uid)
+      );
+      
+      allow update: if isValidId(studentId) && (
+        isAdmin() || 
+        (isTeacher() && (
+          request.resource.data.admissionNumber == resource.data.admissionNumber &&
+          request.resource.data.id == resource.data.id
+        )) ||
+        (isOwner(studentId) && (
+          request.resource.data.role == 'student'
+        )) ||
+        (isStudentOwner(resource.data) && (
+          request.resource.data.role == 'student'
+        ))
+      );
+
+      allow delete: if isValidId(studentId) && isAdmin();
+    }
+
+    // 3. Faculty / Teachers Directory
+    match /teachers/{teacherId} {
+      allow read: if true;
+      allow write: if isValidId(teacherId) && isAdmin();
+    }
+
+    // 4. Academic Structure (Classes, Sections, Subjects, Allocations)
+    match /classes/{classId} {
+      allow read: if true;
+      allow write: if isValidId(classId) && isAdmin();
+    }
+
+    match /sections/{sectionId} {
+      allow read: if true;
+      allow write: if isValidId(sectionId) && isAdmin();
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if true;
+      allow write: if isValidId(subjectId) && isAdmin();
+    }
+
+    match /teacherAssignments/{assignmentId} {
+      allow read: if isSignedIn();
+      allow write: if isValidId(assignmentId) && isAdmin();
+    }
+
+    // 5. Daily Attendance - Teachers and Admins manage; Students only see their own class records
+    match /attendance/{attendanceId} {
+      allow get: if isValidId(attendanceId) && (
+        isAdmin() ||
+        isTeacher() ||
+        (userExists() && resource.data.classNumber == getUserDoc().classNumber)
+      );
+      
+      allow list: if isAdmin() || isTeacher() || (
+        isSignedIn() && userExists() && resource.data.classNumber == getUserDoc().classNumber
+      );
+
+      allow create, update: if isValidId(attendanceId) && isTeacher();
+      allow delete: if isValidId(attendanceId) && isAdmin();
+    }
+
+    // 6. Examination Schedules and Grade Book Marks
+    match /examinations/{examId} {
+      allow read: if true;
+      allow write: if isValidId(examId) && isAdmin();
+    }
+
+    match /marks/{markId} {
+      allow get: if isValidId(markId) && (
+        isAdmin() ||
+        isTeacher() ||
+        (userExists() && resource.data.studentAdmissionNo == getUserDoc().admissionNumber) ||
+        (userExists() && resource.data.studentId == getUserDoc().linkedEntityId)
+      );
+
+      allow list: if isAdmin() || isTeacher() || (
+        isSignedIn() && userExists() && (
+          resource.data.studentAdmissionNo == getUserDoc().admissionNumber ||
+          resource.data.studentId == getUserDoc().linkedEntityId
+        )
+      );
+
+      allow create, update: if isValidId(markId) && isTeacher();
+      allow delete: if isValidId(markId) && isAdmin();
+    }
+
+    // 7. Homework and Submissions
+    match /homework/{homeworkId} {
+      allow read: if isSignedIn();
+      allow create, update: if isValidId(homeworkId) && isTeacher();
+      allow delete: if isValidId(homeworkId) && (isTeacher() || isAdmin());
+    }
+
+    match /submissions/{submissionId} {
+      allow get: if isValidId(submissionId) && (
+        isAdmin() ||
+        isTeacher() ||
+        resource.data.studentId == request.auth.uid ||
+        (userExists() && resource.data.studentAdmissionNo == getUserDoc().admissionNumber) ||
+        (userExists() && resource.data.studentId == getUserDoc().linkedEntityId)
+      );
+
+      allow list: if isAdmin() || isTeacher() || (
+        isSignedIn() && (
+          resource.data.studentId == request.auth.uid ||
+          (userExists() && resource.data.studentAdmissionNo == getUserDoc().admissionNumber) ||
+          (userExists() && resource.data.studentId == getUserDoc().linkedEntityId)
+        )
+      );
+
+      allow create: if isValidId(submissionId) && isSignedIn() && (
+        request.resource.data.studentId == request.auth.uid ||
+        (userExists() && request.resource.data.studentAdmissionNo == getUserDoc().admissionNumber) ||
+        (userExists() && request.resource.data.studentId == getUserDoc().linkedEntityId) ||
+        isTeacher() ||
+        isAdmin()
+      );
+
+      allow update: if isValidId(submissionId) && (
+        isTeacher() || 
+        isAdmin() || 
+        (isSignedIn() && (
+          request.resource.data.studentId == request.auth.uid ||
+          (userExists() && request.resource.data.studentAdmissionNo == getUserDoc().admissionNumber)
+        ) && request.resource.data.status == resource.data.status)
+      );
+
+      allow delete: if isValidId(submissionId) && isAdmin();
+    }
+
+    // 8. Timetable
+    match /timetable/{timetableId} {
+      allow read: if true;
+      allow write: if isValidId(timetableId) && (isAdmin() || isTeacher());
+    }
+
+    // 9. Notices and Circulars
+    match /notices/{noticeId} {
+      allow read: if true;
+      allow write: if isValidId(noticeId) && (isTeacher() || isAdmin());
+    }
+
+    // 10. Documents Repository (TC, Marksheet, Caste Certs)
+    match /documents/{documentId} {
+      allow get, list: if isSignedIn() && (
+        isAdmin() ||
+        isTeacher() ||
+        resource.data.uploadedBy == request.auth.uid ||
+        (userExists() && resource.data.admissionNumber == getUserDoc().admissionNumber)
+      );
+      allow write: if isValidId(documentId) && (isAdmin() || isTeacher());
+    }
+
+    // 11. Tamper-Proof Audit Logs
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(logId) && isSignedIn();
+      allow update, delete: if false; // strictly immutable
+    }
+
+    // 12. School Configuration Settings
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isValidId(settingId) && isAdmin();
+    }
+
+    // 13. Infrastructure & Facilities
+    match /facilities/{facilityId} {
+      allow read: if true;
+      allow write: if isValidId(facilityId) && isAdmin();
+    }
+
+    // 14. Government Welfare Schemes (DBT / MDM)
+    match /governmentSchemes/{schemeId} {
+      allow read: if true;
+      allow write: if isValidId(schemeId) && isAdmin();
+    }
+
+    // 15. Photo Gallery
+    match /gallery/{galleryId} {
+      allow read: if true;
+      allow write: if isValidId(galleryId) && (isAdmin() || isTeacher());
+    }
+
+    // 16. Official Government Documents & Circulars
+    match /publicDocuments/{docId} {
+      allow read: if true;
+      allow write: if isValidId(docId) && isAdmin();
+    }
+  }
+}

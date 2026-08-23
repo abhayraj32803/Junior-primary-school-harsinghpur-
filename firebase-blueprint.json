@@ -1,0 +1,270 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account and profile credentials with role-based access control.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "description": "Unique Firebase Authentication UID" },
+        "name": { "type": "string", "maxLength": 150, "description": "Full name of the user" },
+        "email": { "type": "string", "maxLength": 150, "description": "User email address" },
+        "phone": { "type": "string", "maxLength": 25, "description": "Contact phone number" },
+        "role": { "type": "string", "enum": ["admin", "teacher", "student"], "description": "Security access role" },
+        "status": { "type": "string", "enum": ["active", "inactive", "pending"], "description": "Account approval status" },
+        "linkedEntityId": { "type": "string", "maxLength": 100, "description": "Linked studentId or teacherId" },
+        "admissionNumber": { "type": "string", "maxLength": 50, "description": "Official school admission number" },
+        "employeeId": { "type": "string", "maxLength": 50, "description": "Teacher employee identification number" },
+        "classNumber": { "type": "number", "description": "Assigned class grade level (1-8)" },
+        "sectionName": { "type": "string", "maxLength": 10, "description": "Assigned section (A, B, C)" },
+        "isApproved": { "type": "boolean", "description": "Whether account is verified" },
+        "createdAt": { "type": "string", "description": "Creation ISO timestamp" },
+        "updatedAt": { "type": "string", "description": "Last update ISO timestamp" }
+      },
+      "required": ["uid", "name", "email", "role", "status"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Official student admission and academic record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "description": "Document unique identifier" },
+        "studentId": { "type": "string", "maxLength": 50, "description": "Institutional Student Code (e.g. STU-2025-0101)" },
+        "userId": { "type": "string", "maxLength": 128, "description": "Linked user authentication UID" },
+        "admissionNumber": { "type": "string", "maxLength": 50, "description": "Official Admission Number" },
+        "name": { "type": "string", "maxLength": 150, "description": "Student full name" },
+        "dateOfBirth": { "type": "string", "maxLength": 20, "description": "DOB in YYYY-MM-DD" },
+        "gender": { "type": "string", "enum": ["Male", "Female", "Other"], "description": "Gender identity" },
+        "classId": { "type": "string", "maxLength": 50, "description": "Class identifier" },
+        "classNumber": { "type": "number", "description": "Grade level (1 to 8)" },
+        "sectionId": { "type": "string", "maxLength": 50, "description": "Section identifier" },
+        "sectionName": { "type": "string", "maxLength": 10, "description": "Section designation" },
+        "rollNumber": { "type": "string", "maxLength": 20, "description": "Class roll number" },
+        "fatherName": { "type": "string", "maxLength": 150, "description": "Father name" },
+        "motherName": { "type": "string", "maxLength": 150, "description": "Mother name" },
+        "mobile": { "type": "string", "maxLength": 25, "description": "Emergency / parent contact number" },
+        "address": { "type": "string", "maxLength": 300, "description": "Residential address" },
+        "status": { "type": "string", "enum": ["active", "inactive", "transferred"], "description": "Enrollment status" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Update timestamp" }
+      },
+      "required": ["id", "admissionNumber", "name", "classNumber", "sectionName", "rollNumber", "status"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Faculty member record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "employeeId": { "type": "string", "maxLength": 50 },
+        "name": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 25 },
+        "designation": { "type": "string", "maxLength": 100 },
+        "qualification": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["active", "on_leave", "inactive"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "employeeId", "name", "email", "designation", "status"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily student attendance tracking record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 150 },
+        "rollNumber": { "type": "string", "maxLength": 20 },
+        "teacherId": { "type": "string", "maxLength": 128 },
+        "classId": { "type": "string", "maxLength": 50 },
+        "classNumber": { "type": "number" },
+        "sectionId": { "type": "string", "maxLength": 50 },
+        "sectionName": { "type": "string", "maxLength": 10 },
+        "date": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "enum": ["present", "absent", "late"] },
+        "remarks": { "type": "string", "maxLength": 250 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "classNumber", "sectionName", "date", "status"]
+    },
+    "Mark": {
+      "title": "Mark",
+      "description": "Academic examination score entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 150 },
+        "examId": { "type": "string", "maxLength": 128 },
+        "examName": { "type": "string", "maxLength": 150 },
+        "classNumber": { "type": "number" },
+        "sectionName": { "type": "string", "maxLength": 10 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "subjectName": { "type": "string", "maxLength": 100 },
+        "marksObtained": { "type": "number" },
+        "maximumMarks": { "type": "number" },
+        "grade": { "type": "string", "maxLength": 10 },
+        "percentage": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "examId", "subjectId", "marksObtained", "maximumMarks"]
+    },
+    "Homework": {
+      "title": "Homework",
+      "description": "Class assignment created by faculty.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "teacherId": { "type": "string", "maxLength": 128 },
+        "classNumber": { "type": "number" },
+        "sectionName": { "type": "string", "maxLength": 10 },
+        "subjectName": { "type": "string", "maxLength": 100 },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "dueDate": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "archived"] }
+      },
+      "required": ["id", "teacherId", "classNumber", "title", "status"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Student homework submission.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "homeworkId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 150 },
+        "submittedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["submitted", "graded"] },
+        "marks": { "type": "number" },
+        "feedback": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "homeworkId", "studentId", "status"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "description": "School circular, notice, or official announcement.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 250 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 150 },
+        "targetRole": { "type": "string", "enum": ["all", "admin", "teacher", "student"] },
+        "category": { "type": "string", "maxLength": 100 },
+        "priority": { "type": "string", "enum": ["normal", "important", "urgent"] },
+        "isPublic": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "expired"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "description", "targetRole", "isPublic", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and action audit trail.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 150 },
+        "userRole": { "type": "string", "maxLength": 50 },
+        "action": { "type": "string", "maxLength": 100 },
+        "entity": { "type": "string", "maxLength": 100 },
+        "entityId": { "type": "string", "maxLength": 128 },
+        "details": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "userId", "action", "entity", "timestamp"]
+    },
+    "RegistrationRequest": {
+      "title": "RegistrationRequest",
+      "description": "Pending user registration request submitted for Head Teacher approval.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "schoolId": { "type": "string", "maxLength": 50 },
+        "requestedRole": { "type": "string", "enum": ["teacher", "student"] },
+        "fullName": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 25 },
+        "preferredUsername": { "type": "string", "maxLength": 50 },
+        "admissionNumber": { "type": "string", "maxLength": 50 },
+        "classNumber": { "type": "number" },
+        "sectionName": { "type": "string", "maxLength": 10 },
+        "employeeId": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "CANCELLED"] },
+        "createdAt": { "type": "string" },
+        "reviewedBy": { "type": "string", "maxLength": 128 },
+        "reviewedAt": { "type": "string" },
+        "rejectionReason": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "schoolId", "requestedRole", "fullName", "email", "preferredUsername", "status", "createdAt"]
+    },
+    "SecurityLog": {
+      "title": "SecurityLog",
+      "description": "Authentication and security attempt logs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "schoolId": { "type": "string", "maxLength": 50 },
+        "username": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["SUCCESS", "FAILED", "BLOCKED"] },
+        "action": { "type": "string", "maxLength": 50 },
+        "details": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "schoolId", "username", "status", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile records protected with UID matching and Admin ABAC controls."
+    },
+    "/registrationRequests/{requestId}": {
+      "schema": "RegistrationRequest",
+      "description": "Pending registrations reviewed and approved by Head Teacher."
+    },
+    "/securityLogs/{logId}": {
+      "schema": "SecurityLog",
+      "description": "Security and authentication attempt logs."
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Student master records protected against unauthorized viewing; accessible to matching student, admins, or assigned teachers."
+    },
+    "/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "Faculty profile records."
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "AttendanceRecord",
+      "description": "Daily attendance records."
+    },
+    "/marks/{markId}": {
+      "schema": "Mark",
+      "description": "Student marks and exam performance records."
+    },
+    "/homework/{homeworkId}": {
+      "schema": "Homework",
+      "description": "Homework and learning assignments."
+    },
+    "/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Student homework submissions and grading notes."
+    },
+    "/notices/{noticeId}": {
+      "schema": "Notice",
+      "description": "Notices and circulars for school community."
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Immutable audit trails of sensitive actions."
+    }
+  }
+}

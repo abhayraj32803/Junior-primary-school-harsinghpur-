@@ -1,0 +1,6 @@
+{
+  "name": "Composite JHS Harsinghpur Gova",
+  "description": "Official portal and School Management System for Composite JHS Harsinghpur Gova (UDISE: 09290205902), Shamsabad, Farrukhabad, Uttar Pradesh.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
