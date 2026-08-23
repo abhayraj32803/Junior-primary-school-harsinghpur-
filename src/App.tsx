@@ -85,16 +85,15 @@ const SchoolAppInner: React.FC = () => {
   });
 
   // Whenever user becomes unauthenticated (logout by student, teacher, or admin),
-  // automatically redirect directly to website's main home page ('home')
+  // automatically redirect cleanly to login or home
   useEffect(() => {
     if (!isAuthenticated && publicPage === 'portal') {
-      setPublicPage('home');
-      setPublicPageHistory([]);
+      setPublicPage('login');
       try {
-        sessionStorage.setItem('sms_current_view_page', 'home');
+        sessionStorage.setItem('sms_current_view_page', 'login');
       } catch {}
     }
-  }, [isAuthenticated, publicPage]);
+  }, [isAuthenticated]);
 
   const handleLogout = async () => {
     try {
@@ -116,18 +115,20 @@ const SchoolAppInner: React.FC = () => {
   };
 
   const handleNavigatePage = (page: string) => {
+    // If not authenticated and navigating to portal, take directly to login
+    const resolvedPage = (!isAuthenticated && page === 'portal') ? 'login' : page;
     try {
-      sessionStorage.setItem('sms_current_view_page', page);
-      if (page !== 'portal' && page !== 'login' && page !== 'register') {
-        recordPrivatePageView(page);
+      sessionStorage.setItem('sms_current_view_page', resolvedPage);
+      if (resolvedPage !== 'portal' && !resolvedPage.startsWith('login') && resolvedPage !== 'register') {
+        recordPrivatePageView(resolvedPage);
       }
     } catch {
       // ignore storage errors
     }
-    if (publicPage !== page) {
+    if (publicPage !== resolvedPage) {
       setPublicPageHistory(prev => [...prev.slice(-25), publicPage]);
     }
-    setPublicPage(page);
+    setPublicPage(resolvedPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -194,27 +195,27 @@ const SchoolAppInner: React.FC = () => {
 
   // If user is not authenticated or viewing the public website
   if (!isAuthenticated || publicPage !== 'portal') {
-    const activePublicView = (!isAuthenticated && publicPage === 'portal') ? 'home' : publicPage;
+    const activePublicView = (!isAuthenticated && publicPage === 'portal') ? 'login' : publicPage;
 
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
+      <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
         <PublicNavbar
           activePage={activePublicView}
           onNavigate={handleNavigatePage}
-          onOpenPortal={() => handleNavigatePage('portal')}
+          onOpenPortal={() => handleNavigatePage('login')}
           onGoBack={handleGoBackPublicPage}
           canGoBack={publicPageHistory.length > 0 || activePublicView !== 'home'}
         />
 
-        <main className="flex-1">
+        <main className="flex-1 w-full max-w-full overflow-x-hidden">
           {activePublicView === 'home' && (
             <HomePage 
               onNavigate={handleNavigatePage} 
-              onOpenPortal={() => handleNavigatePage('portal')}
+              onOpenPortal={() => handleNavigatePage('login')}
             />
           )}
           {activePublicView === 'about' && <AboutPage />}
-          {activePublicView === 'faculty' && <FacultyPage />}
+          {activePublicView === 'faculty' && <FacultyPage onNavigate={handleNavigatePage} />}
           {activePublicView === 'classes' && <ClassesCurriculumPage />}
           {activePublicView === 'statistics' && <StatisticsPage />}
           {activePublicView === 'facilities' && <FacilitiesPage />}
@@ -226,8 +227,36 @@ const SchoolAppInner: React.FC = () => {
           {activePublicView === 'gallery' && <GalleryPage />}
           {activePublicView === 'notices' && <PublicNoticesPage />}
           {activePublicView === 'contact' && <ContactPage />}
-          {activePublicView === 'login' && (
+          {(activePublicView === 'login' || activePublicView === 'portal') && (
             <LoginPage 
+              initialRole="student"
+              onSuccess={() => handleNavigatePage('portal')} 
+              onLoginSuccess={() => handleNavigatePage('portal')} 
+              onNavigateHome={() => handleNavigatePage('home')} 
+              onNavigateRegister={() => handleNavigatePage('register')}
+            />
+          )}
+          {activePublicView === 'login-student' && (
+            <LoginPage 
+              initialRole="student"
+              onSuccess={() => handleNavigatePage('portal')} 
+              onLoginSuccess={() => handleNavigatePage('portal')} 
+              onNavigateHome={() => handleNavigatePage('home')} 
+              onNavigateRegister={() => handleNavigatePage('register')}
+            />
+          )}
+          {activePublicView === 'login-teacher' && (
+            <LoginPage 
+              initialRole="teacher"
+              onSuccess={() => handleNavigatePage('portal')} 
+              onLoginSuccess={() => handleNavigatePage('portal')} 
+              onNavigateHome={() => handleNavigatePage('home')} 
+              onNavigateRegister={() => handleNavigatePage('register')}
+            />
+          )}
+          {activePublicView === 'login-admin' && (
+            <LoginPage 
+              initialRole="admin"
               onSuccess={() => handleNavigatePage('portal')} 
               onLoginSuccess={() => handleNavigatePage('portal')} 
               onNavigateHome={() => handleNavigatePage('home')} 
@@ -312,7 +341,7 @@ const SchoolAppInner: React.FC = () => {
   const activeTabInfo = getTabTitle();
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950">
       {/* Portal Top Bar - Premier University ERP Masthead */}
       <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 px-3 sm:px-6 py-2.5 flex items-center justify-between shadow-lg">
         {/* Left Side: School Branding, Drawer Toggle & Live Breadcrumb */}

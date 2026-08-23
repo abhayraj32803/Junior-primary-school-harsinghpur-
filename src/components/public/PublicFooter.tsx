@@ -39,7 +39,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ onNavigate }) => {
   });
 
   return (
-    <footer className="bg-gov-navy-950 text-slate-300 pt-12 pb-8 border-t-4 border-gov-amber-500">
+    <footer className="w-full max-w-full overflow-x-hidden bg-gov-navy-950 text-slate-300 pt-12 pb-8 border-t-4 border-gov-amber-500">
       
       {/* Top Banner Accent: Government & RTE Guarantee */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 mb-8 border-b border-gov-navy-850">
@@ -166,6 +166,21 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ onNavigate }) => {
               <li>
                 <button onClick={() => onNavigate('faq')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
                   {language === 'hi' ? '• प्रश्नोत्तरी (FAQ)' : '• FAQs'}
+                </button>
+              </li>
+              <li>
+                <button onClick={() => onNavigate('login-student')} className="hover:text-gov-amber-400 font-bold text-amber-300 transition-colors cursor-pointer text-left">
+                  {language === 'hi' ? '• 🎓 छात्र पोर्टल लॉगिन' : '• 🎓 Student Login'}
+                </button>
+              </li>
+              <li>
+                <button onClick={() => onNavigate('login-teacher')} className="hover:text-gov-amber-400 font-bold text-blue-300 transition-colors cursor-pointer text-left">
+                  {language === 'hi' ? '• 👨‍🏫 शिक्षक पोर्टल लॉगिन' : '• 👨‍🏫 Teacher Login'}
+                </button>
+              </li>
+              <li>
+                <button onClick={() => onNavigate('login-admin')} className="hover:text-gov-amber-400 font-bold text-emerald-300 transition-colors cursor-pointer text-left">
+                  {language === 'hi' ? '• 🛡️ प्रधानाध्यापक ERP' : '• 🛡️ Headmaster ERP'}
                 </button>
               </li>
             </ul>

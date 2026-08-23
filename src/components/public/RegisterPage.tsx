@@ -421,7 +421,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
   }
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-10">
+    <div className="min-h-[85vh] w-full max-w-full overflow-x-hidden flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
       <div className="max-w-3xl w-full bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
         
         {/* Top Header Banner */}

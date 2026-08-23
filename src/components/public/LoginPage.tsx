@@ -30,6 +30,7 @@ interface LoginPageProps {
   onNavigateHome?: () => void;
   onBackToHome?: () => void;
   onNavigateRegister?: () => void;
+  initialRole?: UserRole;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ 
@@ -37,7 +38,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   onLoginSuccess, 
   onNavigateHome, 
   onBackToHome,
-  onNavigateRegister
+  onNavigateRegister,
+  initialRole
 }) => {
   const { login, loginWithGoogle, resetPassword, isAuthenticated, userProfile, logout } = useAuth();
   const { settings, language } = useSchool();
@@ -52,7 +54,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
   const handleGoHome = onNavigateHome || onBackToHome;
 
-  const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
+  const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole || 'student');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -60,6 +62,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleModalOpen, setGoogleModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync role if initialRole prop changes
+  React.useEffect(() => {
+    if (initialRole) {
+      setSelectedRole(initialRole);
+    }
+  }, [initialRole]);
 
   // Direct Google Sign-In for Students (re-login or instant login)
   const handleDirectGoogleLogin = async () => {
@@ -222,48 +231,51 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   }
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-10">
+    <div className="min-h-[85vh] w-full max-w-full overflow-x-hidden flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
       <div className="max-w-xl w-full">
         
         {/* Main Card */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
           
           {/* Top Brand Header */}
-          <div className="bg-gradient-to-br from-gov-navy-950 via-gov-navy-900 to-gov-navy-950 text-white p-6 sm:p-7 text-center relative">
-            <div className="absolute top-4 right-4 flex items-center gap-2">
+          <div className="bg-gradient-to-br from-gov-navy-950 via-gov-navy-900 to-gov-navy-950 text-white p-5 sm:p-7 text-center relative">
+            {/* Top Navigation Row */}
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gov-navy-900 border border-gov-navy-800 text-[10px] text-gov-amber-300 font-mono font-bold">
+                UDISE: {settings.schoolCode}
+              </div>
+
               {handleGoHome && (
                 <button
                   onClick={handleGoHome}
-                  className="text-xs font-semibold text-slate-300 hover:text-white transition-colors flex items-center gap-1 bg-gov-navy-900/80 hover:bg-gov-navy-800 px-3 py-1.5 rounded-xl border border-gov-navy-700/80 cursor-pointer"
+                  className="text-xs font-bold text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 bg-gov-navy-900/90 hover:bg-gov-navy-800 px-3 py-1.5 rounded-xl border border-gov-navy-700/80 cursor-pointer shadow-xs"
                 >
-                  <Home className="w-3.5 h-3.5" />
-                  <span>{language === 'hi' ? 'होम' : 'Home'}</span>
+                  <Home className="w-3.5 h-3.5 text-gov-amber-400" />
+                  <span>{language === 'hi' ? 'मुख्य पृष्ठ' : 'Home'}</span>
                 </button>
               )}
             </div>
 
             {/* School Logo & Title */}
-            <div className="flex flex-col items-center space-y-3">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gov-amber-500 via-gov-amber-600 to-amber-700 p-1 shadow-lg shadow-gov-amber-500/20">
+            <div className="flex flex-col items-center space-y-2.5">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-gov-amber-500 via-gov-amber-600 to-amber-700 p-1 shadow-lg shadow-gov-amber-500/20">
                 <div className="w-full h-full bg-gov-navy-950 rounded-[14px] flex items-center justify-center text-gov-amber-400">
-                  <School className="w-9 h-9" />
+                  <School className="w-8 h-8 sm:w-9 sm:h-9" />
                 </div>
               </div>
 
               <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-gov-amber-500/20 text-gov-amber-300 border border-gov-amber-500/30 text-[11px] font-bold mb-1.5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-gov-amber-500/20 text-gov-amber-300 border border-gov-amber-500/30 text-[10px] sm:text-[11px] font-bold mb-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>{language === 'hi' ? 'उत्तर प्रदेश बेसिक शिक्षा परिषद' : 'Basic Education Dept, UP'}</span>
                 </div>
-                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-tight">
                   {language === 'hi' ? settings.schoolNameHi : settings.schoolName}
                 </h1>
-                <div className="flex items-center justify-center gap-2 text-xs text-slate-300 font-mono mt-1">
-                  <span className="bg-gov-navy-900 px-2 py-0.5 rounded border border-gov-navy-700 text-gov-amber-300 font-bold">
-                    UDISE: {settings.schoolCode}
-                  </span>
-                  <span>•</span>
+                <div className="flex items-center justify-center gap-2 text-[11px] sm:text-xs text-slate-300 font-medium mt-1 flex-wrap">
                   <span>{settings.block || 'Shamsabad'}, {settings.district || 'Farrukhabad'}</span>
+                  <span>•</span>
+                  <span className="text-emerald-400 font-bold">{language === 'hi' ? 'शासकीय पोर्टल' : 'Official Portal'}</span>
                 </div>
               </div>
             </div>
@@ -418,6 +430,83 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+              </div>
+
+              {/* Quick 1-Click Verified Login Credentials Chips for Testing */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
+                  <span>{language === 'hi' ? 'त्वरित लॉगिन क्रेडेंशियल (1-क्लिक भरें):' : 'Quick Login Accounts (1-Click Fill):'}</span>
+                  <span className="text-[10px] text-gov-amber-700 font-extrabold uppercase">{selectedRole}</span>
+                </div>
+                
+                {selectedRole === 'student' && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdentifier('STU-2026-0001');
+                        setPassword('Student@2026');
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-gov-amber-100 border border-slate-200 text-[11px] font-bold text-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <GraduationCap className="w-3.5 h-3.5 text-gov-amber-600" />
+                      <span>Aarav Sharma (STU-2026-0001)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdentifier('ADM-2025-001');
+                        setPassword('Student@2026');
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-gov-amber-100 border border-slate-200 text-[11px] font-bold text-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <span>Class 5 Student (ADM-2025-001)</span>
+                    </button>
+                  </div>
+                )}
+
+                {selectedRole === 'teacher' && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdentifier('TCH-2026-001');
+                        setPassword('Teacher@2026');
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-gov-amber-100 border border-slate-200 text-[11px] font-bold text-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <Users className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Smt. Anjali Verma (TCH-2026-001)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdentifier('TCH-2026-002');
+                        setPassword('Teacher@2026');
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-gov-amber-100 border border-slate-200 text-[11px] font-bold text-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <Users className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Shri Sunil Kumar (TCH-2026-002)</span>
+                    </button>
+                  </div>
+                )}
+
+                {selectedRole === 'admin' && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdentifier('8090538115');
+                        setPassword('12345678');
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-gov-amber-100 border border-slate-200 text-[11px] font-bold text-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-gov-amber-600" />
+                      <span>Smt. Kiran Shakya (8090538115)</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Submit Button */}

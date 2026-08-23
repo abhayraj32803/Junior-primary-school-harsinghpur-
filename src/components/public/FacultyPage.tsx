@@ -10,10 +10,15 @@ import {
   CheckCircle, 
   ShieldCheck, 
   UserCheck,
-  AlertCircle
+  AlertCircle,
+  Users
 } from 'lucide-react';
 
-export const FacultyPage: React.FC = () => {
+interface FacultyPageProps {
+  onNavigate?: (page: string) => void;
+}
+
+export const FacultyPage: React.FC<FacultyPageProps> = ({ onNavigate }) => {
   const { teachers, teacherAssignments, language } = useSchool();
 
   const getTeacherSubjects = (teacherId: string) => {
@@ -23,7 +28,7 @@ export const FacultyPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 sm:space-y-10 overflow-x-hidden">
       {/* Page Header */}
       <div className="text-center max-w-3xl mx-auto space-y-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
@@ -38,6 +43,18 @@ export const FacultyPage: React.FC = () => {
             ? 'बेसिक शिक्षा परिषद द्वारा चयनित, प्रशिक्षित एवं टीईटी (TET/CTET) उत्तीर्ण शिक्षक जो विद्यार्थियों के उज्ज्वल भविष्य निर्माण हेतु सेवारत हैं।'
             : 'Meet our dedicated, government-certified teachers committed to mentoring students across foundational, primary, and upper-primary classes.'}
         </p>
+
+        {onNavigate && (
+          <div className="pt-2 flex justify-center">
+            <button
+              onClick={() => onNavigate('login-teacher')}
+              className="px-5 py-2.5 rounded-2xl bg-gov-navy-950 hover:bg-gov-navy-900 text-gov-amber-400 text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer border border-gov-navy-800"
+            >
+              <Users className="w-4 h-4 text-gov-amber-400" />
+              <span>{language === 'hi' ? 'शिक्षक एवं स्टॉफ पोर्टल लॉगिन करें →' : 'Teacher & Staff ERP Login →'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Faculty Cards Grid */}

@@ -18,8 +18,8 @@ export const StatisticsPage: React.FC = () => {
   const { language, aggregateOverview, classes, settings } = useSchool();
 
   return (
-    <div className="bg-slate-50 min-h-screen py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="bg-slate-50 min-h-screen w-full max-w-full overflow-x-hidden py-8 sm:py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         
         {/* Header with Title & Verification */}
         <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-xs border border-slate-200">

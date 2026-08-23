@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+}
+
 @theme {
   --color-gov-amber: #FF9933;
   --color-gov-amber-50: #fffaf0;
@@ -38,6 +61,30 @@
 
 .gov-tricolor-border {
   border-image: linear-gradient(to right, #FF9933 33%, #ffffff 33%, #ffffff 66%, #138808 66%) 1;
+}
+
+/* Base Container standard utility */
+.app-container {
+  width: 100%;
+  max-width: 80rem; /* 1280px / 7xl */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .app-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
 }
 
 /* Hero Banner & UI Animations */

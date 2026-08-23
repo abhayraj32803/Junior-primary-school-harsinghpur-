@@ -176,7 +176,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
   };
 
   return (
-    <div className="space-y-12 sm:space-y-16 pb-16 bg-slate-50/50">
+    <div className="w-full max-w-full overflow-x-hidden space-y-12 sm:space-y-16 pb-16 bg-slate-50/50">
       
       {/* Notice Ticker Bar */}
       {publicNotices.length > 0 && (
@@ -216,12 +216,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
               onMouseLeave={() => setIsHovered(false)}
               className="rounded-3xl border border-gov-navy-800/60 overflow-hidden shadow-2xl bg-gov-navy-950 relative group"
             >
-              {/* Aspect Ratio Container */}
+              {/* Aspect Ratio Container (Responsive adaptive height to never overflow on mobile / tablet) */}
               <div 
                 className={`relative w-full overflow-hidden ${
-                  settings.heroBannerAspectRatio === '16:9' ? 'aspect-video' :
-                  settings.heroBannerAspectRatio === '3:1' ? 'aspect-[3/1]' :
-                  settings.heroBannerAspectRatio === '4:3' ? 'aspect-[4/3]' : 'aspect-[21/9] min-h-[320px] sm:min-h-[380px]'
+                  settings.heroBannerAspectRatio === '16:9' ? 'min-h-[480px] sm:min-h-[420px] md:min-h-[380px] lg:aspect-video' :
+                  settings.heroBannerAspectRatio === '3:1' ? 'min-h-[480px] sm:min-h-[420px] md:min-h-[380px] lg:aspect-[3/1]' :
+                  settings.heroBannerAspectRatio === '4:3' ? 'min-h-[480px] sm:min-h-[420px] md:min-h-[380px] lg:aspect-[4/3]' : 
+                  'min-h-[500px] sm:min-h-[440px] md:min-h-[400px] lg:min-h-[380px] lg:aspect-[21/9]'
                 }`}
               >
                 {/* Crossfading Hero Banner Images (Carousel or Static) */}
@@ -246,47 +247,47 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
 
                 {/* High Contrast Gradient Overlay */}
                 <div 
-                  className="absolute inset-0 bg-gradient-to-r from-gov-navy-950 via-gov-navy-950/80 to-transparent flex flex-col justify-center p-6 sm:p-10 lg:p-14"
+                  className="absolute inset-0 bg-gradient-to-r from-gov-navy-950 via-gov-navy-950/85 to-gov-navy-950/40"
                   style={{
                     opacity: (settings.heroBannerOverlayOpacity !== undefined ? settings.heroBannerOverlayOpacity : 60) / 100
                   }}
                 />
 
-                {/* Content Inside Panoramic Hero */}
-                <div className="absolute inset-0 flex flex-col justify-center p-6 sm:p-10 lg:p-14 text-white z-10">
-                  <div className="max-w-3xl space-y-4">
+                {/* Content Inside Panoramic Hero (With safe padding & spacing on mobile/tablet) */}
+                <div className="absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-14 pb-16 sm:pb-12 text-white z-10 overflow-y-auto">
+                  <div className="max-w-3xl space-y-3 sm:space-y-4 my-auto">
                     {/* Top Badges */}
-                    <div className="flex flex-wrap items-center gap-2 animate-hero-badges">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gov-amber-500 text-gov-navy-950 text-xs font-black shadow-xs">
-                        <span className="w-2 h-2 rounded-full bg-gov-navy-950 animate-pulse"></span>
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 animate-hero-badges">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-gov-amber-500 text-gov-navy-950 text-[10px] sm:text-xs font-black shadow-xs">
+                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-gov-navy-950 animate-pulse"></span>
                         <span>{language === 'hi' ? 'उत्तर प्रदेश शासन' : 'Govt. of Uttar Pradesh'}</span>
                       </div>
-                      <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/30 text-xs font-bold">
-                        <GraduationCap className="w-3.5 h-3.5 text-gov-amber-300" />
+                      <div className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/30 text-[10px] sm:text-xs font-bold">
+                        <GraduationCap className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-gov-amber-300" />
                         <span>{language === 'hi' ? 'कक्षा 1 से 8 (कंपोजिट)' : 'Classes 1–8 (Composite)'}</span>
                       </div>
-                      <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/30 backdrop-blur-md text-emerald-200 border border-emerald-400/40 text-xs font-bold">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>{language === 'hi' ? '100% नि:शुल्क परिषदीय शिक्षा' : '100% Free Govt. Education'}</span>
+                      <div className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-emerald-500/30 backdrop-blur-md text-emerald-200 border border-emerald-400/40 text-[10px] sm:text-xs font-bold">
+                        <CheckCircle2 className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-emerald-400" />
+                        <span>{language === 'hi' ? '100% नि:शुल्क शिक्षा' : '100% Free Education'}</span>
                       </div>
-                      <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-gov-navy-900/80 text-gov-amber-300 text-xs font-mono font-bold border border-gov-navy-700">
+                      <span className="hidden md:inline-flex px-2.5 py-1 rounded-full bg-gov-navy-900/80 text-gov-amber-300 text-xs font-mono font-bold border border-gov-navy-700">
                         UDISE: {settings.schoolCode}
                       </span>
                     </div>
 
                     {/* Headlines with CSS Entry Animation */}
-                    <div className="space-y-2">
-                      <div className="text-xs sm:text-sm font-black uppercase tracking-widest text-gov-amber-400 animate-hero-headline">
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className="text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest text-gov-amber-400 animate-hero-headline">
                         {language === 'hi' ? 'बेसिक शिक्षा परिषद, उत्तर प्रदेश' : 'Department of Basic Education, Govt. of UP'}
                       </div>
-                      <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-md animate-hero-headline">
+                      <h1 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-snug sm:leading-tight drop-shadow-md animate-hero-headline">
                         {language === 'hi' 
                           ? (settings.heroBannerHeadlineHi || settings.schoolNameHi)
                           : (settings.heroBannerHeadlineEn || settings.schoolName)}
                       </h1>
-                      <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-200 pt-0.5 animate-hero-subtitle">
-                        <MapPin className="w-4 h-4 text-gov-amber-400 shrink-0" />
-                        <span>
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs md:text-sm font-semibold text-slate-200 pt-0.5 animate-hero-subtitle">
+                        <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gov-amber-400 shrink-0" />
+                        <span className="line-clamp-2 sm:line-clamp-1">
                           {language === 'hi'
                             ? (settings.heroBannerSubtitleHi || `ग्राम: ${settings.villageHi || 'हरसिंहपुर गोवा'} • विकास खंड: ${settings.blockHi || 'शमसाबाद'} • जनपद: ${settings.districtHi || 'फर्रुखाबाद'} (उ.प्र.)`)
                             : (settings.heroBannerSubtitleEn || `Village: ${settings.village || 'Harsinghpur Gova'} • Block: ${settings.block || 'Shamsabad'} • District: ${settings.district || 'Farrukhabad'}, UP`)}
@@ -295,19 +296,19 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                     </div>
 
                     {/* CTAs */}
-                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
                       <button
                         onClick={() => onNavigate('admission')}
-                        className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gov-amber-500 text-gov-navy-950 font-black hover:bg-gov-amber-400 shadow-lg shadow-gov-amber-500/30 transition-all text-xs sm:text-sm cursor-pointer transform hover:-translate-y-0.5"
+                        className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-gov-amber-500 text-gov-navy-950 font-black hover:bg-gov-amber-400 shadow-lg shadow-gov-amber-500/30 transition-all text-xs sm:text-sm cursor-pointer transform hover:-translate-y-0.5"
                       >
                         <GraduationCap className="w-4 h-4" />
                         <span>{language === 'hi' ? 'नि:शुल्क प्रवेश प्रक्रिया' : 'Free Admission'}</span>
-                        <ArrowRight className="w-4 h-4" />
+                        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
 
                       <button
                         onClick={() => onNavigate('schemes')}
-                        className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md transition-all text-xs sm:text-sm cursor-pointer"
+                        className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md transition-all text-xs sm:text-sm cursor-pointer"
                       >
                         <Gift className="w-4 h-4 text-emerald-200" />
                         <span>{language === 'hi' ? 'डीबीटी व योजनाएं' : 'Govt. Schemes'}</span>
@@ -322,24 +323,24 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                     <button
                       type="button"
                       onClick={handlePrevSlide}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 cursor-pointer shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-105"
+                      className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 cursor-pointer shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-105"
                       aria-label="Previous Slide"
                       title={language === 'hi' ? 'पिछली फोटो' : 'Previous Slide'}
                     >
-                      <ChevronLeft className="w-5 h-5" />
+                      <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                     <button
                       type="button"
                       onClick={handleNextSlide}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 cursor-pointer shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-105"
+                      className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 cursor-pointer shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-105"
                       aria-label="Next Slide"
                       title={language === 'hi' ? 'अगली फोटो' : 'Next Slide'}
                     >
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
 
                     {/* Carousel Bottom Indicator Dots & Controls */}
-                    <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-lg">
+                    <div className="absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 z-20 flex items-center gap-1.5 sm:gap-2 bg-slate-950/80 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white/20 shadow-lg">
                       <button
                         type="button"
                         onClick={() => setIsAutoPlaying(p => !p)}
@@ -347,24 +348,24 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                         title={isAutoPlaying ? 'Pause Auto-Rotation' : 'Resume Auto-Rotation'}
                         aria-label={isAutoPlaying ? 'Pause' : 'Play'}
                       >
-                        {isAutoPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                        {isAutoPlaying ? <Pause className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
                       </button>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1 sm:gap-1.5">
                         {carouselImages.map((_, idx) => (
                           <button
                             key={idx}
                             type="button"
                             onClick={() => setCurrentSlideIndex(idx)}
                             aria-label={`Go to slide ${idx + 1}`}
-                            className={`h-2 rounded-full transition-all cursor-pointer ${
-                              idx === currentSlideIndex ? 'w-5 bg-gov-amber-400' : 'w-2 bg-white/40 hover:bg-white/70'
+                            className={`h-1.5 sm:h-2 rounded-full transition-all cursor-pointer ${
+                              idx === currentSlideIndex ? 'w-4 sm:w-5 bg-gov-amber-400' : 'w-1.5 sm:w-2 bg-white/40 hover:bg-white/70'
                             }`}
                           />
                         ))}
                       </div>
 
-                      <span className="text-[10px] font-mono text-white/90 pl-1 border-l border-white/20">
+                      <span className="text-[9px] sm:text-[10px] font-mono text-white/90 pl-1 border-l border-white/20">
                         {currentSlideIndex + 1}/{carouselImages.length}
                       </span>
                     </div>
@@ -375,7 +376,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
             </div>
 
             {/* Quick Institutional Verified Metric Strip Below Panoramic Banner */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-black shrink-0">
                   <Building2 className="w-5 h-5" />
@@ -987,6 +988,38 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
               </button>
 
               <button
+                onClick={() => onNavigate('login-student')}
+                className="w-full text-left p-2 rounded-xl bg-amber-50/70 hover:bg-amber-100/80 transition-colors flex items-center justify-between group cursor-pointer border border-amber-200/60"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 group-hover:text-gov-amber-800 transition-colors truncate flex items-center gap-1.5">
+                    <GraduationCap className="w-3.5 h-3.5 text-gov-amber-700" />
+                    <span>{language === 'hi' ? 'छात्र एवं अभिभावक लॉगिन' : 'Student & Parent Login'}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 truncate">
+                    {language === 'hi' ? 'उपस्थिति, अंकपत्र व डीबीटी' : 'Attendance & Progress Report'}
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gov-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+              </button>
+
+              <button
+                onClick={() => onNavigate('login-teacher')}
+                className="w-full text-left p-2 rounded-xl bg-blue-50/70 hover:bg-blue-100/80 transition-colors flex items-center justify-between group cursor-pointer border border-blue-200/60"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 group-hover:text-blue-800 transition-colors truncate flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-blue-700" />
+                    <span>{language === 'hi' ? 'शिक्षक एवं स्टॉफ लॉगिन' : 'Teacher & Staff Login'}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 truncate">
+                    {language === 'hi' ? 'उपस्थिति अंकन व एमडीएम' : 'Mark Attendance & MDM Log'}
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-blue-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+              </button>
+
+              <button
                 onClick={() => onNavigate('faq')}
                 className="w-full text-left p-2 rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-between group cursor-pointer"
               >
@@ -1330,7 +1363,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
               </div>
             </div>
             <button
-              onClick={() => onOpenPortal()}
+              onClick={() => onNavigate('login-student')}
               className="px-4 py-2 rounded-xl bg-white text-gov-navy-950 hover:bg-amber-100 text-xs font-extrabold shrink-0 transition-all cursor-pointer shadow-sm"
             >
               {language === 'hi' ? 'छात्र पोर्टल में लॉगिन करें' : 'Student Portal Login'}
