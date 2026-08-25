@@ -23,6 +23,8 @@ import { FAQPage } from './components/public/FAQPage';
 import { GalleryPage } from './components/public/GalleryPage';
 import { PublicNoticesPage } from './components/public/PublicNoticesPage';
 import { ContactPage } from './components/public/ContactPage';
+import { ActivitiesPage } from './components/public/ActivitiesPage';
+import { StudentsPage } from './components/public/StudentsPage';
 import { LoginPage } from './components/public/LoginPage';
 import { RegisterPage } from './components/public/RegisterPage';
 
@@ -217,9 +219,11 @@ const SchoolAppInner: React.FC = () => {
           )}
           {activePublicView === 'about' && <AboutPage />}
           {activePublicView === 'faculty' && <FacultyPage onNavigate={handleNavigatePage} />}
-          {activePublicView === 'classes' && <ClassesCurriculumPage />}
+          {(activePublicView === 'classes' || activePublicView === 'academics') && <ClassesCurriculumPage />}
           {activePublicView === 'statistics' && <StatisticsPage />}
           {activePublicView === 'facilities' && <FacilitiesPage />}
+          {activePublicView === 'students' && <StudentsPage onNavigate={handleNavigatePage} />}
+          {activePublicView === 'activities' && <ActivitiesPage onNavigate={handleNavigatePage} />}
           {activePublicView === 'schemes' && <GovernmentSchemesPage />}
           {activePublicView === 'admission' && <AdmissionPage />}
           {activePublicView === 'documents' && <PublicDocumentsPage />}

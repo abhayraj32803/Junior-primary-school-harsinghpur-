@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSchool } from '../../../context/SchoolContext';
+import { useAuth } from '../../../context/AuthContext';
 import { 
   Users, 
   UserCheck, 
@@ -21,7 +22,12 @@ export const AdminFacultyHub: React.FC<AdminFacultyHubProps> = ({
   onNavigateTab
 }) => {
   const { language, teachers } = useSchool();
+  const { registrationRequests } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<FacultySubTab>(initialSubTab);
+
+  const pendingTeacherRequestsCount = useMemo(() => {
+    return registrationRequests.filter(r => r.requestedRole === 'teacher' && r.status === 'PENDING').length;
+  }, [registrationRequests]);
 
   useEffect(() => {
     if (initialSubTab) {
@@ -32,10 +38,10 @@ export const AdminFacultyHub: React.FC<AdminFacultyHubProps> = ({
   const subTabs = [
     {
       id: 'teachers' as FacultySubTab,
-      labelEn: 'Faculty & Staff Directory',
-      labelHi: 'शिक्षक एवं कार्मिक पंजिका',
+      labelEn: 'Faculty Directory & Approvals',
+      labelHi: 'शिक्षक पंजिका व ऑनलाइन अनुमोदन',
       icon: Users,
-      badge: `${teachers.length}`
+      badge: pendingTeacherRequestsCount > 0 ? `${pendingTeacherRequestsCount} Pending` : `${teachers.length}`
     },
     {
       id: 'assignments' as FacultySubTab,

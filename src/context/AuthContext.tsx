@@ -1866,6 +1866,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAllUsers(prev => [...prev.filter(u => u.uid !== newUid && u.username.toUpperCase() !== finalUsername), newProfile]);
     setDoc(doc(db, 'users', newUid), newProfile, { merge: true }).catch(() => {});
 
+    // If teacher role, also ensure teacher record is stored in Firestore 'teachers' collection
+    if (req.requestedRole === 'teacher') {
+      const teacherRecord = {
+        id: linkedEntityId,
+        uid: newUid,
+        employeeId: req.employeeId || finalUsername,
+        name: req.fullName || newProfile.name,
+        email: req.email || newProfile.email || '',
+        phone: req.phone || newProfile.phone || '',
+        qualification: req.qualification || 'B.Ed, TET Qualified',
+        designation: req.designation || newProfile.designation || 'Assistant Teacher (Primary)',
+        specialization: req.specialization || req.subject || 'Elementary Education',
+        joiningDate: new Date().toISOString().split('T')[0],
+        address: 'School Residential Campus, District',
+        photoURL: existing?.photoURL || '',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      setDoc(doc(db, 'teachers', linkedEntityId), teacherRecord, { merge: true }).catch(() => {});
+      try {
+        const localTeachersStr = localStorage.getItem('sms_gov_teachers');
+        const localTeachers = localTeachersStr ? JSON.parse(localTeachersStr) : [];
+        const filtered = Array.isArray(localTeachers) ? localTeachers.filter((t: any) => t.id !== linkedEntityId && t.employeeId !== req.employeeId) : [];
+        localStorage.setItem('sms_gov_teachers', JSON.stringify([...filtered, teacherRecord]));
+      } catch (e) {}
+    }
+
     if (userProfile?.uid === newUid) {
       setUserProfile(newProfile);
     }

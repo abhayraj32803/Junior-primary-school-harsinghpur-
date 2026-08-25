@@ -562,6 +562,51 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         });
       }
+    } else if (userProfile && userProfile.role === 'teacher') {
+      const teacherName = (userProfile.fullName || userProfile.name || '').trim();
+      if (teacherName) {
+        setTeachers(prev => {
+          const index = prev.findIndex(t =>
+            (userProfile.uid && (t.id === userProfile.uid || t.id === userProfile.linkedEntityId)) ||
+            (userProfile.employeeId && t.employeeId && t.employeeId.toUpperCase() === userProfile.employeeId.toUpperCase()) ||
+            (userProfile.username && t.employeeId && t.employeeId.toUpperCase() === userProfile.username.toUpperCase()) ||
+            (userProfile.email && t.email && t.email.toLowerCase() === userProfile.email.toLowerCase())
+          );
+
+          if (index >= 0) {
+            const updated = [...prev];
+            updated[index] = {
+              ...updated[index],
+              name: teacherName,
+              email: userProfile.email || updated[index].email,
+              phone: userProfile.phone || updated[index].phone,
+              designation: userProfile.designation || updated[index].designation || 'Assistant Teacher (Primary)',
+              qualification: userProfile.qualification || updated[index].qualification || 'B.Ed, TET Qualified',
+              specialization: userProfile.specialization || userProfile.subject || updated[index].specialization || 'Elementary Education',
+              photoURL: userProfile.photoURL || userProfile.profilePhoto || updated[index].photoURL,
+              status: 'active'
+            };
+            return updated;
+          } else {
+            const newTeacherRecord: Teacher = {
+              id: userProfile.linkedEntityId || userProfile.uid || `tch-${Date.now()}`,
+              employeeId: userProfile.employeeId || userProfile.username || `TCH-${Date.now().toString().slice(-4)}`,
+              name: teacherName,
+              email: userProfile.email || '',
+              phone: userProfile.phone || '',
+              qualification: userProfile.qualification || 'B.Ed, TET Qualified',
+              designation: userProfile.designation || 'Assistant Teacher (Primary)',
+              specialization: userProfile.specialization || userProfile.subject || 'Elementary Education',
+              joiningDate: userProfile.createdAt ? userProfile.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+              address: 'School Residential Campus, District',
+              photoURL: userProfile.photoURL || userProfile.profilePhoto || '',
+              status: 'active',
+              createdAt: userProfile.createdAt || new Date().toISOString()
+            };
+            return [...prev, newTeacherRecord];
+          }
+        });
+      }
     }
   }, [userProfile]);
 

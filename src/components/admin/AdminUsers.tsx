@@ -43,7 +43,7 @@ export const AdminUsers: React.FC = () => {
     approveRegistrationRequest,
     rejectRegistrationRequest
   } = useAuth();
-  const { settings, students, addStudent } = useSchool();
+  const { settings, students, addStudent, teachers, addTeacher } = useSchool();
 
   // Active Sub-Tab: 'users' | 'approvals' | 'security'
   const [activeTab, setActiveTab] = useState<'users' | 'approvals' | 'security'>('users');
@@ -178,6 +178,27 @@ export const AdminUsers: React.FC = () => {
             category: (req.category as any) || 'General',
             status: 'active',
             photoURL: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&auto=format&fit=crop&q=80'
+          });
+        }
+      } else if (req.requestedRole === 'teacher') {
+        const existingTeacher = teachers.find(t =>
+          (req.employeeId && t.employeeId?.toLowerCase() === req.employeeId.toLowerCase()) ||
+          (t.name.toLowerCase() === req.fullName.toLowerCase())
+        );
+
+        if (!existingTeacher) {
+          addTeacher({
+            employeeId: req.employeeId || req.preferredUsername,
+            name: req.fullName,
+            email: req.email || '',
+            phone: req.phone || '',
+            designation: req.designation || 'Assistant Teacher (Primary)',
+            qualification: req.qualification || 'B.Ed, TET Qualified',
+            specialization: req.specialization || req.subject || 'Elementary Education',
+            joiningDate: new Date().toISOString().split('T')[0],
+            address: 'School Campus, Farrukhabad UP',
+            photoURL: '',
+            status: 'active'
           });
         }
       }

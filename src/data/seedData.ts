@@ -215,7 +215,57 @@ export const initialSettings: SchoolSettings = {
         createdAt: "2025-04-01T08:00:00.000Z"
       }
     ]
-  }
+  },
+  homepageFacilities: [
+    {
+      id: 'smart-class',
+      nameHi: 'स्मार्ट क्लासरूम (Smart Classroom)',
+      nameEn: 'Smart Classroom',
+      descHi: 'आधुनिक दृश्य-श्रव्य शिक्षा, प्रोजेक्टर, स्मार्ट टीवी व बाला (BaLA) पेंटिंग युक्त हवादार कमरे।',
+      descEn: 'Audio-visual learning tools, smart screen, and BaLA instructional wall arts.',
+      icon: 'Building2'
+    },
+    {
+      id: 'library',
+      nameHi: 'पुस्तकालय (Library)',
+      nameEn: 'Library & Reading Corner',
+      descHi: 'कहानियों, बाल साहित्य, ज्ञान-विज्ञान व महापुरुषों की प्रेरणादायक पुस्तकों का समृद्ध संकलन।',
+      descEn: 'Rich collection of children storybooks, science journals, and reading corners.',
+      icon: 'BookOpen'
+    },
+    {
+      id: 'computer-lab',
+      nameHi: 'कंप्यूटर लैब (Computer Lab)',
+      nameEn: 'Computer & ICT Lab',
+      descHi: 'दीक्षा ऐप व मूलभूत डिजिटल साक्षरता हेतु कंप्यूटर व डिजिटल शिक्षण व्यवस्था।',
+      descEn: 'Digital learning tools, Diksha portal access, and fundamental ICT learning.',
+      icon: 'Laptop'
+    },
+    {
+      id: 'playground',
+      nameHi: 'खेल का मैदान (Playground)',
+      nameEn: 'Playground & Sports Kit',
+      descHi: 'सुरक्षित खेल परिसर, फुटबॉल, वॉलीबॉल, बैडमिंटन, कैरम, शतरंज व दैनिक योगाभ्यास।',
+      descEn: 'Spacious campus ground with complete sports kits and daily morning yoga.',
+      icon: 'Trophy'
+    },
+    {
+      id: 'drinking-water',
+      nameHi: 'शुद्ध पेयजल (Drinking Water)',
+      nameEn: 'Clean Drinking Water',
+      descHi: 'जल जीवन मिशन द्वारा संतृप्त समर्सिबल पंप व मल्टीपल स्वच्छ नल व्यवस्था।',
+      descEn: 'Continuous potable water supply through submersible pump and clean handwash units.',
+      icon: 'Droplets'
+    },
+    {
+      id: 'mid-day-meal',
+      nameHi: 'मध्याह्न भोजन (Mid-Day Meal)',
+      nameEn: 'PM-POSHAN Mid-Day Meal',
+      descHi: 'साफ-सुथरे किचन शेड में मेन्यू अनुसार प्रतिदिन ताजा, गर्म व पौष्टिक भोजन व मौसमी फल।',
+      descEn: 'Hygienic hot-cooked nutritious meals, seasonal fruits, and warm milk as per state menu.',
+      icon: 'Utensils'
+    }
+  ]
 };
 
 // Historical Records explicitly isolated from current data

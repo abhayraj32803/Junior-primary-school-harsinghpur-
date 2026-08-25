@@ -95,6 +95,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     return registrationRequests.filter(r => r.requestedRole === 'student' && r.status === 'PENDING').length;
   }, [registrationRequests]);
 
+  const pendingTeacherRequestsCount = useMemo(() => {
+    return registrationRequests.filter(r => r.requestedRole === 'teacher' && r.status === 'PENDING').length;
+  }, [registrationRequests]);
+
   const activeNoticesCount = notices.filter(n => n.status === 'active').length;
 
   // The 6 Consolidated Master Modules (Hubs)
@@ -134,9 +138,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       descHi: 'शिक्षक पंजिका व कार्य आवंटन',
       icon: Users,
       color: 'emerald',
-      badge: `${teachers.length}`,
+      badge: pendingTeacherRequestsCount > 0 ? `${pendingTeacherRequestsCount} New` : `${teachers.length}`,
       subTabs: [
-        { id: 'teachers', labelEn: 'Faculty Directory', labelHi: 'शिक्षक एवं कार्मिक पंजिका', icon: Users },
+        { id: 'teachers', labelEn: 'Faculty Directory & Approvals', labelHi: 'शिक्षक पंजिका व अनुमोदन', icon: Users },
         { id: 'assignments', labelEn: 'Class Allocation', labelHi: 'शिक्षक कार्य आवंटन', icon: UserCheck },
         { id: 'profile', labelEn: 'Headmaster Record', labelHi: 'प्रधानाध्यापिका आधिकारिक रिकॉर्ड', icon: ShieldCheck }
       ]

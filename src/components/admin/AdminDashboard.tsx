@@ -47,6 +47,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
     r => r.requestedRole === 'student' && r.status === 'PENDING'
   ).length;
 
+  const pendingTeacherRequestsCount = registrationRequests.filter(
+    r => r.requestedRole === 'teacher' && r.status === 'PENDING'
+  ).length;
+
   return (
     <div className="space-y-6">
       {/* Top Welcome Banner */}
@@ -101,6 +105,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         </div>
       </div>
 
+      {/* Pending Teacher Approvals Fast-Action Alert Banner */}
+      {pendingTeacherRequestsCount > 0 && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-amber-500/25 to-amber-600/15 border-2 border-amber-400 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm animate-pulse">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-950 bg-amber-200/90 px-2.5 py-0.5 rounded-full border border-amber-300">
+                  {language === 'hi' ? 'शिक्षक अनुमोदन आवश्यक' : 'Teacher Approval Required'}
+                </span>
+                <span className="text-xs font-bold text-amber-900">
+                  {pendingTeacherRequestsCount} {language === 'hi' ? 'नए आवेदन' : 'Pending'}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-amber-950 font-bold mt-0.5">
+                {language === 'hi' 
+                  ? 'नए शिक्षकों ने पोर्टल पर पंजीकरण किया है। प्रोफाइल व लॉगिन अधिकार प्रदान करने हेतु तत्काल स्वीकृत करें।' 
+                  : 'New educators registered online. Review and approve to authorize dashboard access.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigateTab('faculty')}
+            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shrink-0 cursor-pointer shadow-md transition-all flex items-center gap-1.5"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{language === 'hi' ? 'शिक्षक समीक्षा व अनुमोदन' : 'Review & Approve Teachers'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Key Metric Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Students */}
@@ -136,8 +173,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900 mt-2">{activeTeachers.length} {language === 'hi' ? 'शिक्षक' : 'Teachers'}</div>
-          <div className="text-[11px] text-slate-500 font-semibold mt-1">
-            {language === 'hi' ? 'मानव संपदा सत्यापित' : 'Faculty Service Records'}
+          <div className="text-[11px] font-semibold mt-1">
+            {pendingTeacherRequestsCount > 0 ? (
+              <span className="text-amber-600 font-bold flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                <span>{language === 'hi' ? `${pendingTeacherRequestsCount} नए शिक्षक अनुमोदन हेतु` : `${pendingTeacherRequestsCount} Pending Approvals`}</span>
+              </span>
+            ) : (
+              <span className="text-slate-500">{language === 'hi' ? 'मानव संपदा सत्यापित' : 'Faculty Service Records'}</span>
+            )}
           </div>
         </div>
 

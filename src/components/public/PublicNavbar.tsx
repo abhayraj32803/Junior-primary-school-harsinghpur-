@@ -126,200 +126,17 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
   const selectedPage = activePage || currentPage || 'home';
   const handleOpenPortal = onOpenPortal || (() => onNavigate('portal'));
 
-  // IIT Delhi Architecture: 6 Main Navigation Mega-Menus
-  const navPillars = [
-    {
-      id: 'about-pillar',
-      labelEn: 'About Us',
-      labelHi: 'संस्थान परिचय',
-      badge: 'UDISE: 09290205902',
-      items: [
-        { 
-          id: 'about', 
-          labelEn: 'School Profile & History', 
-          labelHi: 'विद्यालय परिचय एवं इतिहास', 
-          icon: Building2, 
-          descEn: 'Official government establishment, UDISE code & leadership', 
-          descHi: 'शासकीय पहचान, UDISE कोड व स्थापना विवरण' 
-        },
-        { 
-          id: 'faculty', 
-          labelEn: 'Faculty & Staff Directory', 
-          labelHi: 'शिक्षक एवं कार्मिक पंजिका', 
-          icon: Users, 
-          descEn: 'Certified teaching staff, qualifications & headmaster', 
-          descHi: 'सत्यापित शिक्षक, योग्यता व पदस्थापन विवरण' 
-        },
-        { 
-          id: 'statistics', 
-          labelEn: 'Institutional Statistics & PTR', 
-          labelHi: 'सांख्यिकी व छात्र-शिक्षक अनुपात', 
-          icon: BarChart3, 
-          descEn: 'Enrollment figures, gender ratio & PTR metrics', 
-          descHi: 'कक्षावार नामांकन, लिंगानुपात व PTR आंकड़े' 
-        },
-        { 
-          id: 'faq', 
-          labelEn: 'Rules & Code of Conduct (FAQ)', 
-          labelHi: 'नियमावली एवं सामान्य प्रश्न (FAQ)', 
-          icon: HelpCircle, 
-          descEn: 'School regulations, guidelines & common questions', 
-          descHi: 'विद्यालयी नियम, आचार संहिता व मार्गदर्शन' 
-        },
-        { 
-          id: 'login-admin', 
-          labelEn: 'Headmaster / Admin ERP Login', 
-          labelHi: 'प्रधानाध्यापक / व्यवस्थापक लॉगिन', 
-          icon: ShieldCheck, 
-          descEn: 'Administrative dashboard, student roster & admissions management', 
-          descHi: 'प्रशासनिक डैशबोर्ड, छात्र पंजिका व नवीन प्रवेश प्रबंधन' 
-        }
-      ]
-    },
-    {
-      id: 'academics-pillar',
-      labelEn: 'Academics',
-      labelHi: 'शिक्षा एवं संकाय',
-      badge: 'NCERT / SCERT',
-      items: [
-        { 
-          id: 'classes', 
-          labelEn: 'Curriculum & Subjects (Classes 1–8)', 
-          labelHi: 'कक्षा 1 से 8 पाठ्यक्रम व विषय', 
-          icon: BookOpen, 
-          descEn: 'Primary & Upper Primary syllabus, learning outcomes', 
-          descHi: 'प्राथमिक व उच्च प्राथमिक विषय एवं अधिगम प्रतिफल' 
-        },
-        { 
-          id: 'documents', 
-          labelEn: 'Academic Calendar & Timetable', 
-          labelHi: 'शैक्षणिक कैलेंडर व समय सारणी', 
-          icon: Calendar, 
-          descEn: 'Govt. holiday list, examinations & annual schedule', 
-          descHi: 'शासकीय अवकाश सूची, परीक्षा कैलेंडर व प्रपत्र' 
-        },
-        { 
-          id: 'login-teacher', 
-          labelEn: 'Faculty & Staff Portal Login', 
-          labelHi: 'शिक्षक एवं स्टॉफ पोर्टल लॉगिन', 
-          icon: Users, 
-          descEn: 'Attendance marking, mid-day meal logging & marks entry', 
-          descHi: 'दैनिक छात्र उपस्थिति, एमडीएम लॉग व परीक्षा अंक प्रविष्टि' 
-        }
-      ]
-    },
-    {
-      id: 'admissions-pillar',
-      labelEn: 'Admissions',
-      labelHi: 'प्रवेश (100% Free)',
-      badge: 'RTE 2009',
-      items: [
-        { 
-          id: 'admission', 
-          labelEn: 'Free Admission Process (RTE 2009)', 
-          labelHi: 'नि:शुल्क प्रवेश प्रक्रिया (RTE 2009)', 
-          icon: GraduationCap, 
-          descEn: 'Zero fee policy, eligibility criteria & application', 
-          descHi: '100% नि:शुल्क प्रवेश, आवश्यक प्रपत्र व ऑनलाइन आवेदन' 
-        },
-        { 
-          id: 'faq', 
-          labelEn: 'Admission Guidelines & FAQs', 
-          labelHi: 'प्रवेश दिशानिर्देश व प्रश्नोत्तरी', 
-          icon: HelpCircle, 
-          descEn: 'Required documents, age eligibility & criteria', 
-          descHi: 'आयु सीमा, आवश्यक दस्तावेज व प्रवेश प्रक्रिया' 
-        }
-      ]
-    },
-    {
-      id: 'student-pillar',
-      labelEn: 'Student Corner',
-      labelHi: 'विद्यार्थी कॉर्नर',
-      badge: 'Welfare & ERP',
-      items: [
-        { 
-          id: 'login-student', 
-          labelEn: 'Student & Parent Portal Login', 
-          labelHi: 'छात्र एवं अभिभावक पोर्टल लॉगिन', 
-          icon: GraduationCap, 
-          descEn: 'View attendance, progress report, DBT status & notices', 
-          descHi: 'दैनिक उपस्थिति, प्रगति पत्र, डीबीटी स्थिति व विद्यालयी सूचनाएं' 
-        },
-        { 
-          id: 'schemes', 
-          labelEn: 'PM-POSHAN (MDM) & DBT ₹1200', 
-          labelHi: 'मध्याह्न भोजन (MDM) व DBT ₹1200', 
-          icon: Gift, 
-          descEn: 'Nutritious daily meals, uniform & bag grant, free books', 
-          descHi: 'दैनिक पौष्टिक भोजन, यूनिफॉर्म/बैग DBT, नि:शुल्क पाठ्यपुस्तक' 
-        },
-        { 
-          id: 'gallery', 
-          labelEn: 'Sports & Cultural Activities', 
-          labelHi: 'खेलकूद एवं सह-पाठ्यचर्या', 
-          icon: ImageIcon, 
-          descEn: 'Bal Sabha, sports meet, yoga & cultural achievements', 
-          descHi: 'बाल सभा, खेल प्रतियोगिताएं, योग व उत्सव' 
-        }
-      ]
-    },
-    {
-      id: 'campus-pillar',
-      labelEn: 'Campus & Facilities',
-      labelHi: 'सुविधाएं एवं परिसर',
-      badge: 'Kayakalp',
-      items: [
-        { 
-          id: 'facilities', 
-          labelEn: 'Campus Infrastructure & Water', 
-          labelHi: 'भौतिक सुविधाएं व नल से जल', 
-          icon: Droplets, 
-          descEn: 'Tap water, smart classes, solar power & sports ground', 
-          descHi: 'जल जीवन मिशन, स्मार्ट क्लास, सोलर व खेल मैदान' 
-        },
-        { 
-          id: 'gallery', 
-          labelEn: 'Photo & Video Campus Tour', 
-          labelHi: 'चित्र एवं वीडियो परिसर भ्रमण', 
-          icon: ImageIcon, 
-          descEn: 'High resolution photos and video clips of campus', 
-          descHi: 'परिसर, कक्षाओं व गतिविधियों का विहंगम दृश्य' 
-        }
-      ]
-    },
-    {
-      id: 'notices-pillar',
-      labelEn: 'Notices & Links',
-      labelHi: 'सूचनाएं व पोर्टल',
-      badge: `${notices.filter(n => n.status === 'active').length} Live`,
-      items: [
-        { 
-          id: 'notices', 
-          labelEn: 'Official Notice Board & Orders', 
-          labelHi: 'शासकीय सूचना पट्ट व शासनादेश', 
-          icon: Bell, 
-          descEn: 'Latest departmental circulars & school announcements', 
-          descHi: 'नवीनतम शासकीय शासनादेश व विद्यालयी सूचनाएं' 
-        },
-        { 
-          id: 'sources', 
-          labelEn: 'UP Education Portals & UDISE+', 
-          labelHi: 'आधिकारिक शिक्षा पोर्टल व UDISE+', 
-          icon: Globe, 
-          descEn: 'Direct links to UDISE+, Prerna, Manav Sampada & Diksha', 
-          descHi: 'UDISE+, बेसिक शिक्षा, मिशन प्रेरणा, दीक्षा पोर्टल' 
-        },
-        { 
-          id: 'contact', 
-          labelEn: 'Contact Directory & Map', 
-          labelHi: 'संपर्क निर्देशिका व मैप', 
-          icon: Phone, 
-          descEn: 'School location, timings & emergency helplines', 
-          descHi: 'विद्यालय पता, कार्यालय समय व आपातकालीन हेल्पलाइन' 
-        }
-      ]
-    }
+  // 9 Requested Header Menu Items
+  const primaryMenuItems = [
+    { id: 'home', labelEn: 'Home', labelHi: 'Home', icon: Building2 },
+    { id: 'about', labelEn: 'About Us', labelHi: 'About Us', icon: School },
+    { id: 'classes', labelEn: 'Academics', labelHi: 'Academics', icon: BookOpen },
+    { id: 'faculty', labelEn: 'Teachers', labelHi: 'Teachers', icon: Users },
+    { id: 'facilities', labelEn: 'Facilities', labelHi: 'Facilities', icon: Droplets },
+    { id: 'activities', labelEn: 'Activities', labelHi: 'Activities', icon: Sparkles },
+    { id: 'notices', labelEn: 'Notices', labelHi: 'Notices', icon: Bell },
+    { id: 'gallery', labelEn: 'Gallery', labelHi: 'Gallery', icon: ImageIcon },
+    { id: 'contact', labelEn: 'Contact', labelHi: 'Contact', icon: Phone }
   ];
 
   const handleNavClick = (pageId: string) => {
@@ -515,7 +332,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
         </div>
 
         {/* National Tricolor Government Accent Line */}
-        <div className="h-1 w-full bg-gradient-to-r from-orange-500 via-white to-emerald-600" />
+        <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-white to-emerald-600 shadow-xs" />
 
         {/* 2. MAIN INSTITUTIONAL MASTHEAD / BRANDING (IIT DELHI FORMAT - FULLY RESPONSIVE AUTO-HEIGHT) */}
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -544,28 +361,28 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 onClick={() => handleNavClick('home')}
                 className="flex items-center gap-2.5 sm:gap-4 text-left focus:outline-hidden group min-w-0 flex-1 cursor-pointer"
               >
-                {/* Government School Emblem */}
-                <div className="w-11 h-11 sm:w-13 sm:h-13 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-gov-amber-500 via-amber-600 to-amber-700 p-0.5 shadow-md group-hover:scale-105 transition-transform shrink-0">
+                {/* Government School Emblem with Glowing Golden Ring */}
+                <div className="w-11 h-11 sm:w-13 sm:h-13 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 p-0.5 shadow-md group-hover:scale-105 transition-transform shrink-0 ring-2 ring-amber-400/40">
                   <div className="w-full h-full bg-gov-navy-950 rounded-[14px] flex items-center justify-center text-gov-amber-400">
                     <School className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-gov-amber-400" />
                   </div>
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black tracking-wider text-gov-amber-700 uppercase flex items-center gap-1 sm:gap-1.5 truncate">
+                  <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black tracking-wider text-amber-700 uppercase flex items-center gap-1 sm:gap-1.5 truncate">
                     <span>{language === 'hi' ? 'बेसिक शिक्षा परिषद, उत्तर प्रदेश' : 'Basic Education Dept, UP'}</span>
                     <span className="hidden sm:inline">•</span>
-                    <span className="hidden sm:inline text-emerald-700 font-bold">RTE 2009 Free</span>
+                    <span className="hidden sm:inline text-emerald-700 font-black">RTE 2009 Free</span>
                   </div>
-                  <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-black text-gov-navy-950 tracking-tight leading-tight group-hover:text-gov-amber-600 transition-colors line-clamp-1 sm:line-clamp-none">
+                  <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-black text-gov-navy-950 tracking-tight leading-tight group-hover:text-amber-600 transition-colors line-clamp-1 sm:line-clamp-none">
                     {language === 'hi' ? settings.schoolNameHi : settings.schoolName}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-slate-600 font-medium flex items-center gap-1.5 sm:gap-2 mt-0.5 flex-wrap">
+                  <div className="text-[10px] sm:text-xs text-slate-600 font-semibold flex items-center gap-1.5 sm:gap-2 mt-0.5 flex-wrap">
                     <span>{language === 'hi' ? 'विकास खंड: शमसाबाद' : 'Block: Shamsabad'}</span>
                     <span>•</span>
                     <span>{language === 'hi' ? 'जनपद: फर्रुखाबाद' : 'District: Farrukhabad'}</span>
                     <span className="hidden md:inline">•</span>
-                    <span className="hidden md:inline font-mono font-bold text-gov-navy-900">UDISE: {settings.schoolCode}</span>
+                    <span className="hidden md:inline font-mono font-bold text-slate-900 bg-amber-100/80 px-1.5 py-0.2 rounded border border-amber-300">UDISE: {settings.schoolCode}</span>
                   </div>
                 </div>
               </button>
@@ -581,15 +398,15 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 title="Search website (Ctrl+K)"
                 id="btn-nav-search"
               >
-                <Search className="w-3.5 h-3.5 text-gov-amber-600" />
+                <Search className="w-3.5 h-3.5 text-amber-600" />
                 <span className="text-xs hidden lg:inline">{language === 'hi' ? 'खोजें...' : 'Search...'}</span>
                 <kbd className="hidden lg:inline-block px-1.5 py-0.2 bg-white border border-slate-300 rounded text-[9px] text-slate-500 font-mono">⌘K</kbd>
               </button>
 
-              {/* Free Admission CTA Button */}
+              {/* Free Admission CTA Button with Vibrant Gradient */}
               <button
                 onClick={() => handleNavClick('admission')}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md shadow-emerald-600/20 shrink-0 whitespace-nowrap"
+                className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4.5 py-1.5 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all cursor-pointer shadow-md shadow-emerald-600/30 hover:shadow-lg hover:shadow-emerald-600/40 hover:-translate-y-0.5 shrink-0 whitespace-nowrap"
                 title="RTE 2009 Free Admissions"
                 id="btn-nav-admissions"
               >
@@ -611,111 +428,48 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
           </div>
         </div>
 
-        {/* 3. PRIMARY NAVIGATION BAR (IIT DELHI MEGA MENU HIERARCHY) */}
+        {/* 3. PRIMARY NAVIGATION BAR (OFFICIAL 10 MENU ITEMS) */}
         <div className="hidden xl:block bg-gov-navy-900 border-t border-gov-navy-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex items-center justify-between">
               
-              <div className="flex items-center gap-1">
-                {/* Home Tab */}
-                <button
-                  onClick={() => handleNavClick('home')}
-                  className={`px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                    selectedPage === 'home'
-                      ? 'bg-gov-amber-500 text-gov-navy-950 shadow-inner'
-                      : 'text-white hover:bg-gov-navy-800 hover:text-gov-amber-400'
-                  }`}
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>{language === 'hi' ? 'मुख्य पृष्ठ' : 'Home'}</span>
-                </button>
-
-                {/* 6 Institutional Mega Dropdowns */}
-                {navPillars.map((pillar) => {
-                  const isGroupActive = pillar.items.some(item => item.id === selectedPage);
-                  const isOpen = activeDropdown === pillar.id;
+              {/* 10 Requested Direct Menu Items */}
+              <div className="flex items-center gap-1 py-1.5">
+                {primaryMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = selectedPage === item.id || (item.id === 'classes' && selectedPage === 'academics');
 
                   return (
-                    <div 
-                      key={pillar.id} 
-                      className="relative"
-                      onMouseEnter={() => handleMouseEnter(pillar.id)}
-                      onMouseLeave={handleMouseLeave}
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavClick(item.id)}
+                      className={`px-3.5 py-2 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 rounded-xl ${
+                        isActive
+                          ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-gov-navy-950 font-black shadow-md shadow-amber-500/20'
+                          : 'text-slate-200 hover:bg-gov-navy-800/80 hover:text-amber-300'
+                      }`}
                     >
-                      <button
-                        onClick={() => setActiveDropdown(isOpen ? null : pillar.id)}
-                        className={`px-3.5 py-2.5 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                          isGroupActive
-                            ? 'bg-gov-amber-500 text-gov-navy-950 font-black'
-                            : isOpen 
-                              ? 'bg-gov-navy-800 text-gov-amber-400' 
-                              : 'text-slate-100 hover:bg-gov-navy-800 hover:text-gov-amber-400'
-                        }`}
-                      >
-                        <span>{language === 'hi' ? pillar.labelHi : pillar.labelEn}</span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180 text-gov-amber-400' : 'text-slate-300'}`} />
-                      </button>
-
-                      {/* Mega Dropdown Panel Window */}
-                      {isOpen && (
-                        <div className="absolute top-full left-0 mt-0 w-84 sm:w-96 bg-white rounded-b-2xl shadow-2xl border border-slate-200 p-3 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150 z-50">
-                          {/* Header Pillar Tag */}
-                          <div className="px-3 py-1.5 bg-slate-50 rounded-xl flex items-center justify-between text-[11px] font-bold text-slate-600 border border-slate-100 mb-1">
-                            <span className="text-gov-amber-700 uppercase font-black tracking-wider">
-                              {language === 'hi' ? pillar.labelHi : pillar.labelEn}
-                            </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gov-amber-100 text-gov-amber-900 font-black">
-                              {pillar.badge}
-                            </span>
-                          </div>
-
-                          {pillar.items.map((item) => {
-                            const Icon = item.icon;
-                            const isItemActive = selectedPage === item.id;
-                            return (
-                              <button
-                                key={item.id}
-                                onClick={() => handleNavClick(item.id)}
-                                className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 cursor-pointer group/item ${
-                                  isItemActive
-                                    ? 'bg-gov-amber-50 border border-gov-amber-200 text-gov-navy-950'
-                                    : 'hover:bg-slate-50 text-slate-700 hover:text-gov-navy-900 border border-transparent'
-                                }`}
-                              >
-                                <div className={`p-2 rounded-xl shrink-0 transition-colors ${
-                                  isItemActive 
-                                    ? 'bg-gov-navy-900 text-gov-amber-400 font-bold shadow-xs' 
-                                    : 'bg-slate-100 text-gov-navy-700 group-hover/item:bg-gov-amber-100 group-hover/item:text-gov-amber-800'
-                                }`}>
-                                  <Icon className="w-4 h-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-xs font-bold leading-tight group-hover/item:text-gov-navy-900 transition-colors flex items-center gap-1.5">
-                                    <span>{language === 'hi' ? item.labelHi : item.labelEn}</span>
-                                  </div>
-                                  <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
-                                    {language === 'hi' ? item.descHi : item.descEn}
-                                  </div>
-                                </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover/item:text-gov-amber-500 group-hover/item:translate-x-0.5 transition-all mt-1 shrink-0" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
+                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-gov-navy-950' : 'text-amber-400'}`} />
+                      <span>{language === 'hi' ? item.labelHi : item.labelEn}</span>
+                    </button>
                   );
                 })}
               </div>
 
-              {/* Right Side Info: Live UDISE & Portal Direct Button */}
-              <div className="flex items-center gap-3 py-1 text-xs">
+              {/* Right Side Quick Portals & Schemes */}
+              <div className="flex items-center gap-2 py-1 text-xs">
+                <button
+                  onClick={() => handleNavClick('schemes')}
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-gov-navy-800 to-gov-navy-850 hover:from-gov-navy-700 hover:to-gov-navy-800 text-amber-300 border border-gov-navy-700 text-[11px] font-bold transition-all cursor-pointer shadow-xs"
+                >
+                  {language === 'hi' ? 'शासकीय योजनाएं' : 'Govt Schemes'}
+                </button>
                 <button
                   onClick={() => handleNavClick('sources')}
-                  className="text-slate-300 hover:text-gov-amber-400 text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="text-slate-300 hover:text-amber-400 text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-gov-navy-800 transition-colors cursor-pointer"
                 >
-                  <Globe className="w-3.5 h-3.5 text-gov-amber-400" />
-                  <span>UP Education Portals</span>
+                  <Globe className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{language === 'hi' ? 'शिक्षा पोर्टल' : 'UP Portals'}</span>
                 </button>
               </div>
 
@@ -859,62 +613,60 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               </div>
             )}
 
-            {/* Quick Home button */}
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                handleNavClick('home');
-              }}
-              className={`w-full min-h-[44px] p-3 rounded-xl text-xs font-bold text-left flex items-center justify-between touch-manipulation select-none active:scale-[0.98] transition-all ${
-                selectedPage === 'home' ? 'bg-gov-navy-900 text-gov-amber-400 font-black' : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-gov-amber-500" />
-                <span>{language === 'hi' ? 'मुख्य पृष्ठ (Home)' : 'Home Page'}</span>
+            {/* 10 Direct Menu Items in Mobile Drawer */}
+            <div className="space-y-1 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
+              <div className="px-2 py-1 text-[11px] font-black uppercase tracking-wider text-gov-amber-800">
+                {language === 'hi' ? 'मुख्य पृष्ठ अनुभाग' : 'Main Menu Sections'}
               </div>
-              <ChevronRight className="w-4 h-4" />
-            </button>
+              <div className="grid grid-cols-1 gap-1">
+                {primaryMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isItemActive = selectedPage === item.id || (item.id === 'classes' && selectedPage === 'academics');
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        handleNavClick(item.id);
+                      }}
+                      className={`w-full min-h-[44px] text-left p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all touch-manipulation select-none active:scale-[0.98] ${
+                        isItemActive
+                          ? 'bg-gov-navy-900 text-gov-amber-400 font-extrabold shadow-xs'
+                          : 'text-slate-700 hover:bg-white bg-slate-50/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Icon className={`w-4 h-4 shrink-0 ${isItemActive ? 'text-gov-amber-400' : 'text-gov-amber-700'}`} />
+                        <span className="truncate">{language === 'hi' ? item.labelHi : item.labelEn}</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-            {/* Grouped Mobile Navigation Pillars */}
-            {navPillars.map((pillar) => (
-              <div key={pillar.id} className="space-y-1 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                <div className="flex items-center justify-between px-2 mb-1">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-gov-amber-700">
-                    {language === 'hi' ? pillar.labelHi : pillar.labelEn}
-                  </span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold">
-                    {pillar.badge}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 gap-1">
-                  {pillar.items.map((item) => {
-                    const Icon = item.icon;
-                    const isItemActive = selectedPage === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setMobileMenuOpen(false);
-                          handleNavClick(item.id);
-                        }}
-                        className={`w-full min-h-[44px] text-left p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all touch-manipulation select-none active:scale-[0.98] ${
-                          isItemActive
-                            ? 'bg-gov-navy-900 text-gov-amber-400 font-extrabold shadow-xs'
-                            : 'text-slate-700 hover:bg-white bg-slate-50/50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Icon className={`w-4 h-4 shrink-0 ${isItemActive ? 'text-gov-amber-400' : 'text-gov-navy-800'}`} />
-                          <span className="truncate">{language === 'hi' ? item.labelHi : item.labelEn}</span>
-                        </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+            {/* Additional Official Portals & Schemes */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleNavClick('schemes');
+                }}
+                className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 text-center hover:bg-slate-50 transition-colors"
+              >
+                {language === 'hi' ? 'शासकीय योजनाएं' : 'Govt Schemes'}
+              </button>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleNavClick('sources');
+                }}
+                className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 text-center hover:bg-slate-50 transition-colors"
+              >
+                {language === 'hi' ? 'शिक्षा पोर्टल (UDISE)' : 'UP Portals'}
+              </button>
+            </div>
           </div>
 
           {/* Mobile Language Switcher & Accessibility Footer */}

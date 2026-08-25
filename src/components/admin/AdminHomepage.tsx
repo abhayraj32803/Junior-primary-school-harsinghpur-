@@ -56,6 +56,12 @@ import { AdminVisitorCounterWidget } from './AdminVisitorCounterWidget';
 import { AdminEducationalVideos } from './AdminEducationalVideos';
 import { ImageCropperModal } from '../common/ImageCropperModal';
 import { PRESET_HERO_BANNERS, CropResult } from '../../utils/cropUtils';
+import { 
+  FACILITY_ICON_OPTIONS, 
+  DEFAULT_HOMEPAGE_FACILITIES, 
+  getFacilityIconComponent 
+} from '../../utils/facilityIconUtils';
+import { HomepageFacilityItem } from '../../types';
 
 interface SectionVisibility {
   heroStats: boolean;
@@ -240,7 +246,22 @@ export const AdminHomepage: React.FC = () => {
   const [saveNotice, setSaveNotice] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
-  const [activeSectionTab, setActiveSectionTab] = useState<'all' | 'banner' | 'cta' | 'videos' | 'visibility' | 'visitor'>('all');
+  const [activeSectionTab, setActiveSectionTab] = useState<'all' | 'banner' | 'cta' | 'facilities' | 'videos' | 'visibility' | 'visitor'>('all');
+
+  // Homepage 6 Facilities State
+  const [homepageFacilities, setHomepageFacilities] = useState<HomepageFacilityItem[]>(
+    settings.homepageFacilities && settings.homepageFacilities.length === 6
+      ? settings.homepageFacilities
+      : DEFAULT_HOMEPAGE_FACILITIES
+  );
+
+  const updateFacilityCard = (index: number, field: keyof HomepageFacilityItem, value: string) => {
+    setHomepageFacilities(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
 
   // Keep state in sync if settings update
   useEffect(() => {
@@ -268,6 +289,9 @@ export const AdminHomepage: React.FC = () => {
     if (settings.heroBannerSecondaryCtaTextEn) setSecondaryCtaTextEn(settings.heroBannerSecondaryCtaTextEn);
     if (settings.heroBannerSecondaryCtaLink) setSecondaryCtaLink(settings.heroBannerSecondaryCtaLink);
     if (settings.heroBannerSecondaryCtaIcon) setSecondaryCtaIcon(settings.heroBannerSecondaryCtaIcon);
+    if (settings.homepageFacilities && settings.homepageFacilities.length === 6) {
+      setHomepageFacilities(settings.homepageFacilities);
+    }
   }, [settings]);
 
   // Preview Carousel Auto-Rotation Timer
@@ -483,16 +507,17 @@ export const AdminHomepage: React.FC = () => {
           heroBannerSecondaryCtaTextEn: secondaryCtaTextEn,
           heroBannerSecondaryCtaLink: secondaryCtaLink,
           heroBannerSecondaryCtaIcon: secondaryCtaIcon,
+          homepageFacilities: homepageFacilities,
         },
         {
-          field: 'Homepage Hero Banner, CTA & Carousel Settings',
+          field: 'Homepage Hero Banner, CTA, Carousel & Facilities Settings',
           previousValue: settings.heroBannerCarouselEnabled ? 'Carousel Active' : 'Single Banner',
           newValue: carouselEnabled 
-            ? `Carousel (${carouselImages.length} slides, ${carouselInterval}s interval), CTA: [${ctaTextEn} -> ${ctaLink}]` 
-            : `Single Banner (${bannerRatio}), CTA: [${ctaTextEn} -> ${ctaLink}]`,
+            ? `Carousel (${carouselImages.length} slides, ${carouselInterval}s interval), CTA: [${ctaTextEn} -> ${ctaLink}], Facilities: ${homepageFacilities.map(f => `${f.nameEn} (${f.icon})`).join(', ')}` 
+            : `Single Banner (${bannerRatio}), CTA: [${ctaTextEn} -> ${ctaLink}], Facilities: ${homepageFacilities.map(f => `${f.nameEn} (${f.icon})`).join(', ')}`,
           source: 'Headmaster Administrative Panel',
           status: 'VERIFIED_CURRENT',
-          notes: `Updated hero banner, CTA button ("${ctaTextEn}" -> ${ctaLink}), carousel mode (${carouselEnabled ? 'Enabled' : 'Disabled'}), ${carouselImages.length} slides, and headlines by ${userProfile?.name || 'Admin'}`
+          notes: `Updated hero banner, CTA button ("${ctaTextEn}" -> ${ctaLink}), carousel mode (${carouselEnabled ? 'Enabled' : 'Disabled'}), ${carouselImages.length} slides, and 6 Facilities Icons (${homepageFacilities.map(f => f.icon).join(', ')}) by ${userProfile?.name || 'Admin'}`
         }
       );
 
@@ -573,6 +598,7 @@ export const AdminHomepage: React.FC = () => {
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
         {[
           { id: 'all', labelHi: 'सम्पूर्ण प्रबंधन (All Modules)', labelEn: 'All Modules', icon: Layers },
+          { id: 'facilities', labelHi: 'विद्यालय सुविधाएं (6 कार्ड्स)', labelEn: 'Our Facilities (6 Cards)', icon: Building2, badge: '6 Cards' },
           { id: 'videos', labelHi: 'कक्षा 1-8 शैक्षिक वीडियो', labelEn: 'Educational Videos', icon: Video, badge: 'Class 1-8' },
           { id: 'banner', labelHi: 'बैनर व कैरोसेल', labelEn: 'Banner & Carousel', icon: ImageIcon },
           { id: 'cta', labelHi: 'कॉल-टू-एक्शन (CTA बटन)', labelEn: 'Hero CTA Buttons', icon: MousePointerClick, badge: 'Custom' },
@@ -619,7 +645,7 @@ export const AdminHomepage: React.FC = () => {
         <AdminVisitorCounterWidget />
       )}
 
-      {(activeSectionTab === 'all' || activeSectionTab === 'banner' || activeSectionTab === 'cta' || activeSectionTab === 'visibility') && (
+      {(activeSectionTab === 'all' || activeSectionTab === 'banner' || activeSectionTab === 'cta' || activeSectionTab === 'facilities' || activeSectionTab === 'visibility') && (
         <form onSubmit={handleSave} className="space-y-6">
         
         {/* HERO BANNER IMAGE & LIVE SIMULATION SECTION */}
@@ -1817,6 +1843,290 @@ export const AdminHomepage: React.FC = () => {
           </div>
         </div>
         </>
+        )}
+
+        {/* HOMEPAGE 6 CORE FACILITIES CUSTOMIZATION & ICON PICKER */}
+        {(activeSectionTab === 'all' || activeSectionTab === 'facilities') && (
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black text-slate-900">
+                    {language === 'hi' ? 'विद्यालय की 6 मुख्य सुविधाएं व आइकन चयनकर्ता' : 'Our Facilities (6 Cards & Icon Selector)'}
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    6 Cards Live Sync
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {language === 'hi'
+                    ? 'सार्वजनिक होमपेज पर प्रदर्शित 6 मुख्य सुविधाओं के नाम, विवरण एवं मनपसंद आइकन (पुस्तकालय, कंप्यूटर, खेल, आदि) चुनें।'
+                    : 'Select icons (e.g., library book, computer, playground, drinking water) and edit details for each of the 6 facility cards.'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setHomepageFacilities(DEFAULT_HOMEPAGE_FACILITIES)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+              title="Reset all 6 facilities to default settings"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>{language === 'hi' ? 'डिफ़ॉल्ट रीसेट करें' : 'Reset to Defaults'}</span>
+            </button>
+          </div>
+
+          {/* 6 Facilities Cards List / Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {homepageFacilities.map((facility, index) => {
+              const CurrentIconComp = getFacilityIconComponent(facility.icon);
+              const defaultForThis = DEFAULT_HOMEPAGE_FACILITIES[index] || DEFAULT_HOMEPAGE_FACILITIES[0];
+
+              const cardPresets = [
+                {
+                  border: 'border-amber-200/90 hover:border-amber-400 hover:shadow-amber-500/10',
+                  bg: 'bg-gradient-to-br from-white via-amber-50/40 to-orange-50/20',
+                  iconBg: 'bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600',
+                  iconText: 'text-amber-300',
+                  numBadge: 'bg-amber-500 text-slate-950',
+                  badgeBg: 'bg-amber-100 text-amber-800 border-amber-200',
+                  focusRing: 'focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20',
+                  accentColor: 'text-amber-700'
+                },
+                {
+                  border: 'border-blue-200/90 hover:border-blue-400 hover:shadow-blue-500/10',
+                  bg: 'bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/20',
+                  iconBg: 'bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700',
+                  iconText: 'text-blue-300',
+                  numBadge: 'bg-blue-600 text-white',
+                  badgeBg: 'bg-blue-100 text-blue-800 border-blue-200',
+                  focusRing: 'focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20',
+                  accentColor: 'text-blue-700'
+                },
+                {
+                  border: 'border-emerald-200/90 hover:border-emerald-400 hover:shadow-emerald-500/10',
+                  bg: 'bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/20',
+                  iconBg: 'bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700',
+                  iconText: 'text-emerald-300',
+                  numBadge: 'bg-emerald-600 text-white',
+                  badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                  focusRing: 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20',
+                  accentColor: 'text-emerald-700'
+                },
+                {
+                  border: 'border-purple-200/90 hover:border-purple-400 hover:shadow-purple-500/10',
+                  bg: 'bg-gradient-to-br from-white via-purple-50/40 to-indigo-50/20',
+                  iconBg: 'bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-700',
+                  iconText: 'text-purple-300',
+                  numBadge: 'bg-purple-600 text-white',
+                  badgeBg: 'bg-purple-100 text-purple-800 border-purple-200',
+                  focusRing: 'focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20',
+                  accentColor: 'text-purple-700'
+                },
+                {
+                  border: 'border-cyan-200/90 hover:border-cyan-400 hover:shadow-cyan-500/10',
+                  bg: 'bg-gradient-to-br from-white via-cyan-50/40 to-sky-50/20',
+                  iconBg: 'bg-gradient-to-br from-cyan-500 via-sky-600 to-blue-600',
+                  iconText: 'text-cyan-300',
+                  numBadge: 'bg-cyan-600 text-white',
+                  badgeBg: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+                  focusRing: 'focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20',
+                  accentColor: 'text-cyan-700'
+                },
+                {
+                  border: 'border-rose-200/90 hover:border-rose-400 hover:shadow-rose-500/10',
+                  bg: 'bg-gradient-to-br from-white via-rose-50/40 to-orange-50/20',
+                  iconBg: 'bg-gradient-to-br from-rose-500 via-orange-600 to-amber-600',
+                  iconText: 'text-rose-300',
+                  numBadge: 'bg-rose-600 text-white',
+                  badgeBg: 'bg-rose-100 text-rose-800 border-rose-200',
+                  focusRing: 'focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20',
+                  accentColor: 'text-rose-700'
+                }
+              ];
+
+              const preset = cardPresets[index % cardPresets.length];
+
+              return (
+                <div
+                  key={facility.id || `fac-${index}`}
+                  className={`p-5 sm:p-6 rounded-2xl border-2 ${preset.border} ${preset.bg} card-hover-glow transition-all duration-300 shadow-xs hover:shadow-xl hover:-translate-y-1 space-y-4 relative overflow-hidden group`}
+                >
+                  {/* Card Top Bar with Unified Spacing */}
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-8 h-8 rounded-xl ${preset.numBadge} font-black text-xs flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform`}>
+                        0{index + 1}
+                      </span>
+                      <div>
+                        <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5 leading-snug">
+                          <span>{language === 'hi' ? facility.nameHi : facility.nameEn}</span>
+                        </h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            ID: {facility.id}
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span className={`text-[10px] font-bold ${preset.accentColor}`}>
+                            {language === 'hi' ? `सुविधा कार्ड ०${index + 1}` : `Facility #${index + 1}`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Active Icon Pill Preview */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-amber-300 text-xs font-bold shadow-xs">
+                        <CurrentIconComp className="w-4 h-4 text-amber-400" />
+                        <span className="text-[11px] font-mono tracking-tight">{facility.icon}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = [...homepageFacilities];
+                          updated[index] = { ...defaultForThis };
+                          setHomepageFacilities(updated);
+                        }}
+                        className="p-1.5 rounded-xl hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                        title="Reset this facility card to default"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Icon Picker (Consistent with CTA button styles) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        <span>{language === 'hi' ? 'आइकन चयनकर्ता (Select Facility Icon):' : 'Select Facility Icon:'}</span>
+                      </label>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${preset.badgeBg}`}>
+                        Active: {facility.icon}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-white/95 backdrop-blur-xs rounded-xl border border-slate-200 shadow-inner custom-scrollbar">
+                      {FACILITY_ICON_OPTIONS.map((ico) => {
+                        const IconComponent = ico.icon;
+                        const isSelected = facility.icon === ico.id;
+                        return (
+                          <button
+                            key={`fac-${index}-ico-${ico.id}`}
+                            type="button"
+                            onClick={() => updateFacilityCard(index, 'icon', ico.id)}
+                            className={`px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-slate-900 text-amber-300 border-slate-900 shadow-md ring-2 ring-amber-400/40 font-black scale-105 z-10'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                            }`}
+                            title={language === 'hi' ? `${ico.labelHi} (${ico.id})` : `${ico.label} (${ico.id})`}
+                          >
+                            <IconComponent className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-400' : 'text-slate-600'}`} />
+                            <span className="text-[11px] whitespace-nowrap">{ico.id}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Title Inputs (Hindi & English) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {language === 'hi' ? 'सुविधा का नाम (हिंदी)' : 'Facility Name (Hindi)'}
+                      </label>
+                      <input
+                        type="text"
+                        value={facility.nameHi}
+                        onChange={(e) => updateFacilityCard(index, 'nameHi', e.target.value)}
+                        placeholder="उदा. पुस्तकालय (Library)"
+                        className={`w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 ${preset.focusRing} focus:outline-hidden transition-all`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {language === 'hi' ? 'सुविधा का नाम (अंग्रेजी)' : 'Facility Name (English)'}
+                      </label>
+                      <input
+                        type="text"
+                        value={facility.nameEn}
+                        onChange={(e) => updateFacilityCard(index, 'nameEn', e.target.value)}
+                        placeholder="e.g. Library & Reading Corner"
+                        className={`w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 ${preset.focusRing} focus:outline-hidden transition-all`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description Inputs (Hindi & English) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {language === 'hi' ? 'विवरण (हिंदी)' : 'Description (Hindi)'}
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={facility.descHi}
+                        onChange={(e) => updateFacilityCard(index, 'descHi', e.target.value)}
+                        placeholder="सुविधा का संक्षिप्त हिंदी विवरण..."
+                        className={`w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 ${preset.focusRing} focus:outline-hidden resize-none transition-all`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {language === 'hi' ? 'विवरण (अंग्रेजी)' : 'Description (English)'}
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={facility.descEn}
+                        onChange={(e) => updateFacilityCard(index, 'descEn', e.target.value)}
+                        placeholder="Short English description of facility..."
+                        className={`w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 ${preset.focusRing} focus:outline-hidden resize-none transition-all`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Live Card Mini Preview with Unified Spacing System */}
+                  <div className="p-4 rounded-xl bg-white/95 border border-slate-200/90 shadow-xs space-y-2.5">
+                    <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Public Live Preview</span>
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono font-bold">
+                        Card #{index + 1}
+                      </span>
+                    </div>
+
+                    <div className="flex items-start gap-3.5 pt-1">
+                      <div className={`w-12 h-12 rounded-2xl ${preset.iconBg} text-white flex items-center justify-center shrink-0 shadow-md transition-transform group-hover:scale-105`}>
+                        <CurrentIconComp className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="text-sm font-black text-slate-900 tracking-tight leading-snug truncate">
+                          {language === 'hi' ? facility.nameHi : facility.nameEn}
+                        </div>
+                        <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                          {language === 'hi' ? facility.descHi : facility.descEn}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })}
+          </div>
+
+        </div>
         )}
 
         {/* SECTION VISIBILITY TOGGLES */}

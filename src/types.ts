@@ -297,11 +297,11 @@ export interface Teacher {
   assignedSubjects?: string;
   joiningDate: string;
   status: TeacherStatus;
-  verificationStatus: DataVerificationStatus;
-  source: string;
+  verificationStatus?: DataVerificationStatus;
+  source?: string;
   isHistorical?: boolean;
   photoURL?: string;
-  createdAt: string;
+  createdAt?: string;
   updatedAt?: string;
 }
 
@@ -748,6 +748,19 @@ export interface SchoolSettings {
   teacherVideoAllowedFormats?: string[];
   // Live Notice Ticker & Flash Alerts
   noticeTicker?: NoticeTickerConfig;
+  // Homepage 6 Facilities Customization
+  homepageFacilities?: HomepageFacilityItem[];
+  // Cohesive Portal Theme Palette
+  themePalette?: 'government_professional' | 'tricolor_vibrant' | 'royal_navy' | 'modern_emerald';
+}
+
+export interface HomepageFacilityItem {
+  id: string;
+  nameHi: string;
+  nameEn: string;
+  descHi: string;
+  descEn: string;
+  icon: string; // e.g. 'Building2', 'BookOpen', 'Laptop', 'Trophy', 'Droplets', 'Utensils', 'Monitor', etc.
 }
 
 export interface NoticeTickerAlert {
