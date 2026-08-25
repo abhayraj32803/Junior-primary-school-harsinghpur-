@@ -40,6 +40,7 @@ export const AdminUsers: React.FC = () => {
     deleteUserAccount, 
     resetUserPasswordByAdmin,
     createTeacherDirectly,
+    createStudentDirectly,
     approveRegistrationRequest,
     rejectRegistrationRequest
   } = useAuth();
@@ -71,6 +72,29 @@ export const AdminUsers: React.FC = () => {
   const [tLoading, setTLoading] = useState(false);
   const [tError, setTError] = useState<string | null>(null);
   const [tCreatedResult, setTCreatedResult] = useState<{ username: string; tempPass: string } | null>(null);
+
+  // Direct Student Profile Creation Modal State (Upgraded Profile System)
+  const [isCreateStudentOpen, setIsCreateStudentOpen] = useState(false);
+  const [sName, setSName] = useState('');
+  const [sAdmNo, setSAdmNo] = useState('');
+  const [sClass, setSClass] = useState<number>(1);
+  const [sSection, setSSection] = useState('A');
+  const [sRoll, setSRoll] = useState('1');
+  const [sDob, setSDob] = useState('2017-06-15');
+  const [sGender, setSGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [sFather, setSFather] = useState('');
+  const [sMother, setSMother] = useState('');
+  const [sEmail, setSEmail] = useState('');
+  const [sPhone, setSPhone] = useState('');
+  const [sBloodGroup, setSBloodGroup] = useState('O+');
+  const [sCategory, setSCategory] = useState('General');
+  const [sAddress, setSAddress] = useState('Village Harsinghpur Gova, Post Shamsabad, Dist Farrukhabad UP');
+  const [sTempPassword, setSTempPassword] = useState('GovStudent@2026');
+  const [sSendOtp, setSSendOtp] = useState(true);
+  const [sPreVerified, setSPreVerified] = useState(false);
+  const [sLoading, setSLoading] = useState(false);
+  const [sError, setSError] = useState<string | null>(null);
+  const [sCreatedResult, setSCreatedResult] = useState<{ username: string; tempPass: string; otpSent: boolean } | null>(null);
 
   // Approval / Rejection Modal State
   const [rejectModalReq, setRejectModalReq] = useState<RegistrationRequest | null>(null);
@@ -135,6 +159,86 @@ export const AdminUsers: React.FC = () => {
       setTPhone('');
     } else {
       setTError(res.error || 'Failed to create teacher account.');
+    }
+  };
+
+  const handleDirectCreateStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSError(null);
+    setSLoading(true);
+
+    const res = await createStudentDirectly({
+      fullName: sName.trim(),
+      admissionNumber: sAdmNo.trim(),
+      classNumber: sClass,
+      sectionName: sSection,
+      rollNumber: sRoll.trim(),
+      dateOfBirth: sDob,
+      gender: sGender,
+      fatherName: sFather.trim(),
+      motherName: sMother.trim(),
+      guardianName: sFather.trim() || sMother.trim(),
+      phone: sPhone.trim(),
+      email: sEmail.trim().toLowerCase(),
+      bloodGroup: sBloodGroup,
+      category: sCategory,
+      address: sAddress.trim(),
+      temporaryPassword: sTempPassword.trim(),
+      sendOtpVerification: sSendOtp,
+      markPreVerified: sPreVerified
+    });
+
+    setSLoading(false);
+
+    if (res.success && res.generatedUsername) {
+      setSCreatedResult({
+        username: res.generatedUsername,
+        tempPass: sTempPassword.trim(),
+        otpSent: !!res.otpSent
+      });
+
+      // Also ensure added to students list in school context
+      addStudent({
+        studentId: res.generatedUsername,
+        admissionNumber: sAdmNo.trim(),
+        registrationNumber: `SRN-${new Date().getFullYear()}-${String(sClass).padStart(2, '0')}${sRoll.padStart(2, '0')}`,
+        name: sName.trim(),
+        fullName: sName.trim(),
+        dateOfBirth: sDob,
+        dob: sDob,
+        gender: sGender,
+        classId: `class-${sClass}`,
+        classNumber: sClass,
+        sectionId: `sec-${sClass}-${sSection}`,
+        sectionName: sSection,
+        rollNumber: sRoll.trim(),
+        fatherName: sFather.trim(),
+        motherName: sMother.trim(),
+        guardianName: sFather.trim() || sMother.trim(),
+        mobile: sPhone.trim(),
+        phone: sPhone.trim(),
+        email: sEmail.trim().toLowerCase(),
+        address: sAddress.trim(),
+        village: settings.village || 'Harsinghpur Gova',
+        block: settings.block || 'Shamsabad',
+        district: settings.district || 'Farrukhabad',
+        admissionDate: new Date().toISOString().split('T')[0],
+        category: sCategory as any,
+        bloodGroup: sBloodGroup,
+        status: 'active',
+        photoURL: '',
+        createdAt: new Date().toISOString()
+      });
+
+      // Reset form fields
+      setSName('');
+      setSAdmNo('');
+      setSEmail('');
+      setSPhone('');
+      setSFather('');
+      setSMother('');
+    } else {
+      setSError(res.error || 'Failed to create student profile.');
     }
   };
 
@@ -299,11 +403,24 @@ export const AdminUsers: React.FC = () => {
           </p>
         </div>
 
-        {/* Top Action Button */}
+        {/* Top Action Buttons */}
         <div className="flex flex-wrap gap-2 shrink-0">
           <button
             onClick={() => {
+              setSCreatedResult(null);
+              setSError(null);
+              setIsCreateStudentOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-md transition-colors cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Create Student Profile (नया छात्र बनाएं)</span>
+          </button>
+
+          <button
+            onClick={() => {
               setTCreatedResult(null);
+              setTError(null);
               setIsCreateTeacherOpen(true);
             }}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md transition-colors cursor-pointer"
@@ -943,6 +1060,305 @@ export const AdminUsers: React.FC = () => {
                 className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xs"
               >
                 {tLoading ? 'Provisioning...' : 'Provision Teacher'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Direct Student Profile Creation Modal (Upgraded Profile System) */}
+      <Modal
+        isOpen={isCreateStudentOpen}
+        onClose={() => setIsCreateStudentOpen(false)}
+        title="Direct Student Profile Creation (नया छात्र प्रोफाइल बनाएं)"
+      >
+        {sCreatedResult ? (
+          <div className="space-y-4 py-3 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-slate-900">Student Profile Successfully Created!</h3>
+              <p className="text-xs text-slate-600">
+                छात्र प्रोफाइल एवं उपयोगकर्ता खाता सफलतापूर्वक बन चुका है।
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Generated Username (लॉगिन आईडी):</span>
+                <span className="font-mono font-black text-blue-700">{sCreatedResult.username}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Assigned Temporary Password:</span>
+                <span className="font-mono font-black text-emerald-700">{sCreatedResult.tempPass}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Email Verification Code:</span>
+                <span className="font-semibold text-slate-800">
+                  {sCreatedResult.otpSent ? '6-Digit OTP Dispatched to Email' : 'Pre-verified / Pending manual OTP'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSCreatedResult(null);
+                  setIsCreateStudentOpen(false);
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer"
+              >
+                Close & View Accounts Directory
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleDirectCreateStudent} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+            {sError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+                {sError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Student Full Name *</label>
+                <input
+                  type="text"
+                  value={sName}
+                  onChange={(e) => setSName(e.target.value)}
+                  placeholder="e.g. Aditya Verma"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Admission / SR Number *</label>
+                <input
+                  type="text"
+                  value={sAdmNo}
+                  onChange={(e) => setSAdmNo(e.target.value)}
+                  placeholder="e.g. ADM-2026-089"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold focus:outline-hidden focus:border-blue-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Class (कक्षा) *</label>
+                <select
+                  value={sClass}
+                  onChange={(e) => setSClass(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(c => (
+                    <option key={c} value={c}>Class {c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Section</label>
+                <select
+                  value={sSection}
+                  onChange={(e) => setSSection(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                >
+                  <option value="A">Section A</option>
+                  <option value="B">Section B</option>
+                  <option value="C">Section C</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Roll Number</label>
+                <input
+                  type="text"
+                  value={sRoll}
+                  onChange={(e) => setSRoll(e.target.value)}
+                  placeholder="e.g. 01"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Date of Birth</label>
+                <input
+                  type="date"
+                  value={sDob}
+                  onChange={(e) => setSDob(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Gender</label>
+                <select
+                  value={sGender}
+                  onChange={(e) => setSGender(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                >
+                  <option value="Male">Male (बालक)</option>
+                  <option value="Female">Female (बालिका)</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Father's Name</label>
+                <input
+                  type="text"
+                  value={sFather}
+                  onChange={(e) => setSFather(e.target.value)}
+                  placeholder="e.g. Shri Rajesh Verma"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Mother's Name</label>
+                <input
+                  type="text"
+                  value={sMother}
+                  onChange={(e) => setSMother(e.target.value)}
+                  placeholder="e.g. Smt. Sunita Devi"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Student / Parent Email Address *</label>
+                <input
+                  type="email"
+                  value={sEmail}
+                  onChange={(e) => setSEmail(e.target.value)}
+                  placeholder="student@example.com"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Contact Mobile Number</label>
+                <input
+                  type="tel"
+                  value={sPhone}
+                  onChange={(e) => setSPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                <select
+                  value={sCategory}
+                  onChange={(e) => setSCategory(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                >
+                  <option value="General">General</option>
+                  <option value="OBC">OBC</option>
+                  <option value="SC">SC</option>
+                  <option value="ST">ST</option>
+                  <option value="EWS">EWS</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Blood Group</label>
+                <select
+                  value={sBloodGroup}
+                  onChange={(e) => setSBloodGroup(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                >
+                  <option value="O+">O+</option>
+                  <option value="A+">A+</option>
+                  <option value="B+">B+</option>
+                  <option value="AB+">AB+</option>
+                  <option value="O-">O-</option>
+                  <option value="A-">A-</option>
+                  <option value="B-">B-</option>
+                  <option value="AB-">AB-</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Residential Address</label>
+              <input
+                type="text"
+                value={sAddress}
+                onChange={(e) => setSAddress(e.target.value)}
+                placeholder="Village, Post, District"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Initial Temporary Password *</label>
+              <input
+                type="text"
+                value={sTempPassword}
+                onChange={(e) => setSTempPassword(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-blue-800 focus:outline-hidden focus:border-blue-500"
+                required
+              />
+            </div>
+
+            {/* Verification Toggles */}
+            <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 space-y-2">
+              <label className="flex items-center gap-2 text-xs font-bold text-blue-900 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sSendOtp}
+                  disabled={sPreVerified}
+                  onChange={(e) => setSSendOtp(e.target.checked)}
+                  className="rounded text-blue-600 focus:ring-0"
+                />
+                <span>ईमेल पर तुरंत 6-अंकों का सत्यापन कोड (OTP) भेजें (Dispatch 6-Digit OTP)</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sPreVerified}
+                  onChange={(e) => {
+                    setSPreVerified(e.target.checked);
+                    if (e.target.checked) setSSendOtp(false);
+                  }}
+                  className="rounded text-emerald-600 focus:ring-0"
+                />
+                <span>Mark Email as Pre-Verified (प्रशासक द्वारा पूर्व-सत्यापित)</span>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsCreateStudentOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={sLoading}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs shadow-xs cursor-pointer"
+              >
+                {sLoading ? 'Creating Profile...' : 'Create Student Profile'}
               </button>
             </div>
           </form>

@@ -200,6 +200,52 @@ const SchoolAppInner: React.FC = () => {
   if (!isAuthenticated || publicPage !== 'portal') {
     const activePublicView = (!isAuthenticated && publicPage === 'portal') ? 'login' : publicPage;
 
+    // Dedicated Full-Screen Login Portal (100% viewport coverage on mobile, zero outer white margins, seamless touch scaling)
+    if (activePublicView === 'login' || activePublicView.startsWith('login-')) {
+      const initialRole = 
+        activePublicView === 'login-teacher' ? 'teacher' :
+        activePublicView === 'login-admin' ? 'admin' : 'student';
+
+      return (
+        <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 flex flex-col justify-center selection:bg-amber-500 selection:text-slate-950">
+          <LoginPage 
+            initialRole={initialRole}
+            onSuccess={() => handleNavigatePage('portal')} 
+            onLoginSuccess={() => handleNavigatePage('portal')} 
+            onNavigateHome={() => handleNavigatePage('home')} 
+            onNavigateRegister={() => handleNavigatePage('register')}
+          />
+          {/* Global Security & Password Action Modals */}
+          <ResetPasswordActionModal 
+            onSuccessLogin={(email, newPass) => {
+              handleNavigatePage('login');
+            }} 
+          />
+          <ForcePasswordChangeModal />
+        </div>
+      );
+    }
+
+    // Dedicated Full-Screen Registration Portal
+    if (activePublicView === 'register') {
+      return (
+        <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 flex flex-col justify-center selection:bg-amber-500 selection:text-slate-950">
+          <RegisterPage 
+            onSuccess={() => handleNavigatePage('portal')}
+            onNavigateLogin={() => handleNavigatePage('login')}
+            onNavigateHome={() => handleNavigatePage('home')}
+          />
+          {/* Global Security & Password Action Modals */}
+          <ResetPasswordActionModal 
+            onSuccessLogin={(email, newPass) => {
+              handleNavigatePage('login');
+            }} 
+          />
+          <ForcePasswordChangeModal />
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
         <PublicNavbar
@@ -232,49 +278,6 @@ const SchoolAppInner: React.FC = () => {
           {activePublicView === 'gallery' && <GalleryPage onNavigate={handleNavigatePage} />}
           {activePublicView === 'notices' && <PublicNoticesPage />}
           {activePublicView === 'contact' && <ContactPage />}
-          {(activePublicView === 'login' || activePublicView === 'portal') && (
-            <LoginPage 
-              initialRole="student"
-              onSuccess={() => handleNavigatePage('portal')} 
-              onLoginSuccess={() => handleNavigatePage('portal')} 
-              onNavigateHome={() => handleNavigatePage('home')} 
-              onNavigateRegister={() => handleNavigatePage('register')}
-            />
-          )}
-          {activePublicView === 'login-student' && (
-            <LoginPage 
-              initialRole="student"
-              onSuccess={() => handleNavigatePage('portal')} 
-              onLoginSuccess={() => handleNavigatePage('portal')} 
-              onNavigateHome={() => handleNavigatePage('home')} 
-              onNavigateRegister={() => handleNavigatePage('register')}
-            />
-          )}
-          {activePublicView === 'login-teacher' && (
-            <LoginPage 
-              initialRole="teacher"
-              onSuccess={() => handleNavigatePage('portal')} 
-              onLoginSuccess={() => handleNavigatePage('portal')} 
-              onNavigateHome={() => handleNavigatePage('home')} 
-              onNavigateRegister={() => handleNavigatePage('register')}
-            />
-          )}
-          {activePublicView === 'login-admin' && (
-            <LoginPage 
-              initialRole="admin"
-              onSuccess={() => handleNavigatePage('portal')} 
-              onLoginSuccess={() => handleNavigatePage('portal')} 
-              onNavigateHome={() => handleNavigatePage('home')} 
-              onNavigateRegister={() => handleNavigatePage('register')}
-            />
-          )}
-          {activePublicView === 'register' && (
-            <RegisterPage 
-              onSuccess={() => handleNavigatePage('portal')}
-              onNavigateLogin={() => handleNavigatePage('login')}
-              onNavigateHome={() => handleNavigatePage('home')}
-            />
-          )}
         </main>
 
         <PublicFooter onNavigate={handleNavigatePage} />

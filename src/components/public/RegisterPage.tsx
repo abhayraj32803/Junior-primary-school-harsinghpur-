@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth, GoogleAuthDetails } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
-import { GoogleAuthRoleModal } from '../common/GoogleAuthRoleModal';
 import { getFriendlyAuthErrorMessage } from '../../utils/authErrorUtils';
 import { 
   GraduationCap, 
@@ -23,8 +22,15 @@ import {
   Send,
   Sparkles,
   Mail,
-  RefreshCw
+  RefreshCw,
+  KeyRound,
+  Copy,
+  Check
 } from 'lucide-react';
+import { 
+  sendStudentEmailVerificationCode, 
+  verifyStudentEmailCode 
+} from '../../services/verificationCodeService';
 
 interface RegisterPageProps {
   onSuccess?: () => void;
@@ -40,10 +46,11 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
   const { 
     registerStudentWithAuth, 
     sendStudentVerificationEmail, 
+    sendStudentVerificationCode,
+    verifyStudentVerificationCode,
     checkAndReloadEmailVerification,
     submitStudentRegistration, 
-    submitTeacherRegistration,
-    loginWithGoogle
+    submitTeacherRegistration
   } = useAuth();
   const { classes, settings, language } = useSchool();
 
@@ -51,35 +58,22 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
   const [activeTab, setActiveTab] = useState<'student' | 'teacher'>('student');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleModalOpen, setGoogleModalOpen] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendStatusMsg, setResendStatusMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [registeredStudentProfile, setRegisteredStudentProfile] = useState<any | null>(null);
   const [submittedRequest, setSubmittedRequest] = useState<any | null>(null);
 
-  const handleConfirmGoogleAuth = async (details: GoogleAuthDetails) => {
-    setError(null);
-    setGoogleLoading(true);
-
-    try {
-      const res = await loginWithGoogle(details);
-      setGoogleLoading(false);
-
-      if (res.success) {
-        setGoogleModalOpen(false);
-        if (onSuccess) {
-          onSuccess();
-        }
-      } else {
-        setError(res.error ? getFriendlyAuthErrorMessage(res.error, language) : (language === 'hi' ? 'Google प्रमाणीकरण पूरा नहीं हो सका।' : 'Google authentication could not be completed.'));
-      }
-    } catch (err: any) {
-      setGoogleLoading(false);
-      setError(getFriendlyAuthErrorMessage(err.code || err.message, language));
-    }
-  };
+  // 6-Digit Code Verification State for Student Post-Registration
+  const [verificationDigits, setVerificationDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [activeOtpCode, setActiveOtpCode] = useState<string | null>(null);
+  const [otpExpiresInSec, setOtpExpiresInSec] = useState<number>(600);
+  const [otpCooldownSec, setOtpCooldownSec] = useState<number>(60);
+  const [copiedOtp, setCopiedOtp] = useState(false);
+  const otpInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
 
   // Common Fields
   const [fullName, setFullName] = useState('');
@@ -124,29 +118,125 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
     setPreferredUsername(`${prefix}-${randomSuffix}`);
   };
 
-  const handleResendVerification = async () => {
+  // Expiry countdown effect for OTP
+  React.useEffect(() => {
+    if (!registeredStudentProfile || verificationSuccess || otpExpiresInSec <= 0) return;
+    const timer = setInterval(() => {
+      setOtpExpiresInSec(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [registeredStudentProfile, verificationSuccess, otpExpiresInSec]);
+
+  // Cooldown countdown effect for Resend
+  React.useEffect(() => {
+    if (otpCooldownSec <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCooldownSec(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCooldownSec]);
+
+  const formatOtpTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleResendOtpCode = async () => {
+    if (!registeredStudentProfile?.email) return;
     setResendingEmail(true);
+    setVerificationError(null);
     setResendStatusMsg(null);
-    const res = await sendStudentVerificationEmail();
+
+    const res = await sendStudentEmailVerificationCode(registeredStudentProfile.email, {
+      studentName: registeredStudentProfile.fullName,
+      studentId: registeredStudentProfile.username,
+      uid: registeredStudentProfile.uid
+    });
+
     setResendingEmail(false);
     if (res.success) {
-      setResendStatusMsg(res.message || 'सत्यापन ईमेल सफलतापूर्वक पुनः भेजा गया।');
+      if (res.code) setActiveOtpCode(res.code);
+      setOtpExpiresInSec(600);
+      setOtpCooldownSec(60);
+      setResendStatusMsg(res.message || 'सत्यापन कोड ईमेल पर पुनः भेज दिया गया है।');
     } else {
-      setError(res.error || 'ईमेल भेजने में विफलता हुई।');
+      setVerificationError(res.error || 'कोड भेजने में विफल रहा।');
     }
   };
 
-  const handleCheckEmailStatus = async () => {
-    setResendingEmail(true);
-    const res = await checkAndReloadEmailVerification();
-    setResendingEmail(false);
-    if (res.isVerified) {
-      setResendStatusMsg('बधाई हो! आपका ईमेल सफलतापूर्वक सत्यापित हो गया है।');
-      if (registeredStudentProfile) {
-        setRegisteredStudentProfile({ ...registeredStudentProfile, emailVerified: true });
+  const handleOtpDigitChange = (idx: number, val: string) => {
+    const clean = val.replace(/\D/g, '');
+    if (clean.length >= 6) {
+      const slice6 = clean.slice(0, 6).split('');
+      setVerificationDigits(slice6);
+      if (otpInputRefs.current[5]) otpInputRefs.current[5].focus();
+      triggerVerifyStudentOtp(slice6.join(''));
+      return;
+    }
+
+    const digit = clean.slice(-1);
+    const updated = [...verificationDigits];
+    updated[idx] = digit;
+    setVerificationDigits(updated);
+    setVerificationError(null);
+
+    if (digit && idx < 5) {
+      otpInputRefs.current[idx + 1]?.focus();
+    }
+
+    if (digit && idx === 5) {
+      const full = updated.join('');
+      if (full.length === 6) {
+        triggerVerifyStudentOtp(full);
       }
+    }
+  };
+
+  const handleOtpKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !verificationDigits[idx] && idx > 0) {
+      otpInputRefs.current[idx - 1]?.focus();
+    }
+  };
+
+  const triggerVerifyStudentOtp = async (codeStr: string) => {
+    if (!registeredStudentProfile?.email || codeStr.length !== 6) {
+      setVerificationError('कृपया सभी 6 अंक दर्ज करें।');
+      return;
+    }
+
+    setVerifyingCode(true);
+    setVerificationError(null);
+
+    const res = await verifyStudentEmailCode(registeredStudentProfile.email, codeStr, {
+      uid: registeredStudentProfile.uid,
+      onSuccessCallback: async () => {
+        if (checkAndReloadEmailVerification) {
+          await checkAndReloadEmailVerification();
+        }
+      }
+    });
+
+    setVerifyingCode(false);
+
+    if (res.success) {
+      setVerificationSuccess(true);
+      setRegisteredStudentProfile({ ...registeredStudentProfile, emailVerified: true });
+      setResendStatusMsg(res.message || 'छात्र खाता एवं ईमेल सफलतापूर्वक सत्यापित हो गया!');
     } else {
-      setResendStatusMsg('ईमेल अभी तक सत्यापित नहीं हुआ है। कृपया अपने इनबॉक्स में लिंक पर क्लिक करें।');
+      setVerificationError(res.error || 'गलत सत्यापन कोड!');
+    }
+  };
+
+  const handleCopyAndAutoFillOtp = () => {
+    if (activeOtpCode) {
+      navigator.clipboard.writeText(activeOtpCode);
+      setCopiedOtp(true);
+      setTimeout(() => setCopiedOtp(false), 2000);
+      const chars = activeOtpCode.split('');
+      setVerificationDigits(chars);
+      if (otpInputRefs.current[5]) otpInputRefs.current[5].focus();
+      triggerVerifyStudentOtp(activeOtpCode);
     }
   };
 
@@ -201,6 +291,18 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
       setLoading(false);
       if (res.success && res.profile) {
         setRegisteredStudentProfile(res.profile);
+        // Automatically dispatch 6-digit OTP code to student's email
+        sendStudentEmailVerificationCode(res.profile.email, {
+          studentName: res.profile.fullName,
+          studentId: res.profile.username,
+          uid: res.profile.uid
+        }).then(otpRes => {
+          if (otpRes.success && otpRes.code) {
+            setActiveOtpCode(otpRes.code);
+          }
+        });
+        setOtpExpiresInSec(600);
+        setOtpCooldownSec(60);
       } else {
         setError(res.error || 'Failed to complete student registration.');
       }
@@ -236,26 +338,55 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
     }
   };
 
-  // If student is successfully registered with Firebase Auth & Verification Email
+  // If student is successfully registered with Firebase Auth & Verification Email / Code
   if (registeredStudentProfile) {
     return (
       <div className="min-h-[85vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-10">
         <div className="max-w-2xl w-full bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-10 space-y-6 text-center animate-fade-in">
           
           <div className="w-16 h-16 rounded-3xl bg-blue-500/10 border border-blue-500/20 text-blue-600 flex items-center justify-center mx-auto">
-            <Mail className="w-8 h-8 animate-bounce" />
+            {verificationSuccess || registeredStudentProfile.emailVerified ? (
+              <CheckCircle2 className="w-9 h-9 text-emerald-600 animate-bounce" />
+            ) : (
+              <KeyRound className="w-8 h-8 animate-pulse" />
+            )}
           </div>
 
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold border border-blue-200">
-              <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-              <span>खाता सफलतापूर्वक निर्मित • ईमेल सत्यापन भेजा गया</span>
+            <div className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold border ${
+              verificationSuccess || registeredStudentProfile.emailVerified 
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                : 'bg-blue-100 text-blue-800 border-blue-200'
+            }`}>
+              {verificationSuccess || registeredStudentProfile.emailVerified ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>छात्र खाता एवं ईमेल 100% सत्यापित</span>
+                </>
+              ) : (
+                <>
+                  <KeyRound className="w-3.5 h-3.5 text-blue-600" />
+                  <span>ईमेल सत्यापन कोड (6-Digit OTP Verification)</span>
+                </>
+              )}
             </div>
+
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
-              Student Registered Successfully
+              {verificationSuccess || registeredStudentProfile.emailVerified 
+                ? 'Verification Successful!'
+                : 'Enter Verification Code'}
             </h2>
+
             <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
-              Firebase Authentication में <strong>{registeredStudentProfile.fullName}</strong> का छात्र खाता बन चुका है। हमने <strong>{registeredStudentProfile.email}</strong> पर सत्यापन ईमेल भेजा है।
+              {verificationSuccess || registeredStudentProfile.emailVerified ? (
+                <span>
+                  बधाई हो! <strong>{registeredStudentProfile.fullName}</strong> का छात्र ईमेल एवं आधिकारिक खाता सफलतापूर्वक सत्यापित हो चुका है।
+                </span>
+              ) : (
+                <span>
+                  हमने <strong>{registeredStudentProfile.email}</strong> पर 6-अंकों का सत्यापन कोड भेजा है। सत्यापन के लिए नीचे कोड दर्ज करें:
+                </span>
+              )}
             </p>
           </div>
 
@@ -263,6 +394,120 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
             <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{resendStatusMsg}</span>
+            </div>
+          )}
+
+          {/* OTP Code Form if not yet verified */}
+          {!verificationSuccess && !registeredStudentProfile.emailVerified && (
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 text-center">
+              <label className="text-xs font-bold text-slate-700 block">
+                ईमेल पर प्राप्त 6-अंकों का कोड दर्ज करें (Enter 6-Digit OTP)
+              </label>
+
+              {/* 6 Digit Input Boxes */}
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                {verificationDigits.map((d, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => (otpInputRefs.current[idx] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={d}
+                    onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    disabled={verifyingCode}
+                    className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-mono font-black rounded-xl border-2 transition-all shadow-xs focus:outline-hidden ${
+                      verificationError
+                        ? 'border-rose-400 bg-rose-50/50 text-rose-900 focus:border-rose-600'
+                        : d
+                        ? 'border-blue-600 bg-blue-50/30 text-blue-950 shadow-sm'
+                        : 'border-slate-300 bg-white text-slate-900 focus:border-blue-500'
+                    }`}
+                    placeholder="•"
+                  />
+                ))}
+              </div>
+
+              {verificationError && (
+                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center justify-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{verificationError}</span>
+                </div>
+              )}
+
+              {/* Timer & Resend */}
+              <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-2">
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-amber-500" />
+                  <span>वैधता: <strong className="font-mono text-slate-800">{formatOtpTime(otpExpiresInSec)}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResendOtpCode}
+                  disabled={resendingEmail || otpCooldownSec > 0}
+                  className={`font-bold transition-colors flex items-center gap-1 cursor-pointer ${
+                    otpCooldownSec > 0 || resendingEmail
+                      ? 'text-slate-400 cursor-not-allowed'
+                      : 'text-blue-600 hover:text-blue-800 underline'
+                  }`}
+                >
+                  <RefreshCw className={`w-3 h-3 ${resendingEmail ? 'animate-spin' : ''}`} />
+                  <span>
+                    {resendingEmail
+                      ? 'भेज रहे हैं...'
+                      : otpCooldownSec > 0
+                      ? `कोड पुनः भेजें (${otpCooldownSec}s)`
+                      : 'कोड पुनः भेजें (Resend)'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Verify Action Button */}
+              <button
+                type="button"
+                onClick={() => triggerVerifyStudentOtp(verificationDigits.join(''))}
+                disabled={verifyingCode || verificationDigits.join('').length !== 6}
+                className={`w-full py-3 rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  verifyingCode || verificationDigits.join('').length !== 6
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-500 text-white'
+                }`}
+              >
+                {verifyingCode ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>सत्यापित किया जा रहा है...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>सत्यापन कोड की पुष्टि करें (Verify Code)</span>
+                  </>
+                )}
+              </button>
+
+              {/* Simulated Delivery Code Auto-Fill Test Assistant */}
+              {activeOtpCode && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-left space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-900 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      ईमेल कोड प्रेषण सहायक (OTP Preview):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyAndAutoFillOtp}
+                      className="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold text-[11px] cursor-pointer"
+                    >
+                      {copiedOtp ? 'भरा गया' : 'स्वतः भरें (Auto-Fill)'}
+                    </button>
+                  </div>
+                  <div className="font-mono font-black text-slate-900 text-sm tracking-widest bg-white p-1.5 rounded border border-amber-200 text-center">
+                    {activeOtpCode}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -286,55 +531,37 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-500">Email Verification Status:</span>
-              <span className={`inline-flex items-center gap-1 font-bold ${registeredStudentProfile.emailVerified ? 'text-emerald-600' : 'text-amber-600'}`}>
-                {registeredStudentProfile.emailVerified ? 'सत्यापित (Verified)' : 'सत्यापन लंबित (Pending Email Click)'}
+              <span className={`inline-flex items-center gap-1 font-bold ${
+                verificationSuccess || registeredStudentProfile.emailVerified ? 'text-emerald-600' : 'text-amber-600'
+              }`}>
+                {verificationSuccess || registeredStudentProfile.emailVerified ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>सत्यापित (100% Verified)</span>
+                  </>
+                ) : (
+                  'सत्यापन कोड लंबित (Enter 6-Digit OTP)'
+                )}
               </span>
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200/80 text-amber-900 text-xs text-left flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" />
-            <p className="leading-relaxed">
-              <strong>निर्देश:</strong> कृपया अपना ईमेल इनबॉक्स खोलें और Firebase Verification लिंक पर क्लिक करें। सत्यापन के बाद आप छात्र पोर्टल पर पूर्ण पहुंच प्राप्त कर सकेंगे।
-            </p>
-          </div>
-
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={handleResendVerification}
-              disabled={resendingEmail}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-colors cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Send className="w-3.5 h-3.5 text-amber-400" />
-              <span>{resendingEmail ? 'भेजा जा रहा है...' : 'ईमेल सत्यापन पुनः भेजें (Resend Email)'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCheckEmailStatus}
-              disabled={resendingEmail}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs border border-blue-200 transition-colors cursor-pointer flex items-center justify-center gap-2"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${resendingEmail ? 'animate-spin' : ''}`} />
-              <span>स्थिति जांचें (Refresh Status)</span>
-            </button>
-
             {onSuccess ? (
               <button
                 type="button"
                 onClick={onSuccess}
-                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition-colors cursor-pointer"
               >
-                Go to Dashboard
+                Go to Dashboard (डैशबोर्ड पर जाएं)
               </button>
             ) : onNavigateLogin ? (
               <button
                 type="button"
                 onClick={onNavigateLogin}
-                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition-colors cursor-pointer"
               >
-                Go to Sign In Portal
+                Go to Sign In Portal (लॉगिन पोर्टल पर जाएं)
               </button>
             ) : null}
           </div>
@@ -421,8 +648,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
   }
 
   return (
-    <div className="min-h-[85vh] w-full max-w-full overflow-x-hidden flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-      <div className="max-w-3xl w-full bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-br from-gov-navy-950 via-slate-900 to-gov-navy-950 flex flex-col justify-center sm:py-8 sm:px-4 selection:bg-amber-500 selection:text-slate-950">
+      <div className="w-full sm:max-w-3xl sm:mx-auto min-h-screen sm:min-h-0 bg-white sm:rounded-3xl border-0 sm:border border-slate-700/50 shadow-2xl overflow-hidden flex flex-col justify-between sm:justify-start">
         
         {/* Top Header Banner */}
         <div className="bg-slate-900 text-white p-6 sm:p-8 border-b border-slate-800 space-y-3">
@@ -481,48 +708,6 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
               <span>Teacher Account Request (शिक्षक अनुरोध)</span>
             </button>
           </div>
-
-          {/* Quick Google Registration Option for Students */}
-          {activeTab === 'student' && (
-            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-white border border-amber-300 shadow-2xs shrink-0">
-                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
-                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900">
-                    {language === 'hi' ? 'Google के साथ त्वरित छात्र पंजीकरण' : 'Instant Student Registration with Google'}
-                  </h4>
-                  <p className="text-[11px] text-slate-600 font-medium">
-                    {language === 'hi'
-                      ? 'नाम, माता-पिता का नाम, जन्मतिथि एवं कक्षा विवरण के साथ स्वतः छात्र प्रोफाइल बनाएं।'
-                      : 'One-click registration: configure full student profile, DOB, class & parents info once.'}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setGoogleModalOpen(true)}
-                disabled={googleLoading}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
-              >
-                {googleLoading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>{language === 'hi' ? 'Google से पंजीकृत करें' : 'Register with Google'}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
-            </div>
-          )}
 
           {error && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2 animate-shake">
@@ -784,14 +969,6 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
 
         </div>
       </div>
-
-      <GoogleAuthRoleModal
-        isOpen={googleModalOpen}
-        onClose={() => setGoogleModalOpen(false)}
-        onConfirm={handleConfirmGoogleAuth}
-        isLoading={googleLoading}
-        language={language}
-      />
     </div>
   );
 };

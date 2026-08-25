@@ -26,8 +26,10 @@ import {
   ExternalLink,
   Mail,
   Send,
-  RefreshCw
+  RefreshCw,
+  KeyRound
 } from 'lucide-react';
+import { StudentEmailVerificationModal } from '../common/StudentEmailVerificationModal';
 import { ReportCardPrint } from '../common/ReportCardPrint';
 import { StudentIdCardPrint } from '../common/StudentIdCardPrint';
 import { UserAvatar } from '../common/UserAvatar';
@@ -56,6 +58,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigateTa
 
   const [resendingEmail, setResendingEmail] = useState(false);
   const [emailStatusMsg, setEmailStatusMsg] = useState<string | null>(null);
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
 
   const handleResendEmail = async () => {
     setResendingEmail(true);
@@ -63,7 +66,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigateTa
     const res = await sendStudentVerificationEmail();
     setResendingEmail(false);
     if (res.success) {
-      setEmailStatusMsg(res.message || 'सत्यापन ईमेल भेज दिया गया है।');
+      setEmailStatusMsg(res.message || 'सत्यापन कोड/लिंक भेज दिया गया है।');
     } else {
       setEmailStatusMsg(res.error || 'ईमेल भेजने में त्रुटि हुई।');
     }
@@ -76,7 +79,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigateTa
     if (res.isVerified) {
       setEmailStatusMsg('बधाई हो! आपका ईमेल सत्यापित हो चुका है।');
     } else {
-      setEmailStatusMsg('ईमेल अभी तक सत्यापित नहीं हुआ है। कृपया अपने इनबॉक्स में लिंक की पुष्टि करें।');
+      setEmailStatusMsg('ईमेल अभी तक सत्यापित नहीं हुआ है। कृपया 6-अंकों का कोड दर्ज करें।');
     }
   };
 
@@ -135,8 +138,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigateTa
               </div>
               <p className="text-xs text-blue-800 leading-relaxed font-medium">
                 {language === 'hi'
-                  ? `सुरक्षा के लिए कृपया अपने ईमेल (${userProfile?.email || 'Registered Email'}) पर भेजे गए लिंक पर क्लिक कर ईमेल सत्यापित करें।`
-                  : `Please verify your registered email address (${userProfile?.email || 'Registered Email'}) for complete security and full portal access.`}
+                  ? `सुरक्षा के लिए कृपया अपने पंजीकृत ईमेल (${userProfile?.email || 'Registered Email'}) पर भेजे गए 6-अंकों के कोड से सत्यापन पूरा करें।`
+                  : `Please enter the 6-digit verification code sent to your registered email (${userProfile?.email || 'Registered Email'}) to unlock all student features.`}
               </p>
               {emailStatusMsg && (
                 <div className="text-xs font-bold text-emerald-700 flex items-center gap-1.5 pt-1">
@@ -147,22 +150,31 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigateTa
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+            <button
+              onClick={() => setVerificationModalOpen(true)}
+              className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-amber-300" />
+              <span>{language === 'hi' ? 'सत्यापन कोड दर्ज करें' : 'Enter 6-Digit OTP'}</span>
+            </button>
             <button
               onClick={handleResendEmail}
               disabled={resendingEmail}
-              className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              title="Resend code"
             >
-              <Send className="w-3.5 h-3.5 text-amber-300" />
-              <span>{resendingEmail ? 'भेज रहे हैं...' : 'सत्यापन लिंक पुनः भेजें'}</span>
+              <Send className="w-3.5 h-3.5 text-blue-600" />
+              <span>{resendingEmail ? '...' : (language === 'hi' ? 'कोड पुनः भेजें' : 'Resend')}</span>
             </button>
             <button
               onClick={handleCheckEmail}
               disabled={resendingEmail}
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              title="Refresh status"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${resendingEmail ? 'animate-spin' : ''}`} />
-              <span>जांचें</span>
+              <span>{language === 'hi' ? 'जांचें' : 'Check'}</span>
             </button>
           </div>
         </div>
@@ -605,6 +617,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigateTa
           onClose={() => setPrintReport(false)}
         />
       )}
+
+      {/* 6-Digit Email Verification Code Modal */}
+      <StudentEmailVerificationModal
+        isOpen={verificationModalOpen}
+        onClose={() => setVerificationModalOpen(false)}
+        email={userProfile?.email || currentStudent?.email || ''}
+        studentName={userProfile?.fullName || currentStudent?.name}
+        studentId={userProfile?.username || currentStudent?.id}
+        uid={userProfile?.uid}
+        onSuccess={async () => {
+          if (checkAndReloadEmailVerification) {
+            await checkAndReloadEmailVerification();
+          }
+          setEmailStatusMsg('ईमेल सफलतापूर्वक सत्यापित हो गया है!');
+        }}
+      />
     </div>
   );
 };

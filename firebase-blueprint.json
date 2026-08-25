@@ -219,9 +219,33 @@
         "timestamp": { "type": "string" }
       },
       "required": ["id", "schoolId", "username", "status", "action", "timestamp"]
+    },
+    "EmailVerification": {
+      "title": "EmailVerification",
+      "description": "6-digit OTP code verification records for student email validation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 150 },
+        "code": { "type": "string", "maxLength": 6 },
+        "studentName": { "type": "string", "maxLength": 150 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "uid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string" },
+        "expiresAt": { "type": "number" },
+        "attempts": { "type": "number" },
+        "maxAttempts": { "type": "number" },
+        "verified": { "type": "boolean" },
+        "verifiedAt": { "type": "string" }
+      },
+      "required": ["id", "email", "code", "createdAt", "expiresAt", "verified"]
     }
   },
   "firestore": {
+    "/emailVerifications/{verificationId}": {
+      "schema": "EmailVerification",
+      "description": "Student email verification OTP codes with expiration and attempt limits."
+    },
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "User profile records protected with UID matching and Admin ABAC controls."

@@ -90,6 +90,14 @@ service cloud.firestore {
       allow update, delete: if false; // immutable
     }
 
+    // 1d. Student Email Verification Codes (/emailVerifications/{verificationId})
+    // Used for 6-digit OTP email verification for student onboarding & profile validation
+    match /emailVerifications/{verificationId} {
+      allow get: if isValidId(verificationId);
+      allow create, update: if isValidId(verificationId);
+      allow list, delete: if isAdmin();
+    }
+
     // 2. Student Records Collection (/students/{studentId})
     // EXPLICITLY DENIED to unassigned or unauthorized users.
     // Read: Only authorized admins, assigned teachers, or the specific student owning the record.

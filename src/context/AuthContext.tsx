@@ -38,6 +38,12 @@ import {
   getDownloadURL
 } from '../lib/firebase';
 import { getFriendlyAuthErrorMessage, normalizePhoneNumber, normalizeEmail, maskEmail } from '../utils/authErrorUtils';
+import { 
+  sendStudentEmailVerificationCode, 
+  verifyStudentEmailCode,
+  sendPasswordResetOtpEmail,
+  verifyPasswordResetOtpCode
+} from '../services/verificationCodeService';
 
 export interface GoogleAuthDetails {
   fullName?: string;
@@ -93,6 +99,8 @@ export interface AuthContextType {
     preferredUsername?: string;
   }) => Promise<{ success: boolean; error?: string; user?: any; profile?: UserProfile }>;
   sendStudentVerificationEmail: () => Promise<{ success: boolean; error?: string; message?: string }>;
+  sendStudentVerificationCode: (email?: string) => Promise<{ success: boolean; code?: string; expiresAt?: number; error?: string; message?: string }>;
+  verifyStudentVerificationCode: (code: string, email?: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   checkAndReloadEmailVerification: () => Promise<{ success: boolean; isVerified: boolean; error?: string }>;
   updateStudentProfile: (uid: string, data: Partial<UserProfile> & Record<string, any>) => Promise<{ success: boolean; error?: string }>;
   uploadStudentProfilePhoto: (uid: string, fileOrBase64: string | File) => Promise<{ success: boolean; photoURL?: string; error?: string }>;
@@ -134,6 +142,26 @@ export interface AuthContextType {
     assignedClasses?: number[];
     temporaryPassword?: string;
   }) => Promise<{ success: boolean; error?: string; user?: UserProfile; generatedUsername?: string }>;
+  createStudentDirectly: (data: {
+    fullName: string;
+    admissionNumber: string;
+    classNumber: number;
+    sectionName: string;
+    rollNumber?: string;
+    dateOfBirth?: string;
+    gender?: 'Male' | 'Female' | 'Other';
+    fatherName?: string;
+    motherName?: string;
+    guardianName?: string;
+    phone?: string;
+    email: string;
+    bloodGroup?: string;
+    category?: string;
+    address?: string;
+    temporaryPassword?: string;
+    sendOtpVerification?: boolean;
+    markPreVerified?: boolean;
+  }) => Promise<{ success: boolean; error?: string; user?: UserProfile; generatedUsername?: string; tempPass?: string; otpSent?: boolean }>;
   
   // Head Teacher Review & Approvals
   approveRegistrationRequest: (requestId: string, assignedUsername?: string, notes?: string) => Promise<{ success: boolean; error?: string; user?: UserProfile }>;
@@ -142,7 +170,8 @@ export interface AuthContextType {
   // Password & Security Management
   completeFirstLoginPasswordChange: (newPass: string) => Promise<{ success: boolean; error?: string }>;
   changePassword: (oldPass: string, newPass: string) => Promise<{ success: boolean; error?: string }>;
-  resetPassword: (emailOrUsernameOrPhone: string) => Promise<{ success: boolean; error?: string; message?: string; email?: string; maskedEmail?: string; username?: string; role?: UserRole }>;
+  resetPassword: (emailOrUsernameOrPhone: string) => Promise<{ success: boolean; error?: string; message?: string; email?: string; maskedEmail?: string; username?: string; role?: UserRole; otpSent?: boolean }>;
+  verifyResetOtpAndSetPassword: (emailOrUsername: string, otpCode: string, newPass: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   verifyResetCode: (code: string) => Promise<{ success: boolean; email?: string; error?: string }>;
   confirmPasswordResetWithCode: (code: string, newPass: string) => Promise<{ success: boolean; error?: string; message?: string; email?: string }>;
   createOrUpdatePasswordAfterVerification: (identifier: string, newPass: string) => Promise<{ success: boolean; error?: string; message?: string }>;
@@ -1380,9 +1409,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 2. Set Firebase Auth Display Name
       await updateProfile(fbUser, { displayName: cleanName }).catch(() => {});
 
-      // 3. Dispatch Firebase Email Verification
-      await sendEmailVerification(fbUser).catch((e) => {
-        console.warn("Failed to auto-send email verification:", e);
+      // 3. Dispatch 6-Digit Email Verification Code (OTP) directly to Student's Email
+      await sendStudentEmailVerificationCode(cleanEmail, {
+        studentName: cleanName,
+        studentId: cleanUser,
+        uid: fbUser.uid
+      }).catch((e) => {
+        console.warn("Failed to dispatch 6-digit OTP verification code:", e);
       });
 
       const newStudentProfile: UserProfile = {
@@ -1483,16 +1516,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Resend Email Verification to Current Student
+  // Resend 6-Digit Email Verification Code (OTP) to Student
   const sendStudentVerificationEmail = async (): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
-      if (!auth.currentUser) {
-        return { success: false, error: "No active Firebase user session found." };
+      const emailToUse = userProfile?.email || auth.currentUser?.email;
+      if (!emailToUse) {
+        return { success: false, error: "कोई सक्रिय छात्र ईमेल पता नहीं मिला।" };
       }
-      await sendEmailVerification(auth.currentUser);
+      const res = await sendStudentEmailVerificationCode(emailToUse, {
+        studentName: userProfile?.name || auth.currentUser?.displayName || 'Student',
+        studentId: userProfile?.studentId || userProfile?.username,
+        uid: userProfile?.uid || auth.currentUser?.uid
+      });
       return { 
-        success: true, 
-        message: `सत्यापन लिंक आपके ईमेल (${auth.currentUser.email}) पर सफलतापूर्वक भेज दिया गया है। कृपया अपने इनबॉक्स या स्पैम फोल्डर की जांच करें।` 
+        success: res.success, 
+        message: res.message || `6-अंकों का सत्यापन कोड आपके ईमेल (${emailToUse}) पर सफलतापूर्वक भेज दिया गया है।`,
+        error: res.error
       };
     } catch (err: any) {
       const msg = getFriendlyAuthErrorMessage(err.code || err.message, 'hi');
@@ -1518,6 +1557,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       return { success: false, isVerified: false, error: err.message };
     }
+  };
+
+  // Dispatch 6-Digit Email Verification Code to Student
+  const sendStudentVerificationCode = async (targetEmail?: string): Promise<{
+    success: boolean;
+    code?: string;
+    expiresAt?: number;
+    error?: string;
+    message?: string;
+  }> => {
+    const emailToUse = targetEmail || userProfile?.email || auth.currentUser?.email || '';
+    if (!emailToUse) {
+      return { success: false, error: "कृपया सत्यापन हेतु छात्र का ईमेल पता दर्ज करें।" };
+    }
+    return sendStudentEmailVerificationCode(emailToUse, {
+      studentName: userProfile?.name || auth.currentUser?.displayName || 'Student',
+      studentId: userProfile?.studentId || userProfile?.username,
+      uid: userProfile?.uid || auth.currentUser?.uid
+    });
+  };
+
+  // Verify Student's 6-Digit Verification Code
+  const verifyStudentVerificationCode = async (
+    code: string, 
+    targetEmail?: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    const emailToUse = targetEmail || userProfile?.email || auth.currentUser?.email || '';
+    if (!emailToUse) {
+      return { success: false, error: "ईमेल पता आवश्यक है।" };
+    }
+
+    const res = await verifyStudentEmailCode(emailToUse, code, {
+      uid: userProfile?.uid || auth.currentUser?.uid,
+      onSuccessCallback: async () => {
+        if (userProfile) {
+          const updated = { 
+            ...userProfile, 
+            emailVerified: true, 
+            isApproved: true, 
+            status: 'active' as const, 
+            updatedAt: new Date().toISOString() 
+          };
+          setUserProfile(updated);
+          setAllUsers(prev => prev.map(u => u.uid === updated.uid ? updated : u));
+        }
+        if (auth.currentUser) {
+          await auth.currentUser.reload().catch(() => {});
+        }
+      }
+    });
+
+    if (res.success && userProfile) {
+      addSecurityLog(
+        userProfile.username || userProfile.name,
+        'student',
+        'SUCCESS',
+        'LOGIN',
+        `Student Email OTP 6-Digit Code Verified successfully for ${userProfile.name} (${emailToUse})`
+      );
+    }
+
+    return res;
   };
 
   // Update Student Profile in Firestore & State
@@ -1803,6 +1904,163 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true, user: newTeacherProfile, generatedUsername };
   };
 
+  // 4b. Direct Student & User Profile Creation by Admin / Head Teacher
+  const createStudentDirectly = async (data: {
+    fullName: string;
+    admissionNumber: string;
+    classNumber: number;
+    sectionName: string;
+    rollNumber?: string;
+    dateOfBirth?: string;
+    gender?: 'Male' | 'Female' | 'Other';
+    fatherName?: string;
+    motherName?: string;
+    guardianName?: string;
+    phone?: string;
+    email: string;
+    bloodGroup?: string;
+    category?: string;
+    address?: string;
+    temporaryPassword?: string;
+    sendOtpVerification?: boolean;
+    markPreVerified?: boolean;
+  }): Promise<{ success: boolean; error?: string; user?: UserProfile; generatedUsername?: string; tempPass?: string; otpSent?: boolean }> => {
+    const cleanName = data.fullName.trim();
+    const cleanAdm = data.admissionNumber.trim();
+    const cleanEmail = normalizeEmail(data.email);
+    const cleanPhone = normalizePhoneNumber(data.phone);
+    const tempPass = data.temporaryPassword?.trim() || `GovStudent@${Math.floor(1000 + Math.random() * 9000)}`;
+
+    if (!cleanName || !cleanAdm || !cleanEmail) {
+      return { success: false, error: "कृपया छात्र का पूरा नाम, प्रवेश संख्या (Admission No) और ईमेल पता दर्ज करें।" };
+    }
+
+    const nextStudentCount = allUsers.filter(u => u.role === 'student').length + 1;
+    const generatedUsername = `STU-2026-${String(nextStudentCount).padStart(4, '0')}`;
+    const newUid = `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const linkedEntityId = newUid;
+    const isPreVerified = !!data.markPreVerified;
+
+    const newStudentProfile: UserProfile = {
+      uid: newUid,
+      username: generatedUsername,
+      name: cleanName,
+      fullName: cleanName,
+      email: cleanEmail,
+      emailVerified: isPreVerified,
+      phone: cleanPhone,
+      mobile: cleanPhone,
+      role: 'student',
+      schoolId: SCHOOL_ID,
+      status: 'active',
+      linkedEntityId,
+      studentId: generatedUsername,
+      admissionNumber: cleanAdm,
+      registrationNumber: cleanAdm,
+      classNumber: data.classNumber || 1,
+      sectionName: data.sectionName || 'A',
+      rollNumber: data.rollNumber || '1',
+      course: 'Primary & Upper Primary Education (Class 1-8)',
+      admissionYear: new Date().getFullYear(),
+      dateOfBirth: data.dateOfBirth || '2015-05-15',
+      dob: data.dateOfBirth || '2015-05-15',
+      fatherName: data.fatherName || '',
+      motherName: data.motherName || '',
+      guardianName: data.guardianName || data.fatherName || '',
+      category: data.category || 'General',
+      bloodGroup: data.bloodGroup || 'O+',
+      address: data.address || 'Village Harsinghpur Gova, Post Shamsabad, Dist Farrukhabad UP',
+      isApproved: true,
+      mustChangePassword: true, // Requires password update on first login
+      password: tempPass,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const firestoreStudentRecord = {
+      id: newUid,
+      uid: newUid,
+      userId: newUid,
+      studentId: generatedUsername,
+      admissionNumber: cleanAdm,
+      registrationNumber: cleanAdm,
+      name: cleanName,
+      fullName: cleanName,
+      email: cleanEmail,
+      emailVerified: isPreVerified,
+      profilePhoto: '',
+      photoURL: '',
+      class: data.classNumber || 1,
+      classNumber: data.classNumber || 1,
+      classId: `class-${data.classNumber || 1}`,
+      section: data.sectionName || 'A',
+      sectionName: data.sectionName || 'A',
+      sectionId: `sec-${data.classNumber || 1}-${data.sectionName || 'A'}`,
+      rollNumber: data.rollNumber || '1',
+      gender: data.gender || 'Male',
+      dateOfBirth: data.dateOfBirth || '2015-05-15',
+      dob: data.dateOfBirth || '2015-05-15',
+      fatherName: data.fatherName || '',
+      motherName: data.motherName || '',
+      guardianName: data.guardianName || data.fatherName || '',
+      mobile: cleanPhone,
+      phone: cleanPhone,
+      course: 'Primary & Upper Primary Education (Class 1-8)',
+      admissionYear: new Date().getFullYear(),
+      category: data.category || 'General',
+      bloodGroup: data.bloodGroup || 'O+',
+      address: data.address || 'Village Harsinghpur Gova, Post Shamsabad, Dist Farrukhabad UP',
+      admissionDate: new Date().toISOString().split('T')[0],
+      status: 'active',
+      role: 'student',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Save to Firestore collections
+    await setDoc(doc(db, 'users', newUid), newStudentProfile, { merge: true }).catch(() => {});
+    await setDoc(doc(db, 'students', newUid), firestoreStudentRecord, { merge: true }).catch(() => {});
+
+    // Update local React states
+    setAllUsers(prev => [newStudentProfile, ...prev.filter(u => u.uid !== newUid && u.username !== generatedUsername)]);
+
+    // Update local storage students cache
+    try {
+      const localStudentsRaw = localStorage.getItem('sms_gov_students');
+      const curList: any[] = localStudentsRaw ? JSON.parse(localStudentsRaw) : [];
+      const updated = [firestoreStudentRecord, ...curList.filter((s: any) => s.id !== newUid && s.admissionNumber !== cleanAdm)];
+      localStorage.setItem('sms_gov_students', JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
+
+    let otpSent = false;
+    if (data.sendOtpVerification && !isPreVerified) {
+      const otpRes = await sendStudentEmailVerificationCode(cleanEmail, {
+        studentName: cleanName,
+        studentId: generatedUsername,
+        uid: newUid
+      });
+      otpSent = otpRes.success;
+    }
+
+    addSecurityLog(
+      generatedUsername,
+      'student',
+      'SUCCESS',
+      'LOGIN',
+      `Student profile & user account created by Admin/Head Teacher for ${cleanName} (${cleanEmail})`
+    );
+
+    return { 
+      success: true, 
+      user: newStudentProfile, 
+      generatedUsername, 
+      tempPass, 
+      otpSent 
+    };
+  };
+
   // 5. Head Teacher Approves Registration Request
   const approveRegistrationRequest = async (requestId: string, assignedUsername?: string, notes?: string): Promise<{ success: boolean; error?: string; user?: UserProfile }> => {
     const req = registrationRequests.find(r => r.id === requestId);
@@ -1964,7 +2222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  // 9. Reset / Create Password via Email Verification
+  // 9. Reset / Create Password via SMTP 6-Digit OTP Verification
   const resetPassword = async (emailOrUsernameOrPhone: string): Promise<{ 
     success: boolean; 
     error?: string; 
@@ -1972,7 +2230,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email?: string; 
     maskedEmail?: string; 
     username?: string; 
-    role?: UserRole 
+    role?: UserRole;
+    otpSent?: boolean;
   }> => {
     const clean = emailOrUsernameOrPhone.trim();
     if (!clean) {
@@ -2011,6 +2270,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
+    // 1. Dispatch 6-digit OTP via custom SMTP Mailer
+    const otpResult = await sendPasswordResetOtpEmail(targetEmail, {
+      username: targetUsername,
+      role: targetRole || 'student'
+    });
+
+    // 2. Also trigger Firebase reset email as background fallback
     const currentOrigin = (typeof window !== 'undefined' && window.location.origin)
       ? window.location.origin
       : 'https://ais-pre-dfetqr7ov5ubh7ovmtp5og-1015841373275.asia-southeast1.run.app';
@@ -2023,7 +2289,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await sendPasswordResetEmail(auth, targetEmail, actionCodeSettings);
     } catch (e: any) {
-      console.warn("Firebase sendPasswordResetEmail with settings notice:", e);
       try {
         await sendPasswordResetEmail(auth, targetEmail);
       } catch (fallbackErr: any) {
@@ -2033,7 +2298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await createUserWithEmailAndPassword(auth, targetEmail, tempPass);
             await sendPasswordResetEmail(auth, targetEmail, actionCodeSettings);
           } catch (createErr) {
-            console.warn("User auto-provisioning for reset failed:", createErr);
+            // ignore
           }
         }
       }
@@ -2046,7 +2311,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       targetRole || 'student',
       'SUCCESS',
       'PASSWORD_CHANGE',
-      `Password verification & setup link dispatched to ${masked}`
+      `6-digit password reset OTP email dispatched via SMTP to ${masked}`
     );
 
     return {
@@ -2055,7 +2320,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       maskedEmail: masked,
       username: targetUsername,
       role: targetRole,
-      message: `पासवर्ड बनाने/रीसेट करने का सुरक्षित लिंक आपके ईमेल '${masked}' पर भेज दिया गया है।`
+      otpSent: otpResult.success,
+      message: `6-अंकों का पासवर्ड रीसेट सुरक्षा कोड (OTP) आपके पंजीकृत ईमेल '${masked}' पर भेज दिया गया है।`
+    };
+  };
+
+  // 10. Verify 6-digit OTP and Set New Password
+  const verifyResetOtpAndSetPassword = async (
+    emailOrUsername: string,
+    otpCode: string,
+    newPass: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    const cleanInput = (emailOrUsername || '').trim();
+    const cleanCode = (otpCode || '').trim();
+    const cleanPassword = (newPass || '').trim();
+
+    if (!cleanInput) {
+      return { success: false, error: 'कृपया पंजीकृत ईमेल या यूजरनेम दर्ज करें।' };
+    }
+
+    if (!cleanCode || cleanCode.length !== 6) {
+      return { success: false, error: 'कृपया 6 अंकों का सही सत्यापन कोड दर्ज करें।' };
+    }
+
+    if (!cleanPassword || cleanPassword.length < 6) {
+      return { success: false, error: 'नया पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।' };
+    }
+
+    // Find account to resolve email
+    const upperClean = cleanInput.toUpperCase();
+    const cleanEmail = normalizeEmail(cleanInput);
+    const matched = await findExistingAccountRecord({
+      username: upperClean,
+      email: cleanInput.includes('@') ? cleanEmail : undefined,
+      admissionNumber: cleanInput,
+      employeeId: cleanInput
+    });
+
+    const targetEmail = matched ? normalizeEmail(matched.email) : cleanEmail;
+
+    if (!targetEmail) {
+      return { success: false, error: 'पंजीकृत ईमेल पता नहीं मिला।' };
+    }
+
+    // 1. Verify 6-digit OTP code
+    const otpVerify = await verifyPasswordResetOtpCode(targetEmail, cleanCode);
+    if (!otpVerify.success) {
+      return { success: false, error: otpVerify.error || 'अमान्य OTP कोड।' };
+    }
+
+    // 2. Update user profile password in state, Firestore, and localStorage
+    if (matched) {
+      const updatedProfile: UserProfile = {
+        ...matched,
+        password: cleanPassword,
+        mustChangePassword: false,
+        updatedAt: new Date().toISOString()
+      };
+
+      setAllUsers(prev => prev.map(u => u.uid === matched.uid ? updatedProfile : u));
+      if (userProfile?.uid === matched.uid) {
+        setUserProfile(updatedProfile);
+      }
+
+      setDoc(doc(db, 'users', matched.uid), { password: cleanPassword, mustChangePassword: false, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+      if (matched.role === 'student') {
+        setDoc(doc(db, 'students', matched.uid), { password: cleanPassword, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+      }
+
+      try {
+        const localKey = 'sms_gov_students';
+        const existingLocal = localStorage.getItem(localKey);
+        if (existingLocal) {
+          const list = JSON.parse(existingLocal);
+          const updatedList = list.map((s: any) => 
+            (s.id === matched.uid || s.uid === matched.uid || s.email?.toLowerCase() === targetEmail) 
+              ? { ...s, password: cleanPassword } 
+              : s
+          );
+          localStorage.setItem(localKey, JSON.stringify(updatedList));
+        }
+      } catch {}
+
+      addSecurityLog(
+        matched.username,
+        matched.role,
+        'SUCCESS',
+        'PASSWORD_CHANGE',
+        `User successfully reset password with 6-digit SMTP OTP for ${matched.username}`
+      );
+    }
+
+    return {
+      success: true,
+      message: 'बधाई हो! आपका नया पासवर्ड सफलतापूर्वक सुरक्षित कर दिया गया है। अब आप नए पासवर्ड से लॉगिन कर सकते हैं।'
     };
   };
 
@@ -2328,17 +2686,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithGoogle,
         registerStudentWithAuth,
         sendStudentVerificationEmail,
+        sendStudentVerificationCode,
+        verifyStudentVerificationCode,
         checkAndReloadEmailVerification,
         updateStudentProfile,
         uploadStudentProfilePhoto,
         submitStudentRegistration,
         submitTeacherRegistration,
         createTeacherDirectly,
+        createStudentDirectly,
         approveRegistrationRequest,
         rejectRegistrationRequest,
         completeFirstLoginPasswordChange,
         changePassword,
         resetPassword,
+        verifyResetOtpAndSetPassword,
         verifyResetCode,
         confirmPasswordResetWithCode,
         createOrUpdatePasswordAfterVerification,

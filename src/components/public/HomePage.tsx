@@ -482,9 +482,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             return (
               <div
                 key={fac.id}
-                className={`${theme.bg} ${theme.border} rounded-2xl p-5 sm:p-6 shadow-xs hover:shadow-md card-hover-glow transition-all space-y-3 relative overflow-hidden group`}
+                className={`${theme.bg} ${theme.border} rounded-2xl md:rounded-3xl p-5 sm:p-6 shadow-xs hover:shadow-md card-hover-glow transition-all space-y-3 relative overflow-hidden group`}
               >
-                <div className={`w-11 h-11 rounded-2xl ${theme.iconBg} flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform`}>
+                <div className={`w-11 h-11 rounded-xl md:rounded-2xl ${theme.iconBg} flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform`}>
                   <Icon className="w-5 h-5" />
                 </div>
                 <div>

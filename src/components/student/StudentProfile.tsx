@@ -29,8 +29,11 @@ import {
   BookOpen,
   FileCheck,
   CreditCard,
-  UserCheck
+  UserCheck,
+  Mail,
+  KeyRound
 } from 'lucide-react';
+import { StudentEmailVerificationModal } from '../common/StudentEmailVerificationModal';
 import { StudentIdCardPrint } from '../common/StudentIdCardPrint';
 import { ProfilePhotoModal } from '../common/ProfilePhotoModal';
 import { UserAvatar } from '../common/UserAvatar';
@@ -44,7 +47,7 @@ interface StudentProfileProps {
 }
 
 export const StudentProfile: React.FC<StudentProfileProps> = ({ onNavigateTab }) => {
-  const { userProfile, updateStudentProfile } = useAuth();
+  const { userProfile, updateStudentProfile, isEmailVerified, checkAndReloadEmailVerification } = useAuth();
   const { students, documents, settings, language, updateStudent } = useSchool();
 
   const currentStudent = resolveCurrentStudent(userProfile, students);
@@ -52,6 +55,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ onNavigateTab })
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [is360Open, setIs360Open] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [selectedDocForViewer, setSelectedDocForViewer] = useState<StudentDocument | null>(null);
   const [activeTab, setActiveTab] = useState<'biodata' | 'academic' | 'contact' | 'docs'>('biodata');
 
@@ -515,6 +519,37 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ onNavigateTab })
                   <div className="font-bold text-slate-900 text-sm">{currentStudent?.fatherName || currentStudent?.guardianName}</div>
                 </div>
 
+                {/* Email and Verification Card */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Registered Email Address & Verification</span>
+                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                      isEmailVerified 
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}>
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>{isEmailVerified ? (language === 'hi' ? 'सत्यापित ईमेल' : 'Verified Email') : (language === 'hi' ? 'सत्यापन लंबित' : 'Pending OTP Verification')}</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1">
+                    <div className="font-mono font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                      <Mail className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span>{userProfile?.email || currentStudent?.email || 'student@school.gov.in'}</span>
+                    </div>
+                    {!isEmailVerified && (
+                      <button
+                        type="button"
+                        onClick={() => setIsVerificationModalOpen(true)}
+                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                      >
+                        <KeyRound className="w-3.5 h-3.5 text-amber-300" />
+                        <span>{language === 'hi' ? '6-अंकों का कोड दर्ज करें' : 'Verify with 6-Digit OTP'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1 sm:col-span-2">
                   <span className="text-[10px] font-bold uppercase text-slate-400">Full Residential Address</span>
                   {isEditing ? (
@@ -652,6 +687,21 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ onNavigateTab })
           canVerify={false}
         />
       )}
+
+      {/* 6-Digit Email Verification Code Modal */}
+      <StudentEmailVerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        email={userProfile?.email || currentStudent?.email || ''}
+        studentName={currentStudent?.name || userProfile?.fullName}
+        studentId={currentStudent?.studentId || userProfile?.username}
+        uid={userProfile?.uid}
+        onSuccess={async () => {
+          if (checkAndReloadEmailVerification) {
+            await checkAndReloadEmailVerification();
+          }
+        }}
+      />
     </div>
   );
 };

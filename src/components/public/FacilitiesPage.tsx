@@ -143,7 +143,7 @@ export const FacilitiesPage: React.FC = () => {
           return (
             <div 
               key={fac.id}
-              className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-shadow p-6 flex flex-col justify-between space-y-4"
+              className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-xs hover:shadow-md transition-shadow p-6 flex flex-col justify-between space-y-4"
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">

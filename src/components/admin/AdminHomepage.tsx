@@ -1847,7 +1847,7 @@ export const AdminHomepage: React.FC = () => {
 
         {/* HOMEPAGE 6 CORE FACILITIES CUSTOMIZATION & ICON PICKER */}
         {(activeSectionTab === 'all' || activeSectionTab === 'facilities') && (
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white p-5 sm:p-8 rounded-2xl md:rounded-3xl border border-slate-200 shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
@@ -1882,7 +1882,7 @@ export const AdminHomepage: React.FC = () => {
           </div>
 
           {/* 6 Facilities Cards List / Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
             {homepageFacilities.map((facility, index) => {
               const CurrentIconComp = getFacilityIconComponent(facility.icon);
               const defaultForThis = DEFAULT_HOMEPAGE_FACILITIES[index] || DEFAULT_HOMEPAGE_FACILITIES[0];
@@ -1955,7 +1955,7 @@ export const AdminHomepage: React.FC = () => {
               return (
                 <div
                   key={facility.id || `fac-${index}`}
-                  className={`p-5 sm:p-6 rounded-2xl border-2 ${preset.border} ${preset.bg} card-hover-glow transition-all duration-300 shadow-xs hover:shadow-xl hover:-translate-y-1 space-y-4 relative overflow-hidden group`}
+                  className={`p-5 sm:p-6 rounded-2xl md:rounded-3xl border-2 ${preset.border} ${preset.bg} card-hover-glow transition-all duration-300 shadow-xs hover:shadow-xl hover:-translate-y-1 space-y-4 relative overflow-hidden group`}
                 >
                   {/* Card Top Bar with Unified Spacing */}
                   <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
@@ -2012,7 +2012,7 @@ export const AdminHomepage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-white/95 backdrop-blur-xs rounded-xl border border-slate-200 shadow-inner custom-scrollbar">
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-white/95 backdrop-blur-xs rounded-xl md:rounded-2xl border border-slate-200 shadow-inner custom-scrollbar">
                       {FACILITY_ICON_OPTIONS.map((ico) => {
                         const IconComponent = ico.icon;
                         const isSelected = facility.icon === ico.id;
@@ -2095,7 +2095,7 @@ export const AdminHomepage: React.FC = () => {
                   </div>
 
                   {/* Live Card Mini Preview with Unified Spacing System */}
-                  <div className="p-4 rounded-xl bg-white/95 border border-slate-200/90 shadow-xs space-y-2.5">
+                  <div className="p-4 rounded-xl md:rounded-2xl bg-white/95 border border-slate-200/90 shadow-xs space-y-2.5">
                     <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider">
                       <span className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -2107,7 +2107,7 @@ export const AdminHomepage: React.FC = () => {
                     </div>
 
                     <div className="flex items-start gap-3.5 pt-1">
-                      <div className={`w-12 h-12 rounded-2xl ${preset.iconBg} text-white flex items-center justify-center shrink-0 shadow-md transition-transform group-hover:scale-105`}>
+                      <div className={`w-12 h-12 rounded-xl md:rounded-2xl ${preset.iconBg} text-white flex items-center justify-center shrink-0 shadow-md transition-transform group-hover:scale-105`}>
                         <CurrentIconComp className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1 min-w-0 space-y-1">
