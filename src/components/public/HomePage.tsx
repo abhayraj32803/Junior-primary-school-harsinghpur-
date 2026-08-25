@@ -162,10 +162,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
             {/* School Name */}
             <div className="space-y-2">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight drop-shadow-md">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-snug sm:leading-tight drop-shadow-md">
                 {language === 'hi' ? (settings.schoolNameHi || settings.schoolName) : settings.schoolName}
               </h1>
-              <p className="text-sm sm:text-base text-gov-amber-200 font-semibold flex items-center gap-1.5 drop-shadow-sm">
+              <p className="text-xs sm:text-base text-gov-amber-200 font-semibold flex items-center gap-1.5 drop-shadow-sm flex-wrap leading-relaxed">
                 <MapPin className="w-4 h-4 text-gov-amber-400 shrink-0" />
                 <span>
                   {language === 'hi' 
@@ -176,17 +176,17 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             </div>
 
             {/* Short Welcome Message */}
-            <p className="text-sm sm:text-base text-slate-100 leading-relaxed font-normal max-w-2xl text-shadow-sm">
+            <p className="text-xs sm:text-base text-slate-100 leading-relaxed font-normal max-w-2xl text-shadow-sm">
               {language === 'hi'
                 ? 'हमारे शासकीय परिषदीय विद्यालय में आपका स्वागत है। यहां कक्षा 1 से 8 तक के सभी बच्चों को 100% निःशुल्क, सुरक्षित, समावेशी और गुणवत्तापूर्ण शिक्षा प्रदान की जाती है।'
                 : 'Welcome to our official Government Composite School. Providing 100% free, high-quality, and inclusive education for Classes 1 to 8 under the Right to Education Act.'}
             </p>
 
             {/* 2 Vibrant Action Buttons: "About School" & "Admission" */}
-            <div className="flex flex-wrap items-center gap-3.5 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
               <button
                 onClick={() => onNavigate('about')}
-                className="px-6 sm:px-7 py-3.5 rounded-xl bg-white hover:bg-gov-amber-50 text-gov-navy-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-black/20 hover:shadow-xl transition-all cursor-pointer transform hover:-translate-y-0.5 active:scale-95 border border-white/80"
+                className="px-5 sm:px-7 py-3 sm:py-3.5 rounded-xl bg-white hover:bg-gov-amber-50 text-gov-navy-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-black/20 hover:shadow-xl transition-all cursor-pointer transform hover:-translate-y-0.5 active:scale-95 border border-white/80"
                 id="btn-hero-about"
               >
                 <span>{language === 'hi' ? 'स्कूल के बारे में (About School)' : 'About School'}</span>
@@ -195,7 +195,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
               <button
                 onClick={() => onNavigate('admission')}
-                className="px-6 sm:px-7 py-3.5 rounded-xl bg-gradient-to-r from-gov-amber-500 via-amber-400 to-gov-amber-500 hover:from-amber-400 hover:to-amber-300 text-gov-navy-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-gov-amber-500/30 hover:shadow-gov-amber-500/50 transition-all cursor-pointer transform hover:-translate-y-0.5 active:scale-95"
+                className="px-5 sm:px-7 py-3 sm:py-3.5 rounded-xl bg-gradient-to-r from-gov-amber-500 via-amber-400 to-gov-amber-500 hover:from-amber-400 hover:to-amber-300 text-gov-navy-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-gov-amber-500/30 hover:shadow-gov-amber-500/50 transition-all cursor-pointer transform hover:-translate-y-0.5 active:scale-95"
                 id="btn-hero-admission"
               >
                 <GraduationCap className="w-4 h-4 text-gov-navy-950" />
@@ -214,79 +214,79 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           2. SCHOOL INFORMATION (4 Colorful & Vibrant Stat Cards)
           ========================================================================= */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
           
           {/* Card 1: Classes 1-8 (Warm Amber / Saffron) */}
-          <div className="bg-gradient-to-br from-white via-amber-50/40 to-orange-50/30 rounded-2xl p-5 sm:p-6 border-2 border-amber-200/80 shadow-sm hover:border-amber-400 hover:shadow-md card-hover-glow transition-all flex items-start gap-4 relative overflow-hidden group">
+          <div className="bg-gradient-to-br from-white via-amber-50/40 to-orange-50/30 rounded-2xl p-4 sm:p-6 border-2 border-amber-200/80 shadow-sm hover:border-amber-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-24 h-24 bg-amber-400/10 rounded-full blur-xl pointer-events-none" />
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25 group-hover:scale-105 transition-transform">
-              <BookOpen className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25 group-hover:scale-105 transition-transform">
+              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="text-xs font-bold text-amber-800 uppercase tracking-wider">
                 {language === 'hi' ? 'कक्षाएं' : 'Classes'}
               </div>
-              <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">
+              <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 leading-snug">
                 कक्षा 1 – 8
               </div>
-              <div className="text-xs text-amber-700 font-semibold mt-0.5">
+              <div className="text-xs text-amber-700 font-semibold mt-0.5 leading-tight">
                 {language === 'hi' ? 'प्राथमिक व उच्च प्राथमिक' : 'Primary & Upper Primary'}
               </div>
             </div>
           </div>
 
           {/* Card 2: Total Students (Ocean Blue / Sky) */}
-          <div className="bg-gradient-to-br from-white via-blue-50/40 to-sky-50/30 rounded-2xl p-5 sm:p-6 border-2 border-blue-200/80 shadow-sm hover:border-blue-400 hover:shadow-md card-hover-glow transition-all flex items-start gap-4 relative overflow-hidden group">
+          <div className="bg-gradient-to-br from-white via-blue-50/40 to-sky-50/30 rounded-2xl p-4 sm:p-6 border-2 border-blue-200/80 shadow-sm hover:border-blue-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-24 h-24 bg-blue-400/10 rounded-full blur-xl pointer-events-none" />
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
-              <GraduationCap className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
+              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="text-xs font-bold text-blue-800 uppercase tracking-wider">
                 {language === 'hi' ? 'कुल विद्यार्थी' : 'Total Students'}
               </div>
-              <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">
+              <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 leading-snug">
                 {students.length > 0 ? `${students.length}+ नामांकित` : '100% Free RTE'}
               </div>
-              <div className="text-xs text-blue-700 font-semibold mt-0.5">
+              <div className="text-xs text-blue-700 font-semibold mt-0.5 leading-tight">
                 {language === 'hi' ? 'निःशुल्क सर्व शिक्षा' : 'Zero Fee Education'}
               </div>
             </div>
           </div>
 
           {/* Card 3: Teachers (Emerald Green / Teal) */}
-          <div className="bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 rounded-2xl p-5 sm:p-6 border-2 border-emerald-200/80 shadow-sm hover:border-emerald-400 hover:shadow-md card-hover-glow transition-all flex items-start gap-4 relative overflow-hidden group">
+          <div className="bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 rounded-2xl p-4 sm:p-6 border-2 border-emerald-200/80 shadow-sm hover:border-emerald-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-400/10 rounded-full blur-xl pointer-events-none" />
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25 group-hover:scale-105 transition-transform">
-              <Users className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25 group-hover:scale-105 transition-transform">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
                 {language === 'hi' ? 'शिक्षक' : 'Teachers'}
               </div>
-              <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">
+              <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 leading-snug">
                 {teachers.length > 0 ? `${teachers.length} शिक्षक` : 'योग्य शिक्षक'}
               </div>
-              <div className="text-xs text-emerald-700 font-semibold mt-0.5">
+              <div className="text-xs text-emerald-700 font-semibold mt-0.5 leading-tight">
                 {language === 'hi' ? 'प्रशिक्षित व समर्पित' : 'Govt Certified Faculty'}
               </div>
             </div>
           </div>
 
           {/* Card 4: UDISE Code (Royal Purple / Violet) */}
-          <div className="bg-gradient-to-br from-white via-purple-50/40 to-indigo-50/30 rounded-2xl p-5 sm:p-6 border-2 border-purple-200/80 shadow-sm hover:border-purple-400 hover:shadow-md card-hover-glow transition-all flex items-start gap-4 relative overflow-hidden group">
+          <div className="bg-gradient-to-br from-white via-purple-50/40 to-indigo-50/30 rounded-2xl p-4 sm:p-6 border-2 border-purple-200/80 shadow-sm hover:border-purple-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-24 h-24 bg-purple-400/10 rounded-full blur-xl pointer-events-none" />
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25 group-hover:scale-105 transition-transform">
+              <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="text-xs font-bold text-purple-800 uppercase tracking-wider">
                 {language === 'hi' ? 'यू-डायस कोड' : 'UDISE Code'}
               </div>
-              <div className="text-xl sm:text-2xl font-mono font-black text-slate-900 mt-0.5">
+              <div className="text-base sm:text-2xl font-mono font-black text-slate-900 mt-0.5 leading-snug truncate">
                 {settings.schoolCode || '09290205902'}
               </div>
-              <div className="text-xs text-purple-700 font-semibold mt-0.5">
+              <div className="text-xs text-purple-700 font-semibold mt-0.5 leading-tight">
                 {language === 'hi' ? 'राष्ट्रीय पोर्टल मान्य' : 'UDISE+ Verified'}
               </div>
             </div>

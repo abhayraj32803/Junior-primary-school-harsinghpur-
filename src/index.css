@@ -41,7 +41,9 @@
     text-rendering: optimizeLegibility;
     font-synthesis: none;
     font-optical-sizing: auto;
-    letter-spacing: -0.011em;
+    line-height: 1.5;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
 
   #root {
@@ -51,11 +53,49 @@
     min-height: 100vh;
   }
 
-  /* Ensure all typography elements render with razor-sharp clarity without any subpixel blur */
-  h1, h2, h3, h4, h5, h6, p, span, a, button, input, select, textarea, label, td, th, li, strong, b, em {
+  /* Ensure all typography elements render with razor-sharp clarity and generous vertical clearance for Devanagari matras */
+  h1, h2, h3, h4, h5, h6 {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    line-height: 1.35;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    letter-spacing: -0.01em;
+  }
+
+  p, span, a, button, input, select, textarea, label, td, th, li, strong, b, em {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Mobile-specific line height and spacing safeguards to completely eliminate text overlapping */
+  @media (max-width: 640px) {
+    h1 {
+      line-height: 1.35 !important;
+      letter-spacing: 0 !important;
+    }
+    h2 {
+      line-height: 1.4 !important;
+      letter-spacing: 0 !important;
+    }
+    h3 {
+      line-height: 1.45 !important;
+      letter-spacing: 0 !important;
+    }
+    p, li, td, th {
+      line-height: 1.6 !important;
+      letter-spacing: 0 !important;
+    }
+    .leading-tight {
+      line-height: 1.35 !important;
+    }
+    .leading-none {
+      line-height: 1.25 !important;
+    }
   }
 
   /* Prevent text blurring on translated / animated parent containers */

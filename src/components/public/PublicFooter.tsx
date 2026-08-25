@@ -107,79 +107,79 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ onNavigate }) => {
               <BookOpen className="w-4 h-4" />
               <span>{language === 'hi' ? 'त्वरित लिंक एवं अनुभाग' : 'Quick Navigation'}</span>
             </h4>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-slate-300">
+            <ul className="grid grid-cols-1 xs:grid-cols-2 gap-x-3 gap-y-2.5 text-xs text-slate-300">
               <li>
-                <button onClick={() => onNavigate('home')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('home')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• मुख्य पृष्ठ' : '• Home'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('about')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('about')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• परिचय व इतिहास' : '• About Us'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('classes')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('classes')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• पाठ्यक्रम (1-8)' : '• Curriculum'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('faculty')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('faculty')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• शिक्षक पंजिका' : '• Faculty'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('admission')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('admission')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• नि:शुल्क प्रवेश' : '• Admissions'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('schemes')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('schemes')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• योजनाएं व DBT' : '• Schemes'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('facilities')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('facilities')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• सुविधाएं' : '• Facilities'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('statistics')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('statistics')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• सांख्यिकी' : '• Statistics'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('notices')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('notices')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• सूचना पट्ट' : '• Notices'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('gallery')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('gallery')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• फोटो व वीडियो' : '• Gallery'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('documents')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('documents')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• प्रपत्र व कैलेंडर' : '• Documents'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('faq')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('faq')} className="hover:text-gov-amber-400 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• प्रश्नोत्तरी (FAQ)' : '• FAQs'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('login-student')} className="hover:text-gov-amber-400 font-bold text-amber-300 transition-colors cursor-pointer text-left">
-                  {language === 'hi' ? '• 🎓 छात्र पोर्टल लॉगिन' : '• 🎓 Student Login'}
+                <button onClick={() => onNavigate('login-student')} className="hover:text-gov-amber-400 font-bold text-amber-300 transition-colors cursor-pointer text-left leading-normal">
+                  {language === 'hi' ? '• 🎓 छात्र पोर्टल' : '• 🎓 Student Login'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('login-teacher')} className="hover:text-gov-amber-400 font-bold text-blue-300 transition-colors cursor-pointer text-left">
-                  {language === 'hi' ? '• 👨‍🏫 शिक्षक पोर्टल लॉगिन' : '• 👨‍🏫 Teacher Login'}
+                <button onClick={() => onNavigate('login-teacher')} className="hover:text-gov-amber-400 font-bold text-blue-300 transition-colors cursor-pointer text-left leading-normal">
+                  {language === 'hi' ? '• 👨‍🏫 शिक्षक पोर्टल' : '• 👨‍🏫 Teacher Login'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('login-admin')} className="hover:text-gov-amber-400 font-bold text-emerald-300 transition-colors cursor-pointer text-left">
+                <button onClick={() => onNavigate('login-admin')} className="hover:text-gov-amber-400 font-bold text-emerald-300 transition-colors cursor-pointer text-left leading-normal">
                   {language === 'hi' ? '• 🛡️ प्रधानाध्यापक ERP' : '• 🛡️ Headmaster ERP'}
                 </button>
               </li>
