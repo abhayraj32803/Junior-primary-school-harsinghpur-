@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { UserAvatar } from '../common/UserAvatar';
@@ -36,6 +36,26 @@ export const TeacherSidebar: React.FC<TeacherSidebarProps> = ({
   const { userProfile, logout } = useAuth();
   const { settings, homeworkList, language } = useSchool();
 
+  // Lock background scroll on mobile when drawer is open, and support ESC to close
+  useEffect(() => {
+    if (isOpen) {
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = 'hidden';
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        document.body.style.overflow = originalStyle;
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [isOpen, onClose]);
+
   const teacherNavGroups = [
     {
       titleEn: 'Teaching & Classroom',
@@ -61,31 +81,39 @@ export const TeacherSidebar: React.FC<TeacherSidebarProps> = ({
 
   return (
     <>
-      {isOpen && (
-        <div
-          onClick={onClose}
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 lg:hidden transition-opacity"
-        />
-      )}
+      {/* Mobile Backdrop Overlay - Smooth fade-in/out */}
+      <div
+        onClick={onClose}
+        aria-hidden="true"
+        className={`fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300 ease-out ${
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      />
 
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-40 w-72 bg-slate-900 text-slate-100 border-r border-slate-800 flex flex-col justify-between transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none shrink-0
+          fixed lg:static inset-y-0 left-0 z-50 w-72 sm:w-80 max-w-[85vw] bg-slate-900 text-slate-100 border-r border-slate-800 flex flex-col justify-between shadow-2xl lg:shadow-none shrink-0
+          transform-gpu will-change-transform overscroll-contain transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         {/* Top Header */}
-        <div className="p-4 bg-slate-950/90 border-b border-slate-800">
+        <div className="p-4 bg-slate-950/90 border-b border-slate-800 shrink-0">
           <div className="flex items-center justify-between gap-3">
             <div 
-              onClick={() => onSelectTab('profile')}
-              className="flex items-center gap-3 min-w-0 cursor-pointer group flex-1"
+              onClick={() => {
+                onSelectTab('profile');
+                onClose();
+              }}
+              className="flex items-center gap-3 min-w-0 cursor-pointer group flex-1 touch-manipulation active:scale-[0.98] transition-transform"
             >
-              <UserAvatar
-                userProfile={userProfile}
-                size="md"
-                className="ring-2 ring-amber-500/40 group-hover:ring-amber-400 transition-all rounded-2xl"
-              />
+              <div className="relative shrink-0">
+                <UserAvatar
+                  userProfile={userProfile}
+                  size="md"
+                  className="ring-2 ring-amber-500/40 group-hover:ring-amber-400 transition-all rounded-2xl"
+                />
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-black text-white group-hover:text-amber-300 transition-colors truncate">
                   {userProfile?.name || 'Faculty Member'}
@@ -99,21 +127,22 @@ export const TeacherSidebar: React.FC<TeacherSidebarProps> = ({
 
             <button
               onClick={onClose}
-              className="lg:hidden p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+              className="lg:hidden min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 active:scale-95 text-slate-400 hover:text-white transition-all flex items-center justify-center cursor-pointer touch-manipulation shrink-0"
+              aria-label="Close sidebar"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Navigation Items */}
-        <div className="p-3 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+        <div className="p-3 space-y-4 overflow-y-auto overscroll-contain custom-scrollbar flex-1">
           {teacherNavGroups.map((group, idx) => (
-            <div key={idx} className="space-y-1 bg-slate-950/40 p-2 rounded-2xl border border-slate-800/60">
+            <div key={idx} className="space-y-1 bg-slate-950/40 p-2.5 rounded-2xl border border-slate-800/60">
               <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-amber-400/80">
                 {language === 'hi' ? group.titleHi : group.titleEn}
               </div>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
@@ -125,7 +154,7 @@ export const TeacherSidebar: React.FC<TeacherSidebarProps> = ({
                         onClose();
                       }}
                       className={`
-                        w-full flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer group
+                        w-full min-h-[46px] flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer group select-none touch-manipulation active:scale-[0.98]
                         ${isActive
                           ? 'bg-amber-500 text-slate-950 font-black shadow-md'
                           : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -152,9 +181,10 @@ export const TeacherSidebar: React.FC<TeacherSidebarProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3.5 border-t border-slate-800 bg-slate-950/95 space-y-2">
-          <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400 truncate">
-            <span className="font-bold text-slate-200">{settings.schoolName}</span>
+        <div className="p-3.5 border-t border-slate-800 bg-slate-950/95 space-y-2 shrink-0">
+          <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400 truncate flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="font-bold text-slate-200 truncate">{settings.schoolName}</span>
           </div>
           <button
             onClick={async () => {
@@ -165,7 +195,7 @@ export const TeacherSidebar: React.FC<TeacherSidebarProps> = ({
               }
               onClose?.();
             }}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-bold transition-all cursor-pointer"
+            className="w-full min-h-[44px] flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 active:bg-rose-700 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-bold transition-all cursor-pointer touch-manipulation select-none active:scale-[0.98]"
           >
             <LogOut className="w-4 h-4" />
             <span>{language === 'hi' ? 'साइन आउट (Logout)' : 'Sign Out / Logout'}</span>

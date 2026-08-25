@@ -103,6 +103,26 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
     }
   };
 
+  // Lock body scroll and listen for ESC key when mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = 'hidden';
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setMobileMenuOpen(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        document.body.style.overflow = originalStyle;
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [mobileMenuOpen]);
+
   const selectedPage = activePage || currentPage || 'home';
   const handleOpenPortal = onOpenPortal || (() => onNavigate('portal'));
 
@@ -703,10 +723,49 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
           </div>
         </div>
 
-        {/* 4. MOBILE NAVIGATION DRAWER */}
-        {mobileMenuOpen && (
-          <div className="xl:hidden bg-white border-t border-slate-200 px-4 pt-3 pb-8 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto">
-            
+        {/* 4. MOBILE NAVIGATION DRAWER & BACKDROP OVERLAY */}
+        {/* Backdrop Overlay */}
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+          className={`fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 xl:hidden transition-opacity duration-300 ease-out ${
+            mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+        />
+
+        {/* Off-canvas Slide-in Drawer */}
+        <div
+          className={`
+            fixed inset-y-0 right-0 z-50 w-full sm:w-96 max-w-[88vw] bg-white border-l border-slate-200 shadow-2xl flex flex-col justify-between xl:hidden
+            transform-gpu will-change-transform overscroll-contain transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
+            ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
+          `}
+        >
+          {/* Drawer Header */}
+          <div className="p-4 bg-gov-navy-950 text-white flex items-center justify-between border-b border-gov-navy-800 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-gov-amber-500 text-gov-navy-950 flex items-center justify-center font-black text-sm shrink-0">
+                <School className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-black text-white truncate">{settings.schoolName}</div>
+                <div className="text-[10px] text-gov-amber-400 font-bold tracking-wide truncate">
+                  {language === 'hi' ? 'नेविगेशन मेनू' : 'Main Navigation'}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-gov-navy-900 hover:bg-gov-navy-800 active:bg-gov-navy-700 active:scale-95 text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer touch-manipulation shrink-0"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Drawer Scrollable Content */}
+          <div className="px-4 py-3 space-y-3.5 overflow-y-auto overscroll-contain custom-scrollbar flex-1">
             {/* Quick Back Button in Mobile Drawer if on subpage */}
             {selectedPage !== 'home' && (
               <button
@@ -715,7 +774,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   if (onGoBack) onGoBack();
                   else handleNavClick('home');
                 }}
-                className="w-full p-2.5 rounded-xl bg-gov-amber-50 hover:bg-gov-amber-100 text-gov-navy-950 text-xs font-black flex items-center justify-center gap-2 border border-gov-amber-200 transition-all shadow-xs cursor-pointer"
+                className="w-full min-h-[44px] p-2.5 rounded-xl bg-gov-amber-50 hover:bg-gov-amber-100 active:bg-gov-amber-200 text-gov-navy-950 text-xs font-black flex items-center justify-center gap-2 border border-gov-amber-200 transition-all shadow-xs cursor-pointer touch-manipulation select-none active:scale-[0.98]"
               >
                 <ArrowLeft className="w-4 h-4 text-gov-amber-700" />
                 <span>{language === 'hi' ? '← पिछले पृष्ठ पर वापस जाएं' : '← Back to Previous Screen'}</span>
@@ -728,59 +787,71 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 setMobileMenuOpen(false);
                 setIsSearchOpen(true);
               }}
-              className="p-3 rounded-2xl bg-slate-100 border border-slate-200 text-slate-500 text-xs flex items-center justify-between cursor-pointer"
+              className="min-h-[44px] p-3 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 border border-slate-200 text-slate-600 text-xs flex items-center justify-between cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-all"
             >
               <div className="flex items-center gap-2">
                 <Search className="w-4 h-4 text-slate-400" />
                 <span>{language === 'hi' ? 'सर्च करें (खोजें)...' : 'Search website...'}</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 bg-white rounded border border-slate-200 font-bold">Search</span>
+              <span className="text-[10px] px-2 py-0.5 bg-white rounded border border-slate-200 font-bold text-slate-700">Search</span>
             </div>
 
             {/* Active Dashboard Card if logged in */}
             <button
-              onClick={() => handleNavClick('portal')}
-              className="w-full p-3.5 rounded-2xl bg-gov-amber-500 hover:bg-gov-amber-600 text-gov-navy-950 text-left flex items-center justify-between shadow-md transition-all group cursor-pointer"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleNavClick('portal');
+              }}
+              className="w-full min-h-[56px] p-3.5 rounded-2xl bg-gov-amber-500 hover:bg-gov-amber-600 active:bg-gov-amber-600 text-gov-navy-950 text-left flex items-center justify-between shadow-md transition-all group cursor-pointer touch-manipulation select-none active:scale-[0.98]"
               id="btn-drawer-dashboard"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-gov-navy-950 text-gov-amber-400 flex items-center justify-center font-black shadow-sm shrink-0">
                   <LayoutDashboard className="w-5 h-5" />
                 </div>
-                <div>
-                  <div className="text-sm font-black text-gov-navy-950 leading-tight">
+                <div className="min-w-0">
+                  <div className="text-sm font-black text-gov-navy-950 leading-tight truncate">
                     {role 
                       ? (language === 'hi' ? 'डैशबोर्ड में प्रवेश करें' : 'Go to Dashboard') 
                       : (language === 'hi' ? 'पोर्टल लॉगिन (ERP)' : 'School Portal / ERP Login')}
                   </div>
-                  <div className="text-[11px] text-gov-navy-900 font-semibold mt-0.5">
+                  <div className="text-[11px] text-gov-navy-900 font-semibold mt-0.5 truncate">
                     {role ? 'Active Session' : 'Student, Teacher & Headmaster Portals'}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-gov-navy-950 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight className="w-5 h-5 text-gov-navy-950 group-hover:translate-x-1 transition-transform shrink-0" />
             </button>
 
             {/* Quick 1-Click Role Logins in Drawer when not logged in */}
             {!role && (
               <div className="grid grid-cols-3 gap-2">
                 <button
-                  onClick={() => handleNavClick('login-student')}
-                  className="p-2.5 rounded-xl bg-slate-100 hover:bg-amber-100 text-slate-800 text-center flex flex-col items-center gap-1 text-[11px] font-bold border border-slate-200 cursor-pointer"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleNavClick('login-student');
+                  }}
+                  className="min-h-[58px] p-2.5 rounded-xl bg-slate-100 hover:bg-amber-100 active:bg-amber-200 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold border border-slate-200 cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-transform"
                 >
                   <GraduationCap className="w-4 h-4 text-gov-amber-600" />
                   <span>{language === 'hi' ? 'छात्र लॉगिन' : 'Student'}</span>
                 </button>
                 <button
-                  onClick={() => handleNavClick('login-teacher')}
-                  className="p-2.5 rounded-xl bg-slate-100 hover:bg-amber-100 text-slate-800 text-center flex flex-col items-center gap-1 text-[11px] font-bold border border-slate-200 cursor-pointer"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleNavClick('login-teacher');
+                  }}
+                  className="min-h-[58px] p-2.5 rounded-xl bg-slate-100 hover:bg-amber-100 active:bg-amber-200 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold border border-slate-200 cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-transform"
                 >
                   <Users className="w-4 h-4 text-blue-600" />
                   <span>{language === 'hi' ? 'शिक्षक लॉगिन' : 'Teacher'}</span>
                 </button>
                 <button
-                  onClick={() => handleNavClick('login-admin')}
-                  className="p-2.5 rounded-xl bg-slate-100 hover:bg-amber-100 text-slate-800 text-center flex flex-col items-center gap-1 text-[11px] font-bold border border-slate-200 cursor-pointer"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleNavClick('login-admin');
+                  }}
+                  className="min-h-[58px] p-2.5 rounded-xl bg-slate-100 hover:bg-amber-100 active:bg-amber-200 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold border border-slate-200 cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-transform"
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
                   <span>{language === 'hi' ? 'प्रधानाध्यापक' : 'Admin'}</span>
@@ -790,9 +861,12 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
 
             {/* Quick Home button */}
             <button
-              onClick={() => handleNavClick('home')}
-              className={`w-full p-3 rounded-xl text-xs font-bold text-left flex items-center justify-between ${
-                selectedPage === 'home' ? 'bg-gov-navy-900 text-gov-amber-400 font-black' : 'bg-slate-100 text-slate-800'
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleNavClick('home');
+              }}
+              className={`w-full min-h-[44px] p-3 rounded-xl text-xs font-bold text-left flex items-center justify-between touch-manipulation select-none active:scale-[0.98] transition-all ${
+                selectedPage === 'home' ? 'bg-gov-navy-900 text-gov-amber-400 font-black' : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -809,7 +883,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   <span className="text-[11px] font-black uppercase tracking-wider text-gov-amber-700">
                     {language === 'hi' ? pillar.labelHi : pillar.labelEn}
                   </span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-bold">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold">
                     {pillar.badge}
                   </span>
                 </div>
@@ -820,8 +894,11 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                     return (
                       <button
                         key={item.id}
-                        onClick={() => handleNavClick(item.id)}
-                        className={`w-full text-left p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-colors ${
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          handleNavClick(item.id);
+                        }}
+                        className={`w-full min-h-[44px] text-left p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all touch-manipulation select-none active:scale-[0.98] ${
                           isItemActive
                             ? 'bg-gov-navy-900 text-gov-amber-400 font-extrabold shadow-xs'
                             : 'text-slate-700 hover:bg-white bg-slate-50/50'
@@ -838,34 +915,33 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 </div>
               </div>
             ))}
-
-            {/* Mobile Language Switcher & Accessibility */}
-            <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-600">
-                {language === 'hi' ? 'भाषा एवं स्क्रीन मोड:' : 'Language & Contrast:'}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setLanguage('hi')}
-                  className={`px-3 py-1 text-xs rounded-xl font-bold ${
-                    language === 'hi' ? 'bg-gov-amber-500 text-gov-navy-950 font-extrabold' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  हिन्दी
-                </button>
-                <button
-                  onClick={() => setLanguage('en')}
-                  className={`px-3 py-1 text-xs rounded-xl font-bold ${
-                    language === 'en' ? 'bg-gov-amber-500 text-gov-navy-950 font-extrabold' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  English
-                </button>
-              </div>
-            </div>
-
           </div>
-        )}
+
+          {/* Mobile Language Switcher & Accessibility Footer */}
+          <div className="p-3.5 border-t border-slate-200 bg-slate-50 shrink-0 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-600">
+              {language === 'hi' ? 'भाषा (Language):' : 'Language:'}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLanguage('hi')}
+                className={`min-h-[38px] px-3.5 py-1.5 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer active:scale-95 ${
+                  language === 'hi' ? 'bg-gov-amber-500 text-gov-navy-950 font-extrabold shadow-xs' : 'bg-white text-slate-600 border border-slate-200'
+                }`}
+              >
+                हिन्दी
+              </button>
+              <button
+                onClick={() => setLanguage('en')}
+                className={`min-h-[38px] px-3.5 py-1.5 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer active:scale-95 ${
+                  language === 'en' ? 'bg-gov-amber-500 text-gov-navy-950 font-extrabold shadow-xs' : 'bg-white text-slate-600 border border-slate-200'
+                }`}
+              >
+                English
+              </button>
+            </div>
+          </div>
+        </div>
       </header>
     </>
   );
