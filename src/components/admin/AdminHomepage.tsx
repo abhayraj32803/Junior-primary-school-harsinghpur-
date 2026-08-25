@@ -39,7 +39,18 @@ import {
   Link2,
   Video,
   Film,
-  Activity
+  Activity,
+  GraduationCap,
+  Gift,
+  FileText,
+  Phone,
+  BookOpen,
+  HelpCircle,
+  Users,
+  Globe,
+  Bell,
+  MousePointerClick,
+  ExternalLink
 } from 'lucide-react';
 import { AdminVisitorCounterWidget } from './AdminVisitorCounterWidget';
 import { AdminEducationalVideos } from './AdminEducationalVideos';
@@ -79,6 +90,35 @@ const DEFAULT_CAROUSEL_IMAGES = [
   "https://images.unsplash.com/photo-1594608661623-aa0bd3a69d98?auto=format&fit=crop&w=2000&q=80"
 ];
 
+// Preset destination pages for Primary and Secondary CTA Buttons
+const PRESET_CTA_PAGES = [
+  { id: 'admission', labelHi: 'नि:शुल्क प्रवेश (Admission)', labelEn: 'Admission Guidelines', icon: 'GraduationCap', defaultTextHi: 'नि:शुल्क प्रवेश प्रक्रिया', defaultTextEn: 'Free Admission' },
+  { id: 'gallery', labelHi: 'फोटो व वीडियो गैलरी (Gallery)', labelEn: 'School Photo Gallery', icon: 'Images', defaultTextHi: 'फोटो व वीडियो गैलरी', defaultTextEn: 'View Gallery' },
+  { id: 'facilities', labelHi: 'विद्यालय सुविधाएं (Facilities)', labelEn: 'School Facilities & Labs', icon: 'Building2', defaultTextHi: 'विद्यालय सुविधाएं देखें', defaultTextEn: 'School Facilities' },
+  { id: 'schemes', labelHi: 'सरकारी योजनाएं व DBT (Schemes)', labelEn: 'Govt Schemes & DBT', icon: 'Gift', defaultTextHi: 'डीबीटी व सरकारी योजनाएं', defaultTextEn: 'Govt. Schemes & DBT' },
+  { id: 'notices', labelHi: 'सूचना पट्ट / परिपत्र (Notices)', labelEn: 'Public Notice Board', icon: 'Bell', defaultTextHi: 'नवीनतम सूचनाएं देखें', defaultTextEn: 'Public Notices' },
+  { id: 'documents', labelHi: 'दस्तावेज़ व फॉर्म (Documents)', labelEn: 'Documents & Downloads', icon: 'FileText', defaultTextHi: 'दस्तावेज़ व प्रपत्र डाउनलोड', defaultTextEn: 'Download Forms' },
+  { id: 'curriculum', labelHi: 'पाठ्यक्रम व कक्षाएं (Curriculum)', labelEn: 'Classes & Curriculum', icon: 'BookOpen', defaultTextHi: 'पाठ्यक्रम व कक्षाएं', defaultTextEn: 'Curriculum & Classes' },
+  { id: 'about', labelHi: 'विद्यालय परिचय (About School)', labelEn: 'About School History', icon: 'Info', defaultTextHi: 'विद्यालय के बारे में', defaultTextEn: 'About Our School' },
+  { id: 'contact', labelHi: 'संपर्क व पता (Contact Us)', labelEn: 'Contact School Desk', icon: 'Phone', defaultTextHi: 'संपर्क व पता', defaultTextEn: 'Contact Us' },
+  { id: 'login', labelHi: 'पोर्टल लॉगिन (Portal Login)', labelEn: 'Portal Login', icon: 'Sparkles', defaultTextHi: 'छात्र / शिक्षक पोर्टल', defaultTextEn: 'Portal Login' },
+];
+
+const CTA_ICON_OPTIONS = [
+  { id: 'GraduationCap', label: 'Graduation Cap (Education/Admission)', icon: GraduationCap },
+  { id: 'Images', label: 'Gallery / Photos', icon: Images },
+  { id: 'Building2', label: 'School Building / Facilities', icon: Building2 },
+  { id: 'Gift', label: 'Govt Schemes / DBT / Rewards', icon: Gift },
+  { id: 'FileText', label: 'Documents / Forms', icon: FileText },
+  { id: 'Bell', label: 'Notice / Announcements', icon: Bell },
+  { id: 'Phone', label: 'Contact / Call', icon: Phone },
+  { id: 'BookOpen', label: 'Books / Curriculum', icon: BookOpen },
+  { id: 'Sparkles', label: 'Sparkles / Portal', icon: Sparkles },
+  { id: 'ArrowRight', label: 'Arrow Right / Action', icon: ArrowRight },
+  { id: 'Globe', label: 'Website / External Link', icon: Globe },
+  { id: 'Info', label: 'Information / About', icon: Info },
+];
+
 export const AdminHomepage: React.FC = () => {
   const { settings, updateSchoolSettingsWithAudit, language, gallery } = useSchool();
   const { userProfile } = useAuth();
@@ -97,6 +137,40 @@ export const AdminHomepage: React.FC = () => {
     settings.heroBannerSubtitleEn || `Village: ${settings.village || 'Harsinghpur Gova'} • Block: ${settings.block || 'Shamsabad'} • District: ${settings.district || 'Farrukhabad'}, UP`
   );
 
+  // Hero CTA Action Buttons State
+  const [ctaEnabled, setCtaEnabled] = useState<boolean>(
+    settings.heroBannerCtaEnabled !== undefined ? settings.heroBannerCtaEnabled : true
+  );
+  const [ctaTextHi, setCtaTextHi] = useState<string>(
+    settings.heroBannerCtaTextHi || 'नि:शुल्क प्रवेश प्रक्रिया'
+  );
+  const [ctaTextEn, setCtaTextEn] = useState<string>(
+    settings.heroBannerCtaTextEn || 'Free Admission'
+  );
+  const [ctaLink, setCtaLink] = useState<string>(
+    settings.heroBannerCtaLink || 'admission'
+  );
+  const [ctaIcon, setCtaIcon] = useState<string>(
+    settings.heroBannerCtaIcon || 'GraduationCap'
+  );
+
+  // Secondary CTA State
+  const [secondaryCtaEnabled, setSecondaryCtaEnabled] = useState<boolean>(
+    settings.heroBannerSecondaryCtaEnabled !== undefined ? settings.heroBannerSecondaryCtaEnabled : true
+  );
+  const [secondaryCtaTextHi, setSecondaryCtaTextHi] = useState<string>(
+    settings.heroBannerSecondaryCtaTextHi || 'डीबीटी व योजनाएं'
+  );
+  const [secondaryCtaTextEn, setSecondaryCtaTextEn] = useState<string>(
+    settings.heroBannerSecondaryCtaTextEn || 'Govt. Schemes'
+  );
+  const [secondaryCtaLink, setSecondaryCtaLink] = useState<string>(
+    settings.heroBannerSecondaryCtaLink || 'schemes'
+  );
+  const [secondaryCtaIcon, setSecondaryCtaIcon] = useState<string>(
+    settings.heroBannerSecondaryCtaIcon || 'Gift'
+  );
+
   // Banner image & styling
   const [bannerImage, setBannerImage] = useState<string>(
     settings.heroBannerImage || 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=2000&q=80'
@@ -109,6 +183,9 @@ export const AdminHomepage: React.FC = () => {
   );
   const [overlayOpacity, setOverlayOpacity] = useState<number>(
     settings.heroBannerOverlayOpacity !== undefined ? settings.heroBannerOverlayOpacity : 60
+  );
+  const [bannerTextColor, setBannerTextColor] = useState<'light' | 'dark'>(
+    settings.heroBannerTextColor || 'light'
   );
   const [previewAnimKey, setPreviewAnimKey] = useState<number>(0);
 
@@ -163,7 +240,7 @@ export const AdminHomepage: React.FC = () => {
   const [saveNotice, setSaveNotice] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
-  const [activeSectionTab, setActiveSectionTab] = useState<'all' | 'banner' | 'videos' | 'visibility' | 'visitor'>('all');
+  const [activeSectionTab, setActiveSectionTab] = useState<'all' | 'banner' | 'cta' | 'videos' | 'visibility' | 'visitor'>('all');
 
   // Keep state in sync if settings update
   useEffect(() => {
@@ -171,6 +248,7 @@ export const AdminHomepage: React.FC = () => {
     if (settings.heroBannerAspectRatio) setBannerRatio(settings.heroBannerAspectRatio);
     if (settings.heroBannerLayout) setBannerLayout(settings.heroBannerLayout);
     if (settings.heroBannerOverlayOpacity !== undefined) setOverlayOpacity(settings.heroBannerOverlayOpacity);
+    if (settings.heroBannerTextColor) setBannerTextColor(settings.heroBannerTextColor);
     if (settings.heroBannerHeadlineHi) setHeroTitleHi(settings.heroBannerHeadlineHi);
     if (settings.heroBannerHeadlineEn) setHeroTitleEn(settings.heroBannerHeadlineEn);
     if (settings.heroBannerSubtitleHi) setHeroSubtitleHi(settings.heroBannerSubtitleHi);
@@ -180,6 +258,16 @@ export const AdminHomepage: React.FC = () => {
       setCarouselImages(settings.heroBannerCarouselImages);
     }
     if (settings.heroBannerCarouselInterval) setCarouselInterval(settings.heroBannerCarouselInterval);
+    if (settings.heroBannerCtaEnabled !== undefined) setCtaEnabled(settings.heroBannerCtaEnabled);
+    if (settings.heroBannerCtaTextHi) setCtaTextHi(settings.heroBannerCtaTextHi);
+    if (settings.heroBannerCtaTextEn) setCtaTextEn(settings.heroBannerCtaTextEn);
+    if (settings.heroBannerCtaLink) setCtaLink(settings.heroBannerCtaLink);
+    if (settings.heroBannerCtaIcon) setCtaIcon(settings.heroBannerCtaIcon);
+    if (settings.heroBannerSecondaryCtaEnabled !== undefined) setSecondaryCtaEnabled(settings.heroBannerSecondaryCtaEnabled);
+    if (settings.heroBannerSecondaryCtaTextHi) setSecondaryCtaTextHi(settings.heroBannerSecondaryCtaTextHi);
+    if (settings.heroBannerSecondaryCtaTextEn) setSecondaryCtaTextEn(settings.heroBannerSecondaryCtaTextEn);
+    if (settings.heroBannerSecondaryCtaLink) setSecondaryCtaLink(settings.heroBannerSecondaryCtaLink);
+    if (settings.heroBannerSecondaryCtaIcon) setSecondaryCtaIcon(settings.heroBannerSecondaryCtaIcon);
   }, [settings]);
 
   // Preview Carousel Auto-Rotation Timer
@@ -376,6 +464,7 @@ export const AdminHomepage: React.FC = () => {
           heroBannerImage: effectiveMainImage,
           heroBannerAspectRatio: bannerRatio,
           heroBannerLayout: bannerLayout,
+          heroBannerTextColor: bannerTextColor,
           heroBannerOverlayOpacity: overlayOpacity,
           heroBannerHeadlineHi: heroTitleHi,
           heroBannerHeadlineEn: heroTitleEn,
@@ -384,16 +473,26 @@ export const AdminHomepage: React.FC = () => {
           heroBannerCarouselEnabled: carouselEnabled,
           heroBannerCarouselImages: carouselImages,
           heroBannerCarouselInterval: carouselInterval,
+          heroBannerCtaEnabled: ctaEnabled,
+          heroBannerCtaTextHi: ctaTextHi,
+          heroBannerCtaTextEn: ctaTextEn,
+          heroBannerCtaLink: ctaLink,
+          heroBannerCtaIcon: ctaIcon,
+          heroBannerSecondaryCtaEnabled: secondaryCtaEnabled,
+          heroBannerSecondaryCtaTextHi: secondaryCtaTextHi,
+          heroBannerSecondaryCtaTextEn: secondaryCtaTextEn,
+          heroBannerSecondaryCtaLink: secondaryCtaLink,
+          heroBannerSecondaryCtaIcon: secondaryCtaIcon,
         },
         {
-          field: 'Homepage Hero Banner & Carousel Settings',
+          field: 'Homepage Hero Banner, CTA & Carousel Settings',
           previousValue: settings.heroBannerCarouselEnabled ? 'Carousel Active' : 'Single Banner',
           newValue: carouselEnabled 
-            ? `Carousel (${carouselImages.length} slides, ${carouselInterval}s interval, ${bannerRatio})` 
-            : `Single Banner (${bannerRatio}, ${bannerLayout})`,
+            ? `Carousel (${carouselImages.length} slides, ${carouselInterval}s interval), CTA: [${ctaTextEn} -> ${ctaLink}]` 
+            : `Single Banner (${bannerRatio}), CTA: [${ctaTextEn} -> ${ctaLink}]`,
           source: 'Headmaster Administrative Panel',
           status: 'VERIFIED_CURRENT',
-          notes: `Updated hero banner, carousel mode (${carouselEnabled ? 'Enabled' : 'Disabled'}), ${carouselImages.length} slides, and headlines by ${userProfile?.name || 'Admin'}`
+          notes: `Updated hero banner, CTA button ("${ctaTextEn}" -> ${ctaLink}), carousel mode (${carouselEnabled ? 'Enabled' : 'Disabled'}), ${carouselImages.length} slides, and headlines by ${userProfile?.name || 'Admin'}`
         }
       );
 
@@ -476,6 +575,7 @@ export const AdminHomepage: React.FC = () => {
           { id: 'all', labelHi: 'सम्पूर्ण प्रबंधन (All Modules)', labelEn: 'All Modules', icon: Layers },
           { id: 'videos', labelHi: 'कक्षा 1-8 शैक्षिक वीडियो', labelEn: 'Educational Videos', icon: Video, badge: 'Class 1-8' },
           { id: 'banner', labelHi: 'बैनर व कैरोसेल', labelEn: 'Banner & Carousel', icon: ImageIcon },
+          { id: 'cta', labelHi: 'कॉल-टू-एक्शन (CTA बटन)', labelEn: 'Hero CTA Buttons', icon: MousePointerClick, badge: 'Custom' },
           { id: 'visibility', labelHi: 'अनुभाग दृश्यता', labelEn: 'Sections Visibility', icon: Eye },
           { id: 'visitor', labelHi: 'विजिटर एनालिटिक्स', labelEn: 'Visitor Traffic', icon: Activity }
         ].map(tab => {
@@ -519,11 +619,11 @@ export const AdminHomepage: React.FC = () => {
         <AdminVisitorCounterWidget />
       )}
 
-      {(activeSectionTab === 'all' || activeSectionTab === 'banner' || activeSectionTab === 'visibility') && (
+      {(activeSectionTab === 'all' || activeSectionTab === 'banner' || activeSectionTab === 'cta' || activeSectionTab === 'visibility') && (
         <form onSubmit={handleSave} className="space-y-6">
         
         {/* HERO BANNER IMAGE & LIVE SIMULATION SECTION */}
-        {(activeSectionTab === 'all' || activeSectionTab === 'banner') && (
+        {(activeSectionTab === 'all' || activeSectionTab === 'banner' || activeSectionTab === 'cta') && (
         <>
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -657,36 +757,67 @@ export const AdminHomepage: React.FC = () => {
 
                   {/* Configurable Contrast Overlay */}
                   <div 
-                    className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-transparent flex flex-col justify-center p-6 sm:p-8"
+                    className={`absolute inset-0 flex flex-col justify-center p-6 sm:p-8 ${
+                      bannerTextColor === 'dark'
+                        ? 'bg-gradient-to-r from-white via-white/90 to-transparent'
+                        : 'bg-gradient-to-r from-slate-950 via-slate-950/70 to-transparent'
+                    }`}
                     style={{ opacity: overlayOpacity / 100 }}
                   >
                     <div 
                       key={`preview-hero-${previewAnimKey}-${language}`} 
-                      className="max-w-xl space-y-2 text-white"
+                      className={`max-w-xl space-y-2 ${bannerTextColor === 'dark' ? 'text-slate-900' : 'text-white'}`}
                     >
                       <div className="flex flex-wrap items-center gap-2 animate-hero-badges">
                         <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider">
                           उत्तर प्रदेश शासन
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[10px] font-bold">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          bannerTextColor === 'dark'
+                            ? 'bg-slate-900/10 text-slate-900 border border-slate-900/20'
+                            : 'bg-white/20 backdrop-blur-xs text-white'
+                        }`}>
                           कक्षा 1 से 8 (कंपोजिट)
                         </span>
-                        <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-slate-900/80 text-amber-300 text-[10px] font-mono font-bold">
+                        <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                          bannerTextColor === 'dark'
+                            ? 'bg-slate-200 text-slate-900 border border-slate-300'
+                            : 'bg-slate-900/80 text-amber-300'
+                        }`}>
                           UDISE: {settings.schoolCode}
                         </span>
                       </div>
                       <h4 
                         key={`hero-title-${previewAnimKey}-${language}-${heroTitleHi}-${heroTitleEn}`}
-                        className="text-sm sm:text-xl md:text-2xl font-black tracking-tight leading-tight text-white drop-shadow-md animate-hero-headline"
+                        className={`text-sm sm:text-xl md:text-2xl font-black tracking-tight leading-tight animate-hero-headline ${
+                          bannerTextColor === 'dark' ? 'text-slate-950 drop-shadow-xs' : 'text-white drop-shadow-md'
+                        }`}
                       >
                         {language === 'hi' ? heroTitleHi : heroTitleEn}
                       </h4>
                       <p 
                         key={`hero-sub-${previewAnimKey}-${language}-${heroSubtitleHi}-${heroSubtitleEn}`}
-                        className="text-[11px] sm:text-xs text-slate-300 line-clamp-2 animate-hero-subtitle"
+                        className={`text-[11px] sm:text-xs line-clamp-2 animate-hero-subtitle ${
+                          bannerTextColor === 'dark' ? 'text-slate-700' : 'text-slate-300'
+                        }`}
                       >
                         {language === 'hi' ? heroSubtitleHi : heroSubtitleEn}
                       </p>
+
+                      {/* Live Simulated CTA Buttons */}
+                      <div className="flex flex-wrap items-center gap-2 pt-2 animate-hero-subtitle">
+                        {ctaEnabled && (
+                          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-black text-[11px] sm:text-xs shadow-md">
+                            <span>{language === 'hi' ? (ctaTextHi || 'नि:शुल्क प्रवेश') : (ctaTextEn || 'Free Admission')}</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </div>
+                        )}
+                        {secondaryCtaEnabled && (
+                          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-[11px] sm:text-xs shadow-xs">
+                            <span>{language === 'hi' ? (secondaryCtaTextHi || 'योजनाएं') : (secondaryCtaTextEn || 'Govt. Schemes')}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -699,7 +830,11 @@ export const AdminHomepage: React.FC = () => {
                           e.stopPropagation();
                           setPreviewSlideIndex(prev => (prev === 0 ? carouselImages.length - 1 : prev - 1));
                         }}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-950/70 hover:bg-slate-950 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 cursor-pointer shadow-md transition-transform hover:scale-105"
+                        className={`absolute left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-xs cursor-pointer shadow-md transition-transform hover:scale-105 ${
+                          bannerTextColor === 'dark'
+                            ? 'bg-white/80 hover:bg-white text-slate-900 border border-slate-300'
+                            : 'bg-slate-950/70 hover:bg-slate-950 text-white border border-white/20'
+                        }`}
                         title="Previous Slide"
                       >
                         <ChevronLeft className="w-4 h-4" />
@@ -710,18 +845,28 @@ export const AdminHomepage: React.FC = () => {
                           e.stopPropagation();
                           setPreviewSlideIndex(prev => (prev + 1) % carouselImages.length);
                         }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-950/70 hover:bg-slate-950 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 cursor-pointer shadow-md transition-transform hover:scale-105"
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-xs cursor-pointer shadow-md transition-transform hover:scale-105 ${
+                          bannerTextColor === 'dark'
+                            ? 'bg-white/80 hover:bg-white text-slate-900 border border-slate-300'
+                            : 'bg-slate-950/70 hover:bg-slate-950 text-white border border-white/20'
+                        }`}
                         title="Next Slide"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </button>
 
                       {/* Navigation Dots and Slide Counter */}
-                      <div className="absolute bottom-3 right-3 z-20 flex items-center gap-2 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20">
+                      <div className={`absolute bottom-3 right-3 z-20 flex items-center gap-2 backdrop-blur-md px-2.5 py-1 rounded-full shadow-md ${
+                        bannerTextColor === 'dark'
+                          ? 'bg-white/90 border border-slate-300 text-slate-900'
+                          : 'bg-slate-950/80 border border-white/20 text-white'
+                      }`}>
                         <button
                           type="button"
                           onClick={() => setIsPreviewPlaying(p => !p)}
-                          className="text-amber-400 hover:text-amber-300 text-[10px] pr-1 cursor-pointer"
+                          className={`text-[10px] pr-1 cursor-pointer ${
+                            bannerTextColor === 'dark' ? 'text-amber-700 hover:text-amber-800' : 'text-amber-400 hover:text-amber-300'
+                          }`}
                           title={isPreviewPlaying ? 'Pause Auto-Play' : 'Play Auto-Play'}
                         >
                           {isPreviewPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
@@ -733,12 +878,16 @@ export const AdminHomepage: React.FC = () => {
                               type="button"
                               onClick={() => setPreviewSlideIndex(idx)}
                               className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                                idx === previewSlideIndex ? 'w-4 bg-amber-400' : 'w-1.5 bg-white/50 hover:bg-white/80'
+                                idx === previewSlideIndex 
+                                  ? 'w-4 bg-amber-500' 
+                                  : (bannerTextColor === 'dark' ? 'w-1.5 bg-slate-400 hover:bg-slate-600' : 'w-1.5 bg-white/50 hover:bg-white/80')
                               }`}
                             />
                           ))}
                         </div>
-                        <span className="text-[9px] font-mono text-white/90 pl-1 border-l border-white/20">
+                        <span className={`text-[9px] font-mono pl-1 border-l ${
+                          bannerTextColor === 'dark' ? 'text-slate-800 border-slate-300' : 'text-white/90 border-white/20'
+                        }`}>
                           {previewSlideIndex + 1}/{carouselImages.length}
                         </span>
                       </div>
@@ -754,6 +903,9 @@ export const AdminHomepage: React.FC = () => {
                       <CheckCircle2 className="w-3.5 h-3.5" /> Aspect Fitted
                     </span>
                     <span>• {carouselEnabled ? `Rotating ${carouselImages.length} Slides every ${carouselInterval}s` : 'Single Static Header'}</span>
+                    <span className="px-1.5 py-0.2 rounded-md bg-slate-800 text-slate-300 text-[10px] font-mono">
+                      Text: {bannerTextColor === 'dark' ? 'Dark' : 'Light'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3">
                     <button
@@ -779,7 +931,7 @@ export const AdminHomepage: React.FC = () => {
             </div>
 
             {/* Banner Layout & Overlay Settings */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
               
               {/* Aspect Ratio Picker */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
@@ -820,10 +972,53 @@ export const AdminHomepage: React.FC = () => {
                 </p>
               </div>
 
+              {/* Overlay Text Color Theme (Light vs Dark) */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                  <span>{language === 'hi' ? 'ओवरले टेक्स्ट रंग (Text Theme)' : 'Overlay Text Color Theme'}</span>
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                    bannerTextColor === 'dark' ? 'bg-slate-900 text-white' : 'bg-amber-100 text-amber-900 border border-amber-300'
+                  }`}>
+                    {bannerTextColor === 'dark' ? (language === 'hi' ? 'डार्क टेक्स्ट' : 'Dark Text') : (language === 'hi' ? 'सफेद टेक्स्ट' : 'Light Text')}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-200/80 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setBannerTextColor('light')}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      bannerTextColor === 'light'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-white"></span>
+                    <span>{language === 'hi' ? 'सफेद (Light)' : 'Light (White)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBannerTextColor('dark')}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      bannerTextColor === 'dark'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-white border border-slate-400"></span>
+                    <span>{language === 'hi' ? 'डार्क (Dark)' : 'Dark (Navy)'}</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  {language === 'hi' 
+                    ? 'उजली/सफेद तस्वीरों के लिए डार्क टेक्स्ट और सामान्य/डार्क फोटो के लिए सफेद टेक्स्ट चुनें।' 
+                    : 'Select dark text for bright/white photos, or light text for dark images.'}
+                </p>
+              </div>
+
               {/* Overlay Opacity Slider */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-800">
-                  <span>{language === 'hi' ? 'डार्क ओवरले घनत्व' : 'Text Contrast Overlay'}</span>
+                  <span>{language === 'hi' ? 'ओवरले घनत्व' : 'Contrast Overlay'}</span>
                   <span className="font-mono text-amber-600 font-extrabold">{overlayOpacity}%</span>
                 </div>
                 <input
@@ -836,7 +1031,9 @@ export const AdminHomepage: React.FC = () => {
                   className="w-full accent-amber-500 cursor-pointer"
                 />
                 <p className="text-[10px] text-slate-500">
-                  {language === 'hi' ? 'सफेद टेक्स्ट को स्पष्ट रूप से पढ़ने के लिए ओवरले बढ़ाएं।' : 'Darkens image behind text for WCAG AAA accessibility.'}
+                  {bannerTextColor === 'dark'
+                    ? (language === 'hi' ? 'डार्क टेक्स्ट को पढ़ने योग्य बनाने हेतु हल्का बैकड्रॉप।' : 'Adjusts translucent bright overlay density for dark text.')
+                    : (language === 'hi' ? 'सफेद टेक्स्ट को स्पष्ट रूप से पढ़ने के लिए ओवरले बढ़ाएं।' : 'Darkens image behind white text for WCAG contrast.')}
                 </p>
               </div>
 
@@ -1199,6 +1396,424 @@ export const AdminHomepage: React.FC = () => {
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
               />
             </div>
+          </div>
+        </div>
+
+        {/* HERO BANNER CTA (CALL-TO-ACTION) BUTTONS CUSTOMIZATION SECTION */}
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-700 flex items-center justify-center shadow-xs">
+                <MousePointerClick className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black text-slate-900">
+                    {language === 'hi' ? 'मुख्य एक्शन बटन प्रबंधन (Hero CTA Buttons)' : 'Hero Banner Primary Action Buttons (CTA)'}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black uppercase">
+                    Landing Page
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {language === 'hi' 
+                    ? 'पब्लिक होमपेज के मुख्य बैनर पर दिखने वाले प्राथमिक व द्वितीयक एक्शन बटन का नाम, लिंक व आइकन कस्टमाइज़ करें।'
+                    : 'Customize button text, target destination link (e.g., "Admission Now", "View Gallery"), and icons for the public hero section.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Live Status Badge */}
+            <div className="flex items-center gap-2 bg-slate-50 p-1.5 px-3 rounded-2xl border border-slate-200 text-xs">
+              <span className="font-bold text-slate-600">Status:</span>
+              <span className={`inline-flex items-center gap-1 font-extrabold ${ctaEnabled ? 'text-emerald-700' : 'text-slate-500'}`}>
+                {ctaEnabled ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5" />}
+                <span>{ctaEnabled ? 'CTA Active' : 'CTA Hidden'}</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Quick Preset Templates Bar */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-200/70 space-y-2.5">
+            <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              <span>{language === 'hi' ? '1-क्लिक प्रीसेट टेम्पलेट्स (Quick Presets):' : '1-Click Quick Preset Presets:'}</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                {
+                  label: '🎓 Free Admission Focus',
+                  priTextHi: 'नि:शुल्क प्रवेश प्रक्रिया',
+                  priTextEn: 'Free Admission Guidelines',
+                  priLink: 'admission',
+                  priIcon: 'GraduationCap',
+                  secTextHi: 'डीबीटी व सरकारी योजनाएं',
+                  secTextEn: 'Govt. Schemes & DBT',
+                  secLink: 'schemes',
+                  secIcon: 'Gift'
+                },
+                {
+                  label: '🖼️ View Photo Gallery',
+                  priTextHi: 'फोटो व वीडियो गैलरी',
+                  priTextEn: 'View School Gallery',
+                  priLink: 'gallery',
+                  priIcon: 'Images',
+                  secTextHi: 'विद्यालय सुविधाएं देखें',
+                  secTextEn: 'Explore Facilities',
+                  secLink: 'facilities',
+                  secIcon: 'Building2'
+                },
+                {
+                  label: '🏛️ Campus & Facilities',
+                  priTextHi: 'विद्यालय सुविधाएं देखें',
+                  priTextEn: 'School Facilities & Labs',
+                  priLink: 'facilities',
+                  priIcon: 'Building2',
+                  secTextHi: 'विद्यालय परिचय',
+                  secTextEn: 'About Our School',
+                  secLink: 'about',
+                  secIcon: 'Info'
+                },
+                {
+                  label: '📢 Latest Notices & Alerts',
+                  priTextHi: 'नवीनतम सूचनाएं देखें',
+                  priTextEn: 'Public Notices & Circulars',
+                  priLink: 'notices',
+                  priIcon: 'Bell',
+                  secTextHi: 'संपर्क व पता',
+                  secTextEn: 'Contact Us',
+                  secLink: 'contact',
+                  secIcon: 'Phone'
+                },
+                {
+                  label: '📄 Forms & Document Downloads',
+                  priTextHi: 'दस्तावेज़ व फॉर्म डाउनलोड',
+                  priTextEn: 'Official Forms & Downloads',
+                  priLink: 'documents',
+                  priIcon: 'FileText',
+                  secTextHi: 'नि:शुल्क प्रवेश',
+                  secTextEn: 'Admission',
+                  secLink: 'admission',
+                  secIcon: 'GraduationCap'
+                },
+              ].map((tpl, i) => (
+                <button
+                  key={`cta-tpl-${i}`}
+                  type="button"
+                  onClick={() => {
+                    setCtaEnabled(true);
+                    setCtaTextHi(tpl.priTextHi);
+                    setCtaTextEn(tpl.priTextEn);
+                    setCtaLink(tpl.priLink);
+                    setCtaIcon(tpl.priIcon);
+                    setSecondaryCtaEnabled(true);
+                    setSecondaryCtaTextHi(tpl.secTextHi);
+                    setSecondaryCtaTextEn(tpl.secTextEn);
+                    setSecondaryCtaLink(tpl.secLink);
+                    setSecondaryCtaIcon(tpl.secIcon);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-100 text-slate-800 border border-slate-200 text-xs font-bold transition-all shadow-2xs hover:border-amber-400 cursor-pointer"
+                >
+                  {tpl.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* PRIMARY CTA CARD (मुख्य प्राथमिक बटन) */}
+            <div className={`p-5 sm:p-6 rounded-2xl border transition-all space-y-5 ${ctaEnabled ? 'bg-amber-50/40 border-amber-300 ring-1 ring-amber-400/20' : 'bg-slate-50/60 border-slate-200 opacity-80'}`}>
+              <div className="flex items-center justify-between border-b border-amber-200/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center shadow-xs">
+                    1
+                  </span>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-slate-900">
+                      {language === 'hi' ? 'प्राथमिक एक्शन बटन (Primary CTA)' : 'Primary Action Button (CTA)'}
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Highlighted gold action button</p>
+                  </div>
+                </div>
+
+                {/* Enable Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setCtaEnabled(!ctaEnabled)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                    ctaEnabled ? 'bg-amber-500 text-slate-950 font-black shadow-xs' : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {ctaEnabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  <span>{ctaEnabled ? 'Enabled' : 'Disabled'}</span>
+                </button>
+              </div>
+
+              {ctaEnabled && (
+                <div className="space-y-4">
+                  {/* Button Labels (Hindi & English) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {language === 'hi' ? 'बटन का नाम (हिंदी)' : 'Button Label (Hindi)'}
+                      </label>
+                      <input
+                        type="text"
+                        value={ctaTextHi}
+                        onChange={(e) => setCtaTextHi(e.target.value)}
+                        placeholder="उदा. नि:शुल्क प्रवेश प्रक्रिया"
+                        className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:border-amber-500 focus:outline-hidden shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {language === 'hi' ? 'Button Label (English)' : 'Button Label (English)'}
+                      </label>
+                      <input
+                        type="text"
+                        value={ctaTextEn}
+                        onChange={(e) => setCtaTextEn(e.target.value)}
+                        placeholder="e.g. Free Admission Now"
+                        className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:border-amber-500 focus:outline-hidden shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Destination Page Preset Selector */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      {language === 'hi' ? 'गंतव्य पृष्ठ चुनें (Select Destination Page):' : 'Select Target Destination Page:'}
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                      {PRESET_CTA_PAGES.map((page) => {
+                        const isSelected = ctaLink === page.id;
+                        return (
+                          <button
+                            key={`pri-page-${page.id}`}
+                            type="button"
+                            onClick={() => {
+                              setCtaLink(page.id);
+                              if (page.icon) setCtaIcon(page.icon);
+                              if (!ctaTextHi || ctaTextHi === 'नि:शुल्क प्रवेश प्रक्रिया' || ctaTextHi === 'फोटो व वीडियो गैलरी' || ctaTextHi === 'विद्यालय सुविधाएं देखें') {
+                                setCtaTextHi(page.defaultTextHi);
+                              }
+                              if (!ctaTextEn || ctaTextEn === 'Free Admission' || ctaTextEn === 'View Gallery' || ctaTextEn === 'School Facilities') {
+                                setCtaTextEn(page.defaultTextEn);
+                              }
+                            }}
+                            className={`p-2 rounded-xl border text-left text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-xs font-black'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50'
+                            }`}
+                          >
+                            <span className="truncate">{language === 'hi' ? page.labelHi : page.labelEn}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom URL or Page Slug Input */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>{language === 'hi' ? 'या कस्टम लिंक / यूआरएल दर्ज करें (Custom Link or Page ID):' : 'Or Custom Link / Page ID:'}</span>
+                      <span className="text-[10px] text-slate-500 font-normal">e.g. admission, gallery, https://...</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Link2 className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="text"
+                        value={ctaLink}
+                        onChange={(e) => setCtaLink(e.target.value)}
+                        placeholder="admission or https://example.com"
+                        className="w-full pl-9 pr-4 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-mono font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Icon Selector */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      {language === 'hi' ? 'बटन का आइकन (Button Icon):' : 'Button Icon:'}
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {CTA_ICON_OPTIONS.map((ico) => {
+                        const IconComponent = ico.icon;
+                        const isSelected = ctaIcon === ico.id;
+                        return (
+                          <button
+                            key={`pri-ico-${ico.id}`}
+                            type="button"
+                            onClick={() => setCtaIcon(ico.id)}
+                            className={`p-2 rounded-xl border flex items-center gap-1 text-xs font-bold transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-slate-900 text-amber-300 border-slate-900 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                            }`}
+                            title={ico.label}
+                          >
+                            <IconComponent className="w-3.5 h-3.5" />
+                            <span className="text-[11px] hidden sm:inline">{ico.id}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SECONDARY CTA CARD (द्वितीयक एक्शन बटन) */}
+            <div className={`p-5 sm:p-6 rounded-2xl border transition-all space-y-5 ${secondaryCtaEnabled ? 'bg-emerald-50/40 border-emerald-300 ring-1 ring-emerald-400/20' : 'bg-slate-50/60 border-slate-200 opacity-80'}`}>
+              <div className="flex items-center justify-between border-b border-emerald-200/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                    2
+                  </span>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-slate-900">
+                      {language === 'hi' ? 'द्वितीयक एक्शन बटन (Secondary CTA)' : 'Secondary Action Button'}
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Green secondary action button</p>
+                  </div>
+                </div>
+
+                {/* Enable Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setSecondaryCtaEnabled(!secondaryCtaEnabled)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                    secondaryCtaEnabled ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {secondaryCtaEnabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  <span>{secondaryCtaEnabled ? 'Enabled' : 'Disabled'}</span>
+                </button>
+              </div>
+
+              {secondaryCtaEnabled && (
+                <div className="space-y-4">
+                  {/* Button Labels (Hindi & English) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {language === 'hi' ? 'बटन का नाम (हिंदी)' : 'Button Label (Hindi)'}
+                      </label>
+                      <input
+                        type="text"
+                        value={secondaryCtaTextHi}
+                        onChange={(e) => setSecondaryCtaTextHi(e.target.value)}
+                        placeholder="उदा. डीबीटी व योजनाएं"
+                        className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-hidden shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {language === 'hi' ? 'Button Label (English)' : 'Button Label (English)'}
+                      </label>
+                      <input
+                        type="text"
+                        value={secondaryCtaTextEn}
+                        onChange={(e) => setSecondaryCtaTextEn(e.target.value)}
+                        placeholder="e.g. Govt. Schemes & DBT"
+                        className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-hidden shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Destination Page Preset Selector */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      {language === 'hi' ? 'गंतव्य पृष्ठ चुनें (Select Destination Page):' : 'Select Target Destination Page:'}
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                      {PRESET_CTA_PAGES.map((page) => {
+                        const isSelected = secondaryCtaLink === page.id;
+                        return (
+                          <button
+                            key={`sec-page-${page.id}`}
+                            type="button"
+                            onClick={() => {
+                              setSecondaryCtaLink(page.id);
+                              if (page.icon) setSecondaryCtaIcon(page.icon);
+                              if (!secondaryCtaTextHi || secondaryCtaTextHi === 'डीबीटी व योजनाएं') {
+                                setSecondaryCtaTextHi(page.defaultTextHi);
+                              }
+                              if (!secondaryCtaTextEn || secondaryCtaTextEn === 'Govt. Schemes') {
+                                setSecondaryCtaTextEn(page.defaultTextEn);
+                              }
+                            }}
+                            className={`p-2 rounded-xl border text-left text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs font-black'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/50'
+                            }`}
+                          >
+                            <span className="truncate">{language === 'hi' ? page.labelHi : page.labelEn}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom URL or Page Slug Input */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>{language === 'hi' ? 'या कस्टम लिंक / यूआरएल दर्ज करें:' : 'Or Custom Link / Page ID:'}</span>
+                      <span className="text-[10px] text-slate-500 font-normal">e.g. schemes, facilities, https://...</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Link2 className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="text"
+                        value={secondaryCtaLink}
+                        onChange={(e) => setSecondaryCtaLink(e.target.value)}
+                        placeholder="schemes or https://example.com"
+                        className="w-full pl-9 pr-4 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-mono font-bold text-slate-900 focus:border-emerald-500 focus:outline-hidden shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Icon Selector */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      {language === 'hi' ? 'बटन का आइकन (Button Icon):' : 'Button Icon:'}
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {CTA_ICON_OPTIONS.map((ico) => {
+                        const IconComponent = ico.icon;
+                        const isSelected = secondaryCtaIcon === ico.id;
+                        return (
+                          <button
+                            key={`sec-ico-${ico.id}`}
+                            type="button"
+                            onClick={() => setSecondaryCtaIcon(ico.id)}
+                            className={`p-2 rounded-xl border flex items-center gap-1 text-xs font-bold transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-slate-900 text-emerald-300 border-slate-900 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                            }`}
+                            title={ico.label}
+                          >
+                            <IconComponent className="w-3.5 h-3.5" />
+                            <span className="text-[11px] hidden sm:inline">{ico.id}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
         </>

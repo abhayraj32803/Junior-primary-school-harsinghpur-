@@ -26,7 +26,9 @@ import {
   OfficialSource,
   FAQItem,
   VerificationLog,
-  DataVerificationStatus
+  DataVerificationStatus,
+  PromotionDecision,
+  PromotionBatchSummary
 } from '../types';
 import { 
   initialClasses, 
@@ -133,6 +135,15 @@ interface SchoolContextType {
   updateStudent: (id: string, data: Partial<Student>) => Promise<void>;
   deactivateStudent: (id: string) => Promise<void>;
   activateStudent: (id: string) => Promise<void>;
+  bulkPromoteStudents: (
+    decisions: PromotionDecision[],
+    metadata: {
+      sourceClassNumber: number;
+      sourceAcademicYear?: string;
+      targetAcademicYear: string;
+      promotedBy: string;
+    }
+  ) => Promise<{ successCount: number; failedCount: number }>;
 
   // Teacher Actions
   addTeacher: (teacher: Omit<Teacher, 'id' | 'createdAt'>) => Promise<string>;
@@ -719,6 +730,132 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     await updateStudent(id, { status: 'active' });
+  };
+
+  const bulkPromoteStudents = async (
+    decisions: PromotionDecision[],
+    metadata: {
+      sourceClassNumber: number;
+      sourceAcademicYear?: string;
+      targetAcademicYear: string;
+      promotedBy: string;
+    }
+  ): Promise<{ successCount: number; failedCount: number }> => {
+    if (userProfile?.role !== 'admin') {
+      console.warn("Unauthorized attempt to bulk promote students.");
+      await addAuditLog('UNAUTHORIZED_ACTION', 'BulkPromotion', `Class-${metadata.sourceClassNumber}`, 'Blocked non-admin attempt to execute bulk student promotion');
+      return { successCount: 0, failedCount: decisions.length };
+    }
+
+    let successCount = 0;
+    let failedCount = 0;
+    const now = new Date().toISOString();
+
+    const decisionMap = new Map<string, PromotionDecision>(decisions.map(d => [d.studentId, d]));
+
+    setStudents(prev => prev.map(student => {
+      const decision = decisionMap.get(student.id);
+      if (!decision) return student;
+
+      if (decision.action === 'PROMOTE') {
+        return {
+          ...student,
+          classId: decision.targetClassId,
+          classNumber: decision.targetClassNumber,
+          sectionId: decision.targetSectionId,
+          sectionName: decision.targetSectionName,
+          rollNumber: decision.newRollNumber || student.rollNumber,
+          status: 'active',
+          updatedAt: now
+        };
+      } else if (decision.action === 'RETAIN') {
+        return {
+          ...student,
+          classId: decision.targetClassId || student.classId,
+          classNumber: decision.targetClassNumber || student.classNumber,
+          sectionId: decision.targetSectionId || student.sectionId,
+          sectionName: decision.targetSectionName || student.sectionName,
+          rollNumber: decision.newRollNumber || student.rollNumber,
+          status: 'active',
+          updatedAt: now
+        };
+      } else if (decision.action === 'TRANSFER') {
+        return {
+          ...student,
+          status: 'transferred',
+          updatedAt: now
+        };
+      } else if (decision.action === 'GRADUATE') {
+        return {
+          ...student,
+          status: 'inactive',
+          updatedAt: now
+        };
+      }
+      return student;
+    }));
+
+    for (const decision of decisions) {
+      try {
+        let updatePayload: Partial<Student> = {
+          updatedAt: now
+        };
+        if (decision.action === 'PROMOTE' || decision.action === 'RETAIN') {
+          updatePayload = {
+            classId: decision.targetClassId,
+            classNumber: decision.targetClassNumber,
+            sectionId: decision.targetSectionId,
+            sectionName: decision.targetSectionName,
+            rollNumber: decision.newRollNumber,
+            status: 'active',
+            updatedAt: now
+          };
+        } else if (decision.action === 'TRANSFER') {
+          updatePayload = {
+            status: 'transferred',
+            updatedAt: now
+          };
+        } else if (decision.action === 'GRADUATE') {
+          updatePayload = {
+            status: 'inactive',
+            updatedAt: now
+          };
+        }
+
+        if (db) {
+          await updateDoc(doc(db, 'students', decision.studentId), updatePayload);
+        }
+        successCount++;
+      } catch (err) {
+        console.warn(`Failed to sync promotion for student ${decision.studentId}:`, err);
+        failedCount++;
+      }
+    }
+
+    const promotedCount = decisions.filter(d => d.action === 'PROMOTE').length;
+    const retainedCount = decisions.filter(d => d.action === 'RETAIN').length;
+    const transferredCount = decisions.filter(d => d.action === 'TRANSFER').length;
+    const graduatedCount = decisions.filter(d => d.action === 'GRADUATE').length;
+
+    await addAuditLog(
+      'BULK_STUDENT_PROMOTION',
+      'Student',
+      `Class-${metadata.sourceClassNumber}`,
+      `Bulk transition executed for Class ${metadata.sourceClassNumber} -> Academic Year ${metadata.targetAcademicYear}. Total: ${decisions.length} (Promoted: ${promotedCount}, Retained: ${retainedCount}, Transferred: ${transferredCount}, Graduated: ${graduatedCount}) by ${metadata.promotedBy}`
+    );
+
+    await addVerificationLog({
+      entity: 'Academic Session Rollover',
+      field: `Class ${metadata.sourceClassNumber} Annual Progression`,
+      previousValue: `Class ${metadata.sourceClassNumber} (${metadata.sourceAcademicYear || 'Current'})`,
+      newValue: `Processed to Class ${metadata.sourceClassNumber < 8 ? metadata.sourceClassNumber + 1 : '8-Graduated'} (${metadata.targetAcademicYear})`,
+      source: 'Principal / Admin Academic Promotion Committee',
+      verificationStatus: 'VERIFIED_CURRENT',
+      updatedBy: metadata.promotedBy || userProfile?.name || 'Admin',
+      notes: `Processed ${decisions.length} student records (Promoted: ${promotedCount}, Retained: ${retainedCount}, Transferred: ${transferredCount}, Graduated: ${graduatedCount})`
+    });
+
+    return { successCount: decisions.length - failedCount, failedCount };
   };
 
   // Teacher Methods
@@ -1453,6 +1590,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateStudent,
         deactivateStudent,
         activateStudent,
+        bulkPromoteStudents,
 
         addTeacher,
         updateTeacher,

@@ -88,3 +88,41 @@ export function getFriendlyAuthErrorMessage(errorCodeOrMsg: string, lang: 'hi' |
   return raw;
 }
 
+/**
+ * Normalizes phone numbers by removing country codes (+91, 91), leading zeros, spaces, and hyphens.
+ * Returns the standardized 10-digit mobile number or cleaned digit string.
+ */
+export function normalizePhoneNumber(raw?: string | null): string {
+  if (!raw) return '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return digits.slice(2);
+  }
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return digits.slice(1);
+  }
+  return digits;
+}
+
+/**
+ * Normalizes email address by trimming whitespace and converting to lowercase.
+ */
+export function normalizeEmail(raw?: string | null): string {
+  if (!raw) return '';
+  return raw.trim().toLowerCase();
+}
+
+/**
+ * Masks an email for privacy display, e.g., 'ngoaarya159@gmail.com' -> 'ng***9@gmail.com'
+ */
+export function maskEmail(email?: string | null): string {
+  if (!email || !email.includes('@')) return email || '';
+  const [local, domain] = email.split('@');
+  if (local.length <= 3) {
+    return `${local[0]}***@${domain}`;
+  }
+  const start = local.slice(0, 2);
+  const end = local.slice(-1);
+  return `${start}***${end}@${domain}`;
+}
+

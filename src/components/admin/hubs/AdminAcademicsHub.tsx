@@ -8,15 +8,18 @@ import {
   Clock, 
   FileText,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Award,
+  RefreshCw
 } from 'lucide-react';
 import { AdminStudents } from '../AdminStudents';
 import { AdminClassesSections } from '../AdminClassesSections';
 import { AdminSubjects } from '../AdminSubjects';
 import { AdminTimetable } from '../AdminTimetable';
 import { AdminDocuments } from '../AdminDocuments';
+import { AdminBulkPromotion } from '../AdminBulkPromotion';
 
-export type AcademicsSubTab = 'students' | 'classes' | 'subjects' | 'timetable' | 'documents';
+export type AcademicsSubTab = 'students' | 'promotion' | 'classes' | 'subjects' | 'timetable' | 'documents';
 
 interface AdminAcademicsHubProps {
   initialSubTab?: AcademicsSubTab;
@@ -48,6 +51,13 @@ export const AdminAcademicsHub: React.FC<AdminAcademicsHubProps> = ({
       labelHi: 'छात्र नामांकन व पंजिका',
       icon: GraduationCap,
       badge: pendingStudentRequestsCount > 0 ? `${students.length} (${pendingStudentRequestsCount} New)` : `${students.length}`
+    },
+    {
+      id: 'promotion' as AcademicsSubTab,
+      labelEn: 'Bulk Promotion & Rollover',
+      labelHi: 'बल्क पदोन्नति व सत्र परिवर्तन',
+      icon: Award,
+      badge: 'New'
     },
     {
       id: 'classes' as AcademicsSubTab,
@@ -146,6 +156,7 @@ export const AdminAcademicsHub: React.FC<AdminAcademicsHubProps> = ({
       {/* Active Sub-module Container */}
       <div className="animate-in fade-in duration-150">
         {activeSubTab === 'students' && <AdminStudents />}
+        {activeSubTab === 'promotion' && <AdminBulkPromotion />}
         {activeSubTab === 'classes' && <AdminClassesSections />}
         {activeSubTab === 'subjects' && <AdminSubjects />}
         {activeSubTab === 'timetable' && <AdminTimetable />}

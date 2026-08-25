@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { ForcePasswordChangeModal } from './components/common/ForcePasswordChangeModal';
+import { ResetPasswordActionModal } from './components/common/ResetPasswordActionModal';
 import { UserProfileDropdown } from './components/common/UserProfileDropdown';
 import { UserAvatar } from './components/common/UserAvatar';
 
@@ -224,7 +225,7 @@ const SchoolAppInner: React.FC = () => {
           {activePublicView === 'documents' && <PublicDocumentsPage />}
           {activePublicView === 'sources' && <OfficialSourcesPage />}
           {activePublicView === 'faq' && <FAQPage />}
-          {activePublicView === 'gallery' && <GalleryPage />}
+          {activePublicView === 'gallery' && <GalleryPage onNavigate={handleNavigatePage} />}
           {activePublicView === 'notices' && <PublicNoticesPage />}
           {activePublicView === 'contact' && <ContactPage />}
           {(activePublicView === 'login' || activePublicView === 'portal') && (
@@ -273,6 +274,14 @@ const SchoolAppInner: React.FC = () => {
         </main>
 
         <PublicFooter onNavigate={handleNavigatePage} />
+
+        {/* Global Security & Password Action Modals */}
+        <ResetPasswordActionModal 
+          onSuccessLogin={(email, newPass) => {
+            handleNavigatePage('login');
+          }} 
+        />
+        <ForcePasswordChangeModal />
       </div>
     );
   }
@@ -306,6 +315,7 @@ const SchoolAppInner: React.FC = () => {
         'examinations': { pillar: 'Daily Operations', titleEn: 'Exams & Marks Gradebook', titleHi: 'परीक्षा एवं प्रगति पत्र' },
         'homework': { pillar: 'Daily Operations', titleEn: 'Homework & Broadcasts', titleHi: 'गृहकार्य एवं कार्य' },
         'notices': { pillar: 'Daily Operations', titleEn: 'Circulars & Official Notices', titleHi: 'शासनादेश एवं सूचना पट्ट' },
+        'notice-ticker': { pillar: 'Operations & CMS', titleEn: 'Notice Ticker & Flash Alerts', titleHi: 'लाइव सूचना टिकर व अलर्ट' },
         'documents': { pillar: 'Students & Academics', titleEn: 'Student Certificates & TC Vault', titleHi: 'प्रमाणपत्र व टीसी लॉकर' },
         'reports': { pillar: 'Governance & Security', titleEn: 'Governance Analytics & MIS', titleHi: 'प्रशासनिक विश्लेषण व रिपोर्ट' },
         'users': { pillar: 'Governance & Security', titleEn: 'User Logins & Permissions', titleHi: 'उपयोगकर्ता एवं अनुमतियां' },
@@ -527,9 +537,10 @@ const SchoolAppInner: React.FC = () => {
                 )}
 
                 {/* 4. Website & Media CMS Hub */}
-                {(['cms', 'homepage-mgmt', 'educational-videos', 'media-library', 'school-profile', 'facilities-mgmt', 'schemes-mgmt', 'admission-mgmt', 'contact-mgmt'].includes(activeAdminTab)) && (
+                {(['cms', 'homepage-mgmt', 'notice-ticker', 'educational-videos', 'media-library', 'school-profile', 'facilities-mgmt', 'schemes-mgmt', 'admission-mgmt', 'contact-mgmt'].includes(activeAdminTab)) && (
                   <AdminWebsiteHub
                     initialSubTab={
+                      activeAdminTab === 'notice-ticker' ? 'notice-ticker' :
                       activeAdminTab === 'educational-videos' ? 'educational-videos' :
                       activeAdminTab === 'media-library' ? 'media-library' :
                       activeAdminTab === 'school-profile' ? 'school-profile' :
@@ -585,6 +596,14 @@ const SchoolAppInner: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {/* Global Security & Password Action Modals */}
+      <ResetPasswordActionModal 
+        onSuccessLogin={(email, newPass) => {
+          handleNavigatePage('login');
+        }} 
+      />
+      <ForcePasswordChangeModal />
     </div>
   );
 };

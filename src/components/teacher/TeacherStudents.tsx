@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { 
@@ -13,36 +13,156 @@ import {
   BookOpenCheck,
   CheckCircle2,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  Download,
+  Printer,
+  Eye,
+  FileSpreadsheet,
+  LayoutGrid,
+  List,
+  ChevronRight,
+  TrendingUp,
+  Percent,
+  MapPin,
+  MessageCircle,
+  Building,
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { Student } from '../../types';
-import { Modal } from '../common/Modal';
+import { Student360Modal } from '../common/Student360Modal';
 
 export const TeacherStudents: React.FC = () => {
   const { userProfile } = useAuth();
-  const { students, teachers, teacherAssignments, classes, attendanceRecords, examResults } = useSchool();
+  const { 
+    students, 
+    teachers, 
+    teacherAssignments, 
+    classes, 
+    sections, 
+    attendance, 
+    marks, 
+    getStudentAttendanceStats, 
+    language 
+  } = useSchool();
 
   const currentTeacher = teachers.find(t => t.id === userProfile?.linkedEntityId) || teachers[0];
   const myAssignments = teacherAssignments.filter(a => a.teacherId === currentTeacher?.id);
-  const myClassIds = new Set(myAssignments.map(a => a.classId));
+  const myClassIds = useMemo(() => new Set(myAssignments.map(a => a.classId)), [myAssignments]);
 
-  // If teacher has assignments, prioritize their assigned classes, otherwise allow viewing enrolled classes
-  const assignedStudents = students.filter(s => myClassIds.size === 0 || myClassIds.has(s.classId));
-
+  const [selectedClassTab, setSelectedClassTab] = useState<number | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedClass, setSelectedClass] = useState<number | 'all'>('all');
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedGender, setSelectedGender] = useState<'all' | 'Male' | 'Female' | 'Other'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const [selectedStudentFor360, setSelectedStudentFor360] = useState<Student | null>(null);
 
-  const filteredStudents = assignedStudents.filter(s => {
-    const matchesSearch = 
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.rollNumber.includes(searchQuery);
+  // Compute student count per class (1 to 8)
+  const classBreakdown = useMemo(() => {
+    const counts: { [key: number]: { total: number; boys: number; girls: number; name: string; isAssigned: boolean } } = {};
+    for (let c = 1; c <= 8; c++) {
+      const classObj = classes.find(cls => Number(cls.classNumber) === c);
+      const isAssigned = classObj ? myClassIds.has(classObj.id) : false;
+      const classStudents = students.filter(s => s.classNumber === c && s.status === 'active');
+      const boys = classStudents.filter(s => s.gender === 'Male').length;
+      const girls = classStudents.filter(s => s.gender === 'Female').length;
+      counts[c] = {
+        total: classStudents.length,
+        boys,
+        girls,
+        name: classObj?.name || `Class ${c}`,
+        isAssigned
+      };
+    }
+    return counts;
+  }, [classes, students, myClassIds]);
 
-    const matchesClass = selectedClass === 'all' || s.classNumber === selectedClass;
+  // Filter students
+  const filteredStudents = useMemo(() => {
+    return students.filter(student => {
+      // Class Filter
+      if (selectedClassTab !== 'all' && student.classNumber !== selectedClassTab) {
+        return false;
+      }
+      // Gender Filter
+      if (selectedGender !== 'all' && student.gender !== selectedGender) {
+        return false;
+      }
+      // Category Filter
+      if (selectedCategory !== 'all' && student.category !== selectedCategory) {
+        return false;
+      }
+      // Search Query
+      if (searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase();
+        const matchesName = student.name.toLowerCase().includes(query);
+        const matchesAdm = student.admissionNumber.toLowerCase().includes(query);
+        const matchesRoll = student.rollNumber.includes(query);
+        const matchesFather = student.fatherName.toLowerCase().includes(query);
+        const matchesMobile = student.mobile.includes(query);
+        if (!matchesName && !matchesAdm && !matchesRoll && !matchesFather && !matchesMobile) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [students, selectedClassTab, selectedGender, selectedCategory, searchQuery]);
 
-    return matchesSearch && matchesClass;
-  });
+  // Selected class stats
+  const activeClassStats = useMemo(() => {
+    const total = filteredStudents.length;
+    const boys = filteredStudents.filter(s => s.gender === 'Male').length;
+    const girls = filteredStudents.filter(s => s.gender === 'Female').length;
+    return { total, boys, girls };
+  }, [filteredStudents]);
+
+  // Export to CSV
+  const handleExportCSV = () => {
+    const headers = [
+      'Roll No',
+      'Admission No',
+      'Student Name',
+      'Class & Section',
+      'Gender',
+      'Father Name',
+      'Mother Name',
+      'Mobile',
+      'Category',
+      'Attendance %',
+      'Status'
+    ];
+
+    const rows = filteredStudents.map(s => {
+      const stats = getStudentAttendanceStats(s.id);
+      return [
+        `"${s.rollNumber}"`,
+        `"${s.admissionNumber}"`,
+        `"${s.name}"`,
+        `"Class ${s.classNumber}-${s.sectionName}"`,
+        `"${s.gender}"`,
+        `"${s.fatherName}"`,
+        `"${s.motherName}"`,
+        `"${s.mobile}"`,
+        `"${s.category}"`,
+        `"${stats.percentage}%"`,
+        `"${s.status}"`
+      ];
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Class_${selectedClassTab}_Students_Roster.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Print Roster
+  const handlePrintRoster = () => {
+    window.print();
+  };
 
   return (
     <div className="space-y-6">
@@ -51,59 +171,324 @@ export const TeacherStudents: React.FC = () => {
         <div className="space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
             <UserCheck className="w-3.5 h-3.5" />
-            <span>Class Rosters & Student Management</span>
+            <span>{language === 'hi' ? 'संस्थागत छात्र प्रबंधन प्रणाली (College/School SIS)' : 'Student Information & Academic Records'}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            My Students (छात्र प्रबंधन)
+            {language === 'hi' ? 'कक्षा-वार छात्र रजिस्टर एवं डेटा प्रबंधन' : 'Class Rosters & Student 360° Data'}
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
-            View student profiles, contact parents, track individual attendance streaks, and monitor academic progress for your allocated classes.
+            {language === 'hi' 
+              ? 'प्रत्येक कक्षा के छात्र-छात्राओं की पूरी जानकारी देखें: उपस्थिति, परीक्षा परिणाम, अभिभावक संपर्क, दस्तावेज़ एवं अकादमिक प्रगति।' 
+              : 'Access complete master records for each class: attendance rate, examination progress, parent contacts, student documents, and academic profile.'}
           </p>
         </div>
 
-        <div className="bg-slate-800/80 px-4 py-3 rounded-2xl border border-slate-700 text-right">
-          <div className="text-xs text-slate-400">Total Enrolled</div>
-          <div className="text-xl font-black text-amber-400">{filteredStudents.length} Students</div>
+        <div className="flex flex-wrap gap-2.5 items-center">
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-amber-400" />
+            <span>{language === 'hi' ? 'CSV डाउनलोड करें' : 'Export CSV'}</span>
+          </button>
+          <button
+            onClick={handlePrintRoster}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all shadow-md cursor-pointer"
+          >
+            <Printer className="w-4 h-4" />
+            <span>{language === 'hi' ? 'रजिस्टर प्रिंट करें' : 'Print Roster'}</span>
+          </button>
         </div>
       </div>
 
-      {/* Filter and Search */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      {/* Class Selector Matrix Pills (Classes 1 to 8 + All) */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <Building className="w-4 h-4 text-amber-600" />
+            <span>{language === 'hi' ? 'कक्षा चयन एवं छात्र संख्या (Class Rosters):' : 'Select Class Roster:'}</span>
+          </span>
+          <span className="text-xs font-bold text-slate-500">
+            {language === 'hi' ? `कुल नामांकित: ${students.length} छात्र` : `Total School Enrollment: ${students.length}`}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
+          {/* All Classes Button */}
+          <button
+            onClick={() => setSelectedClassTab('all')}
+            className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+              selectedClassTab === 'all'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-md font-black'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <span className="text-[11px] font-bold">{language === 'hi' ? 'सभी कक्षाएं' : 'All Classes'}</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${selectedClassTab === 'all' ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 text-slate-700'}`}>
+              {students.length}
+            </span>
+          </button>
+
+          {/* Individual Classes 1-8 */}
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(classNum => {
+            const data = classBreakdown[classNum];
+            const isSelected = selectedClassTab === classNum;
+            return (
+              <button
+                key={classNum}
+                onClick={() => setSelectedClassTab(classNum)}
+                className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                  isSelected
+                    ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-md font-black ring-2 ring-amber-400/50'
+                    : 'bg-white hover:bg-amber-50/50 text-slate-800 border-slate-200 hover:border-amber-300'
+                }`}
+              >
+                <div className="flex items-center gap-1 text-xs font-black">
+                  <span>Class {classNum}</span>
+                  {data?.isAssigned && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" title="Assigned Class" />
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${isSelected ? 'bg-slate-950 text-amber-300' : 'bg-amber-100 text-amber-900'}`}>
+                    {data?.total || 0}
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-medium">({data?.boys || 0}B/{data?.girls || 0}G)</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Summary KPI Strip for Current Selection */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-500">
+              {selectedClassTab === 'all' ? (language === 'hi' ? 'कुल छात्र' : 'Total Students') : (language === 'hi' ? `कक्षा ${selectedClassTab} कुल` : `Class ${selectedClassTab} Enrolled`)}
+            </div>
+            <div className="text-xl font-black text-slate-900">{activeClassStats.total} {language === 'hi' ? 'छात्र' : 'Students'}</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-900 flex items-center justify-center shrink-0">
+            <GraduationCap className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-500">{language === 'hi' ? 'छात्र (Boys)' : 'Boys Enrolled'}</div>
+            <div className="text-xl font-black text-slate-900">{activeClassStats.boys}</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-900 flex items-center justify-center shrink-0">
+            <GraduationCap className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-500">{language === 'hi' ? 'छात्राएं (Girls)' : 'Girls Enrolled'}</div>
+            <div className="text-xl font-black text-slate-900">{activeClassStats.girls}</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-900 flex items-center justify-center shrink-0">
+            <TrendingUp className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-500">{language === 'hi' ? 'सक्रिय स्थिति' : 'Active Enrollment'}</div>
+            <div className="text-xl font-black text-emerald-700">100% {language === 'hi' ? 'सत्यापित' : 'Verified'}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search students by Name, Admission No., or Roll No..."
+            placeholder={language === 'hi' ? 'नाम, प्रवेश क्रमांक, रोल नं, पिता का नाम या मोबाइल द्वारा खोजें...' : 'Search by Name, Admission No, Roll No, Father Name, Mobile...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+            className="w-full pl-10 pr-4 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-slate-50/50"
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Gender Filter */}
           <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            value={selectedGender}
+            onChange={(e) => setSelectedGender(e.target.value as any)}
             className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           >
-            <option value="all">All Assigned Classes</option>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(c => (
-              <option key={c} value={c}>Class {c}</option>
-            ))}
+            <option value="all">{language === 'hi' ? 'सभी लिंग (All)' : 'All Genders'}</option>
+            <option value="Male">{language === 'hi' ? 'छात्र (Boys)' : 'Boys'}</option>
+            <option value="Female">{language === 'hi' ? 'छात्राएं (Girls)' : 'Girls'}</option>
           </select>
+
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          >
+            <option value="all">{language === 'hi' ? 'सभी श्रेणियां (Category)' : 'All Categories'}</option>
+            <option value="General">General</option>
+            <option value="OBC">OBC</option>
+            <option value="SC">SC</option>
+            <option value="ST">ST</option>
+            <option value="EWS">EWS</option>
+          </select>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'table' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Table View"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'grid' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Card Grid View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Students Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredStudents.length === 0 ? (
-          <div className="col-span-full bg-white p-12 rounded-3xl border border-slate-200 text-center text-slate-500 space-y-2">
-            <GraduationCap className="w-10 h-10 mx-auto text-slate-400" />
-            <div className="font-bold">No students found matching your criteria</div>
-            <p className="text-xs">Adjust your search or filter settings</p>
+      {/* Main Content: Table or Grid */}
+      {filteredStudents.length === 0 ? (
+        <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center text-slate-500 space-y-2">
+          <GraduationCap className="w-12 h-12 mx-auto text-slate-400" />
+          <div className="text-base font-black text-slate-800">
+            {language === 'hi' ? 'कोई छात्र रिकॉर्ड नहीं मिला' : 'No Students Found'}
           </div>
-        ) : (
-          filteredStudents.map((student) => {
+          <p className="text-xs max-w-sm mx-auto text-slate-500">
+            {language === 'hi' ? 'कृपया अपनी खोज या फ़िल्टर विकल्प बदलें।' : 'Try adjusting your search query or class filter.'}
+          </p>
+        </div>
+      ) : viewMode === 'table' ? (
+        /* College-Grade Master SIS Table */
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-900 text-white font-black uppercase text-[11px] tracking-wider border-b border-slate-800">
+                  <th className="py-3 px-4">Roll</th>
+                  <th className="py-3 px-4">Student & Admission No</th>
+                  <th className="py-3 px-4">Class</th>
+                  <th className="py-3 px-4">Parents Details</th>
+                  <th className="py-3 px-4">Contact</th>
+                  <th className="py-3 px-4">Category / Blood</th>
+                  <th className="py-3 px-4 text-center">Attendance Rate</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredStudents.map((student, idx) => {
+                  const stats = getStudentAttendanceStats(student.id);
+                  const isHighAttendance = stats.percentage >= 75;
+                  return (
+                    <tr key={student.id} className="hover:bg-amber-50/40 transition-colors">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                        #{student.rollNumber || String(idx + 1).padStart(2, '0')}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-900 font-black text-xs flex items-center justify-center shrink-0">
+                            {student.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900">{student.name}</div>
+                            <div className="text-[11px] text-slate-500 font-mono">
+                              Adm: {student.admissionNumber} • {student.gender}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-800 font-black text-[10px]">
+                          Class {student.classNumber}-{student.sectionName}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-slate-800 font-semibold">{student.fatherName}</div>
+                        <div className="text-[10px] text-slate-400">M: {student.motherName}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`tel:${student.mobile}`}
+                            className="inline-flex items-center gap-1 text-slate-700 hover:text-amber-700 font-medium"
+                          >
+                            <Phone className="w-3 h-3 text-slate-400" />
+                            <span>{student.mobile}</span>
+                          </a>
+                          <a
+                            href={`https://wa.me/91${student.mobile.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-600 hover:text-emerald-700 p-0.5 rounded-sm hover:bg-emerald-50"
+                            title="Chat on WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="inline-block px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-700 font-bold text-[10px] mr-1">
+                          {student.category}
+                        </span>
+                        <span className="inline-block px-1.5 py-0.5 rounded-sm bg-rose-50 text-rose-700 font-bold text-[10px]">
+                          {student.bloodGroup || 'O+'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="inline-flex items-center gap-1 font-black text-xs">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                            isHighAttendance ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {stats.percentage}%
+                          </span>
+                        </div>
+                        <div className="text-[9px] text-slate-400 mt-0.5">
+                          {stats.presentDays}/{stats.totalDays} days
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => setSelectedStudentFor360(student)}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-2xs transition-all cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>{language === 'hi' ? 'पूरा डेटा (360°)' : 'Student 360°'}</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* Card Grid View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredStudents.map((student) => {
+            const stats = getStudentAttendanceStats(student.id);
             return (
               <div 
                 key={student.id}
@@ -141,8 +526,14 @@ export const TeacherStudents: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-600">
-                      <span className="text-slate-400">Category:</span>
-                      <span className="font-semibold text-slate-800">{student.category}</span>
+                      <span className="text-slate-400">Category & Blood:</span>
+                      <span className="font-semibold text-slate-800">{student.category} • {student.bloodGroup}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span className="text-slate-400">Attendance:</span>
+                      <span className={`font-black ${stats.percentage >= 75 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {stats.percentage}% ({stats.presentDays} days)
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -154,74 +545,28 @@ export const TeacherStudents: React.FC = () => {
                   </span>
 
                   <button
-                    onClick={() => setSelectedStudent(student)}
+                    onClick={() => setSelectedStudentFor360(student)}
                     className="px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs transition-colors cursor-pointer"
                   >
-                    View Card
+                    View 360° Profile
                   </button>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
 
-      {/* Student Detail Modal */}
-      <Modal
-        isOpen={!!selectedStudent}
-        onClose={() => setSelectedStudent(null)}
-        title={`Student Profile: ${selectedStudent?.name}`}
-        maxWidth="md"
-      >
-        {selectedStudent && (
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
-              <div className="w-12 h-12 rounded-xl bg-amber-500 text-slate-950 font-black text-lg flex items-center justify-center shadow-xs">
-                {selectedStudent.name.charAt(0)}
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900">{selectedStudent.name}</h3>
-                <p className="text-slate-600">
-                  Admission No: <strong className="font-mono">{selectedStudent.admissionNumber}</strong> • Class {selectedStudent.classNumber}-{selectedStudent.sectionName}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                <span className="text-slate-400 font-semibold">Father's Name</span>
-                <div className="font-bold text-slate-800">{selectedStudent.fatherName}</div>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                <span className="text-slate-400 font-semibold">Mother's Name</span>
-                <div className="font-bold text-slate-800">{selectedStudent.motherName}</div>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                <span className="text-slate-400 font-semibold">Date of Birth</span>
-                <div className="font-bold text-slate-800">{selectedStudent.dateOfBirth}</div>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                <span className="text-slate-400 font-semibold">Mobile Phone</span>
-                <div className="font-bold text-slate-800">{selectedStudent.mobile}</div>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-              <span className="text-slate-400 font-semibold">Residential Address</span>
-              <div className="font-bold text-slate-800">{selectedStudent.address}</div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setSelectedStudent(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      {/* Comprehensive Student 360 Modal for Teacher View */}
+      {selectedStudentFor360 && (
+        <Student360Modal
+          isOpen={!!selectedStudentFor360}
+          onClose={() => setSelectedStudentFor360(null)}
+          student={selectedStudentFor360}
+          canManageDocuments={true}
+        />
+      )}
     </div>
   );
 };
+

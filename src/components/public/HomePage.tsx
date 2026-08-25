@@ -38,15 +38,11 @@ import {
   Zap,
   Globe,
   Video,
-  Film,
-  X,
   Flame,
   Lightbulb,
   Compass,
-  Maximize2
+  Radio
 } from 'lucide-react';
-import { parseVideoUrl } from '../../utils/mediaUtils';
-import { GalleryItem } from '../../types';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
@@ -88,10 +84,49 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
   const carouselInterval = settings.heroBannerCarouselInterval || 5;
   const isCarouselActive = Boolean(settings.heroBannerCarouselEnabled) && carouselImages.length > 0;
 
-  // Educational & Motivational Videos Showcase State
-  const [selectedVideoModal, setSelectedVideoModal] = useState<GalleryItem | null>(null);
-  const [inlinePlayingVideoId, setInlinePlayingVideoId] = useState<string | null>(null);
-  const [videoCategoryFilter, setVideoCategoryFilter] = useState<'all' | 'class13' | 'class45' | 'class68' | 'motivation' | 'smart'>('all');
+  // Notice Ticker Configuration & Active Alert Processing
+  const tickerConfig = settings.noticeTicker;
+  const isTickerEnabled = tickerConfig ? tickerConfig.enabled !== false : true;
+
+  const activeTickerAlerts = useMemo(() => {
+    if (!isTickerEnabled) return [];
+    
+    if (tickerConfig?.alerts && tickerConfig.alerts.length > 0) {
+      const now = new Date();
+      const filtered = tickerConfig.alerts.filter(a => {
+        if (a.isActive === false) return false;
+        if (a.startDate && new Date(a.startDate) > now) return false;
+        if (a.endDate && new Date(a.endDate) < now) return false;
+        return true;
+      });
+      if (filtered.length > 0) return filtered;
+    }
+
+    // Dynamic fallback to active public notices
+    return publicNotices.map((n, idx) => ({
+      id: `notice-${n.id || idx}`,
+      textEn: `${n.title}: ${n.description}`,
+      textHi: `${n.titleHi || n.title}: ${n.descriptionHi || n.description}`,
+      priority: (n.priority === 'urgent' ? 'urgent' : n.priority === 'important' ? 'important' : 'normal') as 'urgent' | 'important' | 'normal',
+      isActive: true,
+      category: n.category,
+      link: 'notices'
+    }));
+  }, [tickerConfig, isTickerEnabled, publicNotices]);
+
+  // For single-alert rotation or fade mode
+  const [activeAlertIndex, setActiveAlertIndex] = useState(0);
+  const tickerMode = tickerConfig?.mode || 'marquee';
+  const tickerSpeed = tickerConfig?.speed || 'normal';
+
+  useEffect(() => {
+    if (tickerMode === 'marquee' || activeTickerAlerts.length <= 1) return;
+    const intervalMs = tickerSpeed === 'fast' ? 3000 : tickerSpeed === 'slow' ? 7000 : 5000;
+    const timer = setInterval(() => {
+      setActiveAlertIndex(prev => (prev + 1) % activeTickerAlerts.length);
+    }, intervalMs);
+    return () => clearInterval(timer);
+  }, [tickerMode, tickerSpeed, activeTickerAlerts.length]);
 
   const [sectionVisibility] = useState<Record<string, boolean>>(() => {
     try {
@@ -105,52 +140,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
   useEffect(() => {
     recordPrivatePageView('home');
   }, []);
-
-  // Filter educational and motivational videos for Classes 1 to 8
-  const educationalVideos = useMemo(() => {
-    const allVideos = gallery.filter(item => 
-      item.isPublic !== false && 
-      (item.mediaType === 'video' || !!item.videoURL || !!item.youtubeId)
-    );
-
-    if (videoCategoryFilter === 'all') return allVideos;
-    if (videoCategoryFilter === 'class13') {
-      return allVideos.filter(v => 
-        v.targetClass === 'Class 1-3' ||
-        (v.tags && (v.tags.includes('Class1to3') || v.tags.includes('FLN') || v.tags.includes('Varnamala') || v.tags.includes('HindiBalgeet'))) ||
-        v.albumName?.includes('1-3')
-      );
-    }
-    if (videoCategoryFilter === 'class45') {
-      return allVideos.filter(v => 
-        v.targetClass === 'Class 4-5' || v.targetClass === 'Class 1-5' ||
-        (v.tags && (v.tags.includes('Class4to5') || v.tags.includes('Class1to5') || v.tags.includes('MathFun') || v.tags.includes('EVS') || v.tags.includes('MoralStories'))) ||
-        v.albumName?.includes('1-5') || v.albumName?.includes('3-5')
-      );
-    }
-    if (videoCategoryFilter === 'class68') {
-      return allVideos.filter(v => 
-        v.targetClass === 'Class 6-8' ||
-        (v.tags && (v.tags.includes('Class6to8') || v.tags.includes('ScienceLab') || v.tags.includes('UpperPrimary') || v.tags.includes('ISRO'))) ||
-        v.albumName?.includes('6-8') || v.albumName?.includes('4-8')
-      );
-    }
-    if (videoCategoryFilter === 'motivation') {
-      return allVideos.filter(v => 
-        (v.tags && (v.tags.includes('Motivation') || v.tags.includes('Inspiration') || v.tags.includes('AbdulKalam'))) ||
-        v.titleEn.toLowerCase().includes('kalam') ||
-        v.titleEn.toLowerCase().includes('motivat')
-      );
-    }
-    if (videoCategoryFilter === 'smart') {
-      return allVideos.filter(v => 
-        (v.tags && (v.tags.includes('SmartClass') || v.tags.includes('InteractiveBoard') || v.tags.includes('DigitalEducation'))) ||
-        v.titleEn.toLowerCase().includes('smart') ||
-        v.albumName?.toLowerCase().includes('smart')
-      );
-    }
-    return allVideos;
-  }, [gallery, videoCategoryFilter]);
 
   // Hero Banner Carousel Auto-Play Timer
   useEffect(() => {
@@ -175,32 +164,201 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
     setCurrentSlideIndex((prev) => (prev + 1) % carouselImages.length);
   };
 
+  // Dynamic Call-To-Action (CTA) Click Handler
+  const handleCtaClick = (link?: string) => {
+    if (!link) {
+      onNavigate('admission');
+      return;
+    }
+    const clean = link.trim();
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      window.open(clean, '_blank', 'noopener,noreferrer');
+    } else if (clean.startsWith('mailto:') || clean.startsWith('tel:')) {
+      window.location.href = clean;
+    } else if (clean.startsWith('#')) {
+      const elem = document.querySelector(clean);
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      onNavigate(clean);
+    }
+  };
+
+  // Helper for CTA icon resolution
+  const getCtaIconComponent = (iconName?: string, defaultIcon = GraduationCap) => {
+    switch (iconName) {
+      case 'Images':
+      case 'gallery':
+      case 'Image':
+        return Images;
+      case 'Building2':
+      case 'facilities':
+        return Building2;
+      case 'Gift':
+      case 'schemes':
+        return Gift;
+      case 'FileText':
+      case 'documents':
+        return FileText;
+      case 'Bell':
+      case 'notices':
+        return Bell;
+      case 'Phone':
+      case 'contact':
+        return Phone;
+      case 'Mail':
+        return Mail;
+      case 'BookOpen':
+      case 'curriculum':
+        return BookOpen;
+      case 'Sparkles':
+        return Sparkles;
+      case 'Globe':
+      case 'sources':
+        return Globe;
+      case 'HelpCircle':
+      case 'faq':
+        return HelpCircle;
+      case 'Users':
+      case 'faculty':
+        return Users;
+      case 'ArrowRight':
+        return ArrowRight;
+      case 'GraduationCap':
+      case 'admission':
+      default:
+        return defaultIcon;
+    }
+  };
+
   return (
     <div className="w-full max-w-full overflow-x-hidden space-y-12 sm:space-y-16 pb-16 bg-slate-50/50">
       
       {/* Notice Ticker Bar */}
-      {publicNotices.length > 0 && (
-        <div className="bg-gradient-to-r from-gov-amber-500 via-gov-amber-600 to-amber-600 text-gov-navy-950 px-4 py-2 text-xs font-bold overflow-hidden shadow-xs border-b border-gov-amber-600">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <span className="flex items-center gap-1 font-black uppercase px-2.5 py-0.5 rounded-full bg-gov-navy-950 text-gov-amber-400 text-[10px] shrink-0 shadow-xs animate-pulse">
-                <Bell className="w-3 h-3" /> {language === 'hi' ? 'नवीनतम सूचना' : 'Flash Update'}
-              </span>
-              <div className="truncate text-gov-navy-950 font-semibold text-xs sm:text-sm">
-                <span className="font-extrabold mr-2 underline decoration-gov-navy-950/40">
-                  {language === 'hi' ? (publicNotices[0].titleHi || publicNotices[0].title) : publicNotices[0].title}:
-                </span>
+      {isTickerEnabled && activeTickerAlerts.length > 0 && (
+        <div 
+          id="public-notice-ticker-bar"
+          className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-medium overflow-hidden border-b transition-colors shadow-xs ${
+            tickerConfig?.theme === 'red-crimson'
+              ? 'bg-gradient-to-r from-rose-700 via-rose-600 to-red-700 text-white border-rose-800'
+              : tickerConfig?.theme === 'blue-navy'
+              ? 'bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 text-slate-100 border-slate-800'
+              : tickerConfig?.theme === 'emerald-green'
+              ? 'bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white border-emerald-900'
+              : tickerConfig?.theme === 'purple-royal'
+              ? 'bg-gradient-to-r from-purple-900 via-purple-800 to-indigo-950 text-white border-purple-950'
+              : tickerConfig?.theme === 'dark-slate'
+              ? 'bg-slate-950 text-amber-300 border-slate-900'
+              : 'bg-gradient-to-r from-amber-500 via-amber-400 to-orange-400 text-slate-950 border-amber-600'
+          }`}
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
+            
+            {/* Live Ticker Masthead / Badge */}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`inline-flex items-center gap-1.5 font-black uppercase px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] shadow-xs tracking-wider shrink-0 ${
+                tickerConfig?.theme === 'red-crimson' || tickerConfig?.theme === 'emerald-green' || tickerConfig?.theme === 'purple-royal'
+                  ? 'bg-white text-slate-950 border border-white/30'
+                  : 'bg-slate-950 text-amber-300 border border-amber-400/30'
+              }`}>
+                <Radio className="w-3 h-3 text-red-500 animate-pulse shrink-0" />
                 <span>
-                  {language === 'hi' ? (publicNotices[0].descriptionHi || publicNotices[0].description) : publicNotices[0].description}
+                  {language === 'hi'
+                    ? (tickerConfig?.badgeTextHi || 'लाइव सूचना टिकर')
+                    : (tickerConfig?.badgeTextEn || 'Notice Ticker')}
                 </span>
-              </div>
+              </span>
             </div>
-            <button 
-              onClick={() => onNavigate('notices')} 
-              className="text-xs font-extrabold underline shrink-0 hover:text-white transition-colors cursor-pointer whitespace-nowrap bg-gov-navy-950/20 px-2.5 py-1 rounded-lg"
-            >
-              {language === 'hi' ? 'सभी सूचनाएं देखें →' : 'View All →'}
-            </button>
+
+            {/* Ticker Content Engine */}
+            <div className="flex-1 overflow-hidden relative min-w-0 flex items-center">
+              {tickerMode === 'marquee' ? (
+                /* Continuous Smooth Marquee Scrolling */
+                <div 
+                  className={`flex items-center gap-12 whitespace-nowrap animate-marquee ${
+                    tickerConfig?.pauseOnHover !== false ? 'pause-on-hover' : ''
+                  }`}
+                  style={{
+                    animationDuration: tickerSpeed === 'fast' ? '18s' : tickerSpeed === 'slow' ? '45s' : '28s'
+                  }}
+                >
+                  {/* Repeat alerts array twice to form a seamless infinite loop */}
+                  {[...activeTickerAlerts, ...activeTickerAlerts].map((alert, idx) => {
+                    const text = language === 'hi' ? (alert.textHi || alert.textEn) : (alert.textEn || alert.textHi);
+                    return (
+                      <div 
+                        key={`${alert.id}-${idx}`} 
+                        onClick={() => handleCtaClick(alert.link || 'notices')}
+                        className="inline-flex items-center gap-2.5 text-xs sm:text-sm font-bold cursor-pointer transition-opacity hover:opacity-85 select-none"
+                      >
+                        {alert.priority === 'urgent' && (
+                          <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider shadow-xs animate-pulse">
+                            {language === 'hi' ? 'अति महत्वपूर्ण' : 'URGENT'}
+                          </span>
+                        )}
+                        {alert.priority === 'important' && (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-950 text-amber-300 text-[10px] font-black uppercase tracking-wider shadow-xs">
+                            {language === 'hi' ? 'महत्वपूर्ण' : 'IMPORTANT'}
+                          </span>
+                        )}
+                        <span className="hover:underline underline-offset-2">
+                          {text}
+                        </span>
+                        <span className="opacity-40 text-xs px-1">•</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Single Alert Rotation / Fade Mode */
+                <div className="w-full truncate">
+                  {(() => {
+                    const alert = activeTickerAlerts[activeAlertIndex] || activeTickerAlerts[0];
+                    if (!alert) return null;
+                    const text = language === 'hi' ? (alert.textHi || alert.textEn) : (alert.textEn || alert.textHi);
+                    return (
+                      <div 
+                        key={alert.id}
+                        onClick={() => handleCtaClick(alert.link || 'notices')}
+                        className="flex items-center gap-2 truncate cursor-pointer hover:underline underline-offset-2"
+                      >
+                        {alert.priority === 'urgent' && (
+                          <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider shrink-0 shadow-xs animate-pulse">
+                            {language === 'hi' ? 'अति महत्वपूर्ण' : 'URGENT'}
+                          </span>
+                        )}
+                        {alert.priority === 'important' && (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-950 text-amber-300 text-[10px] font-black uppercase tracking-wider shrink-0 shadow-xs">
+                            {language === 'hi' ? 'महत्वपूर्ण' : 'IMPORTANT'}
+                          </span>
+                        )}
+                        <span className="truncate font-bold text-xs sm:text-sm">
+                          {text}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Right Action: Navigate to all notices */}
+            <div className="shrink-0 flex items-center gap-2">
+              <button 
+                onClick={() => onNavigate('notices')} 
+                className={`text-[11px] sm:text-xs font-black px-2.5 sm:px-3 py-1 rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-xs flex items-center gap-1 ${
+                  tickerConfig?.theme === 'red-crimson' || tickerConfig?.theme === 'emerald-green' || tickerConfig?.theme === 'purple-royal'
+                    ? 'bg-black/25 hover:bg-black/40 text-white border border-white/20'
+                    : 'bg-slate-950/20 hover:bg-slate-950 hover:text-amber-300 text-slate-950 border border-slate-950/20'
+                }`}
+                title={language === 'hi' ? 'सभी शासकीय आदेश व सूचनाएं देखें' : 'View all notices and circulars'}
+              >
+                <span>{language === 'hi' ? 'सभी सूचनाएं' : 'View All'}</span>
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
+
           </div>
         </div>
       )}
@@ -214,7 +372,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
             <div 
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
-              className="rounded-3xl border border-gov-navy-800/60 overflow-hidden shadow-2xl bg-gov-navy-950 relative group"
+              className={`rounded-3xl overflow-hidden shadow-2xl relative group ${
+                settings.heroBannerTextColor === 'dark'
+                  ? 'border border-slate-300 bg-slate-100 text-slate-900'
+                  : 'border border-gov-navy-800/60 bg-gov-navy-950 text-white'
+              }`}
             >
               {/* Aspect Ratio Container (Responsive adaptive height to never overflow on mobile / tablet) */}
               <div 
@@ -245,16 +407,22 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                   />
                 )}
 
-                {/* High Contrast Gradient Overlay */}
+                {/* High Contrast Gradient Overlay (Light vs Dark Text Adaptability) */}
                 <div 
-                  className="absolute inset-0 bg-gradient-to-r from-gov-navy-950 via-gov-navy-950/85 to-gov-navy-950/40"
+                  className={`absolute inset-0 ${
+                    settings.heroBannerTextColor === 'dark'
+                      ? 'bg-gradient-to-r from-white via-white/90 to-white/40'
+                      : 'bg-gradient-to-r from-gov-navy-950 via-gov-navy-950/85 to-gov-navy-950/40'
+                  }`}
                   style={{
                     opacity: (settings.heroBannerOverlayOpacity !== undefined ? settings.heroBannerOverlayOpacity : 60) / 100
                   }}
                 />
 
                 {/* Content Inside Panoramic Hero (With safe padding & spacing on mobile/tablet) */}
-                <div className="absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-14 pb-16 sm:pb-12 text-white z-10 overflow-y-auto">
+                <div className={`absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-14 pb-16 sm:pb-12 z-10 overflow-y-auto ${
+                  settings.heroBannerTextColor === 'dark' ? 'text-slate-900' : 'text-white'
+                }`}>
                   <div className="max-w-3xl space-y-3 sm:space-y-4 my-auto">
                     {/* Top Badges */}
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 animate-hero-badges">
@@ -262,31 +430,55 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                         <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-gov-navy-950 animate-pulse"></span>
                         <span>{language === 'hi' ? 'उत्तर प्रदेश शासन' : 'Govt. of Uttar Pradesh'}</span>
                       </div>
-                      <div className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/30 text-[10px] sm:text-xs font-bold">
-                        <GraduationCap className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-gov-amber-300" />
+                      <div className={`inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full backdrop-blur-md text-[10px] sm:text-xs font-bold ${
+                        settings.heroBannerTextColor === 'dark'
+                          ? 'bg-slate-900/10 text-slate-900 border border-slate-900/20'
+                          : 'bg-white/20 text-white border border-white/30'
+                      }`}>
+                        <GraduationCap className={`w-3 sm:w-3.5 h-3 sm:h-3.5 ${
+                          settings.heroBannerTextColor === 'dark' ? 'text-gov-amber-600' : 'text-gov-amber-300'
+                        }`} />
                         <span>{language === 'hi' ? 'कक्षा 1 से 8 (कंपोजिट)' : 'Classes 1–8 (Composite)'}</span>
                       </div>
-                      <div className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-emerald-500/30 backdrop-blur-md text-emerald-200 border border-emerald-400/40 text-[10px] sm:text-xs font-bold">
-                        <CheckCircle2 className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-emerald-400" />
+                      <div className={`inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full backdrop-blur-md text-[10px] sm:text-xs font-bold ${
+                        settings.heroBannerTextColor === 'dark'
+                          ? 'bg-emerald-600/15 text-emerald-900 border border-emerald-600/30'
+                          : 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/40'
+                      }`}>
+                        <CheckCircle2 className={`w-3 sm:w-3.5 h-3 sm:h-3.5 ${
+                          settings.heroBannerTextColor === 'dark' ? 'text-emerald-700' : 'text-emerald-400'
+                        }`} />
                         <span>{language === 'hi' ? '100% नि:शुल्क शिक्षा' : '100% Free Education'}</span>
                       </div>
-                      <span className="hidden md:inline-flex px-2.5 py-1 rounded-full bg-gov-navy-900/80 text-gov-amber-300 text-xs font-mono font-bold border border-gov-navy-700">
+                      <span className={`hidden md:inline-flex px-2.5 py-1 rounded-full text-xs font-mono font-bold border ${
+                        settings.heroBannerTextColor === 'dark'
+                          ? 'bg-white/90 text-slate-900 border-slate-300 shadow-xs'
+                          : 'bg-gov-navy-900/80 text-gov-amber-300 border-gov-navy-700'
+                      }`}>
                         UDISE: {settings.schoolCode}
                       </span>
                     </div>
 
                     {/* Headlines with CSS Entry Animation */}
                     <div className="space-y-1.5 sm:space-y-2">
-                      <div className="text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest text-gov-amber-400 animate-hero-headline">
+                      <div className={`text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest animate-hero-headline ${
+                        settings.heroBannerTextColor === 'dark' ? 'text-gov-amber-700' : 'text-gov-amber-400'
+                      }`}>
                         {language === 'hi' ? 'बेसिक शिक्षा परिषद, उत्तर प्रदेश' : 'Department of Basic Education, Govt. of UP'}
                       </div>
-                      <h1 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-snug sm:leading-tight drop-shadow-md animate-hero-headline">
+                      <h1 className={`text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tight leading-snug sm:leading-tight animate-hero-headline ${
+                        settings.heroBannerTextColor === 'dark' ? 'text-slate-950 drop-shadow-xs' : 'text-white drop-shadow-md'
+                      }`}>
                         {language === 'hi' 
                           ? (settings.heroBannerHeadlineHi || settings.schoolNameHi)
                           : (settings.heroBannerHeadlineEn || settings.schoolName)}
                       </h1>
-                      <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs md:text-sm font-semibold text-slate-200 pt-0.5 animate-hero-subtitle">
-                        <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gov-amber-400 shrink-0" />
+                      <div className={`flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs md:text-sm font-semibold pt-0.5 animate-hero-subtitle ${
+                        settings.heroBannerTextColor === 'dark' ? 'text-slate-700' : 'text-slate-200'
+                      }`}>
+                        <MapPin className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${
+                          settings.heroBannerTextColor === 'dark' ? 'text-gov-amber-600' : 'text-gov-amber-400'
+                        }`} />
                         <span className="line-clamp-2 sm:line-clamp-1">
                           {language === 'hi'
                             ? (settings.heroBannerSubtitleHi || `ग्राम: ${settings.villageHi || 'हरसिंहपुर गोवा'} • विकास खंड: ${settings.blockHi || 'शमसाबाद'} • जनपद: ${settings.districtHi || 'फर्रुखाबाद'} (उ.प्र.)`)
@@ -295,24 +487,42 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                       </div>
                     </div>
 
-                    {/* CTAs */}
+                    {/* Dynamic Primary & Secondary CTAs */}
                     <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
-                      <button
-                        onClick={() => onNavigate('admission')}
-                        className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-gov-amber-500 text-gov-navy-950 font-black hover:bg-gov-amber-400 shadow-lg shadow-gov-amber-500/30 transition-all text-xs sm:text-sm cursor-pointer transform hover:-translate-y-0.5"
-                      >
-                        <GraduationCap className="w-4 h-4" />
-                        <span>{language === 'hi' ? 'नि:शुल्क प्रवेश प्रक्रिया' : 'Free Admission'}</span>
-                        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      </button>
+                      {settings.heroBannerCtaEnabled !== false && (
+                        <button
+                          onClick={() => handleCtaClick(settings.heroBannerCtaLink || 'admission')}
+                          className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-gov-amber-500 text-gov-navy-950 font-black hover:bg-gov-amber-400 shadow-lg shadow-gov-amber-500/30 transition-all text-xs sm:text-sm cursor-pointer transform hover:-translate-y-0.5"
+                        >
+                          {(() => {
+                            const IconComponent = getCtaIconComponent(settings.heroBannerCtaIcon, GraduationCap);
+                            return <IconComponent className="w-4 h-4" />;
+                          })()}
+                          <span>
+                            {language === 'hi' 
+                              ? (settings.heroBannerCtaTextHi || 'नि:शुल्क प्रवेश प्रक्रिया')
+                              : (settings.heroBannerCtaTextEn || 'Free Admission')}
+                          </span>
+                          <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        </button>
+                      )}
 
-                      <button
-                        onClick={() => onNavigate('schemes')}
-                        className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md transition-all text-xs sm:text-sm cursor-pointer"
-                      >
-                        <Gift className="w-4 h-4 text-emerald-200" />
-                        <span>{language === 'hi' ? 'डीबीटी व योजनाएं' : 'Govt. Schemes'}</span>
-                      </button>
+                      {settings.heroBannerSecondaryCtaEnabled !== false && (
+                        <button
+                          onClick={() => handleCtaClick(settings.heroBannerSecondaryCtaLink || 'schemes')}
+                          className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md transition-all text-xs sm:text-sm cursor-pointer"
+                        >
+                          {(() => {
+                            const IconComponent = getCtaIconComponent(settings.heroBannerSecondaryCtaIcon, Gift);
+                            return <IconComponent className="w-4 h-4 text-emerald-200" />;
+                          })()}
+                          <span>
+                            {language === 'hi'
+                              ? (settings.heroBannerSecondaryCtaTextHi || 'डीबीटी व योजनाएं')
+                              : (settings.heroBannerSecondaryCtaTextEn || 'Govt. Schemes')}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -323,7 +533,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                     <button
                       type="button"
                       onClick={handlePrevSlide}
-                      className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 cursor-pointer shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-105"
+                      className={`absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center backdrop-blur-xs cursor-pointer shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-105 ${
+                        settings.heroBannerTextColor === 'dark'
+                          ? 'bg-white/80 hover:bg-white text-slate-900 border border-slate-300'
+                          : 'bg-slate-950/60 hover:bg-slate-950 text-white border border-white/20'
+                      }`}
                       aria-label="Previous Slide"
                       title={language === 'hi' ? 'पिछली फोटो' : 'Previous Slide'}
                     >
@@ -332,7 +546,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                     <button
                       type="button"
                       onClick={handleNextSlide}
-                      className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 cursor-pointer shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-105"
+                      className={`absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center backdrop-blur-xs cursor-pointer shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-105 ${
+                        settings.heroBannerTextColor === 'dark'
+                          ? 'bg-white/80 hover:bg-white text-slate-900 border border-slate-300'
+                          : 'bg-slate-950/60 hover:bg-slate-950 text-white border border-white/20'
+                      }`}
                       aria-label="Next Slide"
                       title={language === 'hi' ? 'अगली फोटो' : 'Next Slide'}
                     >
@@ -340,11 +558,17 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                     </button>
 
                     {/* Carousel Bottom Indicator Dots & Controls */}
-                    <div className="absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 z-20 flex items-center gap-1.5 sm:gap-2 bg-slate-950/80 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white/20 shadow-lg">
+                    <div className={`absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 z-20 flex items-center gap-1.5 sm:gap-2 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-lg ${
+                      settings.heroBannerTextColor === 'dark'
+                        ? 'bg-white/90 border border-slate-300 text-slate-900'
+                        : 'bg-slate-950/80 border border-white/20 text-white'
+                    }`}>
                       <button
                         type="button"
                         onClick={() => setIsAutoPlaying(p => !p)}
-                        className="text-gov-amber-400 hover:text-gov-amber-300 text-xs pr-1 cursor-pointer transition-colors"
+                        className={`text-xs pr-1 cursor-pointer transition-colors ${
+                          settings.heroBannerTextColor === 'dark' ? 'text-gov-amber-700 hover:text-gov-amber-800' : 'text-gov-amber-400 hover:text-gov-amber-300'
+                        }`}
                         title={isAutoPlaying ? 'Pause Auto-Rotation' : 'Resume Auto-Rotation'}
                         aria-label={isAutoPlaying ? 'Pause' : 'Play'}
                       >
@@ -359,13 +583,17 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                             onClick={() => setCurrentSlideIndex(idx)}
                             aria-label={`Go to slide ${idx + 1}`}
                             className={`h-1.5 sm:h-2 rounded-full transition-all cursor-pointer ${
-                              idx === currentSlideIndex ? 'w-4 sm:w-5 bg-gov-amber-400' : 'w-1.5 sm:w-2 bg-white/40 hover:bg-white/70'
+                              idx === currentSlideIndex 
+                                ? 'w-4 sm:w-5 bg-gov-amber-500' 
+                                : (settings.heroBannerTextColor === 'dark' ? 'w-1.5 sm:w-2 bg-slate-400 hover:bg-slate-600' : 'w-1.5 sm:w-2 bg-white/40 hover:bg-white/70')
                             }`}
                           />
                         ))}
                       </div>
 
-                      <span className="text-[9px] sm:text-[10px] font-mono text-white/90 pl-1 border-l border-white/20">
+                      <span className={`text-[9px] sm:text-[10px] font-mono pl-1 border-l ${
+                        settings.heroBannerTextColor === 'dark' ? 'text-slate-800 border-slate-300' : 'text-white/90 border-white/20'
+                      }`}>
                         {currentSlideIndex + 1}/{carouselImages.length}
                       </span>
                     </div>
@@ -465,24 +693,42 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                   : 'Welcome to Composite JHS Harsinghpur Gova. We are dedicated to foundational literacy & numeracy (NIPUN Bharat), modern pedagogy, free nutritious mid-day meals (PM POSHAN), and holistic development for all rural students.'}
               </p>
 
-              {/* CTAs */}
+              {/* Dynamic CTAs */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
-                <button
-                  onClick={() => onNavigate('admission')}
-                  className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gov-amber-500 text-gov-navy-950 font-black hover:bg-gov-amber-600 shadow-lg shadow-gov-amber-500/25 transition-all text-xs sm:text-sm cursor-pointer transform hover:-translate-y-0.5"
-                >
-                  <GraduationCap className="w-5 h-5" />
-                  <span>{language === 'hi' ? 'नि:शुल्क प्रवेश प्रक्रिया' : 'Free Admission Guidelines'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                {settings.heroBannerCtaEnabled !== false && (
+                  <button
+                    onClick={() => handleCtaClick(settings.heroBannerCtaLink || 'admission')}
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gov-amber-500 text-gov-navy-950 font-black hover:bg-gov-amber-600 shadow-lg shadow-gov-amber-500/25 transition-all text-xs sm:text-sm cursor-pointer transform hover:-translate-y-0.5"
+                  >
+                    {(() => {
+                      const IconComponent = getCtaIconComponent(settings.heroBannerCtaIcon, GraduationCap);
+                      return <IconComponent className="w-5 h-5" />;
+                    })()}
+                    <span>
+                      {language === 'hi' 
+                        ? (settings.heroBannerCtaTextHi || 'नि:शुल्क प्रवेश प्रक्रिया') 
+                        : (settings.heroBannerCtaTextEn || 'Free Admission Guidelines')}
+                    </span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
 
-                <button
-                  onClick={() => onNavigate('schemes')}
-                  className="flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/20 transition-all text-xs sm:text-sm cursor-pointer"
-                >
-                  <Gift className="w-4 h-4 text-emerald-200" />
-                  <span>{language === 'hi' ? 'डीबीटी व सरकारी योजनाएं' : 'Govt. Schemes & DBT'}</span>
-                </button>
+                {settings.heroBannerSecondaryCtaEnabled !== false && (
+                  <button
+                    onClick={() => handleCtaClick(settings.heroBannerSecondaryCtaLink || 'schemes')}
+                    className="flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/20 transition-all text-xs sm:text-sm cursor-pointer"
+                  >
+                    {(() => {
+                      const IconComponent = getCtaIconComponent(settings.heroBannerSecondaryCtaIcon, Gift);
+                      return <IconComponent className="w-4 h-4 text-emerald-200" />;
+                    })()}
+                    <span>
+                      {language === 'hi' 
+                        ? (settings.heroBannerSecondaryCtaTextHi || 'डीबीटी व सरकारी योजनाएं') 
+                        : (settings.heroBannerSecondaryCtaTextEn || 'Govt. Schemes & DBT')}
+                    </span>
+                  </button>
+                )}
               </div>
 
             </div>
@@ -1079,300 +1325,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
         </div>
       </section>
 
-      {/* Modern Smart Classroom & Motivational Educational Video Showcase */}
-      {sectionVisibility.educationalVideos !== false && (
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-br from-slate-900 via-gov-navy-950 to-indigo-950 rounded-3xl p-6 sm:p-10 text-white shadow-xl border border-indigo-900/50 relative overflow-hidden">
-          {/* Subtle Ambient Glowing Elements */}
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          {/* Section Header */}
-          <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/10">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-bold uppercase tracking-wider backdrop-blur-xs">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                <span>{language === 'hi' ? 'स्मार्ट शिक्षण एवं छात्र प्रेरणा' : 'Smart Learning & Student Inspiration'}</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
-                {language === 'hi'
-                  ? 'आधुनिक स्मार्ट क्लासरूम एवं प्रेरक शिक्षण वीडियो'
-                  : 'Top Smart Classrooms & Motivational Learning Videos'}
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-                {language === 'hi'
-                  ? 'डिजिटल 3D बोर्ड शिक्षण, विज्ञान प्रयोगशाला के रोमांचक प्रयोग, गणितीय ट्रिक्स एवं महान विभूतियों के प्रेरक विचार जिससे विद्यार्थियों में पढ़ाई के प्रति नई ऊर्जा और उत्साह का संचार हो।'
-                  : 'Explore interactive smart whiteboard lessons, exciting science experiments, fast math logic, and inspiring messages designed to cultivate curiosity and study passion.'}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => onNavigate('gallery')}
-                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-gov-navy-950 font-black text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-              >
-                <Video className="w-4 h-4" />
-                <span>{language === 'hi' ? 'सभी वीडियो एवं गैलरी' : 'View Full Media Hub'}</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Video Category Filter Tabs by Class Level */}
-          <div className="relative z-10 flex items-center gap-2 overflow-x-auto pt-6 pb-2 no-scrollbar">
-            {[
-              { id: 'all', labelHi: 'सभी कक्षाएं (1 से 8)', labelEn: 'All Classes (1-8)', icon: Film },
-              { id: 'class13', labelHi: 'कक्षा 1 से 3 (बालगीत, वर्णमाला)', labelEn: 'Class 1-3 (FLN / Rhymes)', icon: Sparkles },
-              { id: 'class45', labelHi: 'कक्षा 4 व 5 (गणित, EVS, कहानियां)', labelEn: 'Class 4-5 (Math & EVS)', icon: BookOpenCheck },
-              { id: 'class68', labelHi: 'कक्षा 6 से 8 (विज्ञान प्रयोग, अंतरिक्ष)', labelEn: 'Class 6-8 (Science & Space)', icon: Lightbulb },
-              { id: 'motivation', labelHi: 'डॉ. कलाम के 4 स्वर्णिम नियम', labelEn: 'Dr. Kalam Motivation', icon: Flame },
-              { id: 'smart', labelHi: '3D स्मार्ट क्लासरूम', labelEn: 'Smart Digital Classes', icon: Monitor }
-            ].map(tab => {
-              const IconComp = tab.icon;
-              const isActive = videoCategoryFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setVideoCategoryFilter(tab.id as any)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer shadow-xs ${
-                    isActive
-                      ? 'bg-amber-500 text-gov-navy-950 shadow-md font-black scale-102 ring-2 ring-amber-400/50'
-                      : 'bg-white/10 text-slate-300 hover:bg-white/15 hover:text-white border border-white/10'
-                  }`}
-                >
-                  <IconComp className={`w-3.5 h-3.5 ${isActive ? 'text-gov-navy-950' : 'text-amber-400'}`} />
-                  <span>{language === 'hi' ? tab.labelHi : tab.labelEn}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Videos Grid */}
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
-            {educationalVideos.slice(0, 6).map((video) => {
-              const isPlaying = inlinePlayingVideoId === video.id;
-              const thumb = video.thumbnailURL || video.imageUrl || video.imageURL || 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80';
-              const parsed = parseVideoUrl(video.videoURL || (video.youtubeId ? `https://youtube.com/watch?v=${video.youtubeId}` : ''));
-
-              return (
-                <div
-                  key={video.id}
-                  className={`group bg-slate-800/90 rounded-2xl border overflow-hidden shadow-lg hover:shadow-2xl transition-all flex flex-col justify-between duration-200 ${
-                    isPlaying 
-                      ? 'border-amber-400 ring-2 ring-amber-400/40 bg-slate-800 shadow-amber-500/10' 
-                      : 'border-slate-700/80 hover:border-amber-400/80 hover:bg-slate-800 transform hover:-translate-y-1'
-                  }`}
-                >
-                  {/* Video Screen: Live Inline Player or Video Thumbnail with Play Button */}
-                  <div className="aspect-video relative bg-black overflow-hidden">
-                    {isPlaying ? (
-                      /* ACTIVE INLINE VIDEO PLAYER */
-                      <div className="w-full h-full relative bg-black">
-                        {parsed.embedUrl ? (
-                          <iframe
-                            src={`${parsed.embedUrl}?autoplay=1&rel=0&modestbranding=1`}
-                            title={video.titleEn}
-                            className="w-full h-full border-0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            allowFullScreen
-                          />
-                        ) : video.videoURL ? (
-                          <video
-                            src={video.videoURL}
-                            controls
-                            autoPlay
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-4 text-center">
-                            <Film className="w-8 h-8 text-slate-600 mb-1" />
-                            <p className="text-xs">{language === 'hi' ? 'वीडियो लोड हो रहा है...' : 'Video loading...'}</p>
-                          </div>
-                        )}
-
-                        {/* Top Controls Overlay for Inline Player */}
-                        <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20 pointer-events-auto">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedVideoModal(video);
-                            }}
-                            className="p-1.5 rounded-lg bg-black/80 hover:bg-slate-800 text-white/90 hover:text-white transition-all cursor-pointer backdrop-blur-xs border border-white/20"
-                            title={language === 'hi' ? 'बड़ा करें (Full Theater View)' : 'Expand to Full View'}
-                          >
-                            <Maximize2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setInlinePlayingVideoId(null);
-                            }}
-                            className="p-1.5 rounded-lg bg-black/80 hover:bg-rose-600 text-white transition-all cursor-pointer backdrop-blur-xs border border-white/20"
-                            title={language === 'hi' ? 'वीडियो बंद करें' : 'Stop Video'}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        {/* Playing Status Pill */}
-                        <div className="absolute bottom-2 left-2 z-20 pointer-events-none">
-                          <span className="px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-amber-400 text-[10px] font-bold flex items-center gap-1.5 border border-amber-400/30">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                            <span>{language === 'hi' ? 'सक्रिय वीडियो' : 'Playing Now'}</span>
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      /* INACTIVE THUMBNAIL WITH DIRECT PLAY TOGGLE */
-                      <div 
-                        onClick={() => setInlinePlayingVideoId(video.id)}
-                        className="w-full h-full relative cursor-pointer group/thumb"
-                      >
-                        {/* Thumbnail Image with smooth scaling */}
-                        <img
-                          src={thumb}
-                          alt={video.titleEn}
-                          className="w-full h-full object-cover transform scale-100 group-hover:scale-108 group-hover/thumb:scale-108 transition-transform duration-700 ease-out opacity-90 group-hover:opacity-100"
-                          loading="lazy"
-                        />
-                        {/* Dynamic Vignette & Dark Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/25 group-hover:from-black/75 group-hover:via-black/20 group-hover/thumb:from-black/70 transition-all duration-300" />
-
-                        {/* Centered Direct Play Button Overlay with Responsive Micro-Interactions */}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                          {/* Animated Ambient Pulse Ring on Hover */}
-                          <div className="absolute w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-amber-400/40 scale-75 opacity-0 group-hover:scale-130 group-hover:opacity-100 group-hover/thumb:scale-130 group-hover/thumb:opacity-100 transition-all duration-500 ease-out blur-xs" />
-                          
-                          {/* Main Play Icon Circle Badge */}
-                          <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-amber-500 text-gov-navy-950 flex items-center justify-center shadow-2xl transform scale-95 group-hover:scale-110 group-hover/thumb:scale-110 group-hover:bg-amber-400 transition-all duration-300 ease-out ring-4 ring-white/40 group-hover:ring-6 group-hover:ring-amber-400/50 relative z-10">
-                            <Play className="w-6 h-6 sm:w-7 sm:h-7 fill-current translate-x-0.5 group-hover:scale-105 transition-transform" />
-                          </div>
-
-                          {/* Hover Play Indicator Tag */}
-                          <span className="absolute -bottom-8 px-2.5 py-0.5 rounded-full bg-black/90 backdrop-blur-md text-amber-300 text-[10px] font-black tracking-wide uppercase shadow-lg border border-amber-400/30 opacity-0 group-hover:opacity-100 group-hover/thumb:opacity-100 translate-y-1.5 group-hover:translate-y-0 transition-all duration-300 whitespace-nowrap z-20">
-                            {language === 'hi' ? '▶ तुरंत चलाएं' : '▶ Click to Play'}
-                          </span>
-                        </div>
-
-                        {/* Target Class Pill Badge */}
-                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                          {video.targetClass && (
-                            <span className="px-2.5 py-1 rounded-md bg-amber-500 text-gov-navy-950 text-[10px] font-black tracking-tight shadow-md flex items-center gap-1">
-                              <span>🎯 {video.targetClass}</span>
-                            </span>
-                          )}
-                          <span className="px-2 py-1 rounded-md bg-emerald-600/90 text-white text-[10px] font-bold backdrop-blur-xs">
-                            {language === 'hi' ? 'सरल हिंदी' : 'Easy Hindi'}
-                          </span>
-                        </div>
-
-                        {/* Duration & Age Group */}
-                        <div className="absolute bottom-3 right-3 flex items-center gap-1">
-                          {video.duration && (
-                            <span className="px-2 py-0.5 rounded-md bg-black/80 text-white text-[10px] font-mono font-bold">
-                              {video.duration}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Video Metadata */}
-                  <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[10px] text-amber-300/90 font-bold uppercase tracking-wider">
-                        <span className="truncate max-w-[200px]">{video.albumName || 'Classroom Learning'}</span>
-                        {video.ageGroup && (
-                          <span className="px-1.5 py-0.5 rounded bg-white/10 text-slate-300">
-                            {video.ageGroup}
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="font-extrabold text-base text-white group-hover:text-amber-300 transition-colors line-clamp-2 leading-snug">
-                        {language === 'hi' && video.titleHi ? video.titleHi : video.titleEn}
-                      </h3>
-
-                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
-                        {language === 'hi' && video.captionHi ? video.captionHi : video.captionEn || video.titleEn}
-                      </p>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-700/60 flex items-center justify-between">
-                      <div className="flex flex-wrap gap-1">
-                        {video.tags?.slice(0, 2).map((tag, tIdx) => (
-                          <span key={tIdx} className="text-[10px] font-medium px-2 py-0.5 rounded bg-white/10 text-slate-300">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Direct Play / Stop Toggle Control */}
-                      {isPlaying ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedVideoModal(video)}
-                            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer"
-                            title={language === 'hi' ? 'बड़ी स्क्रीन में देखें' : 'Theater View'}
-                          >
-                            <Maximize2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setInlinePlayingVideoId(null)}
-                            className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                          >
-                            <Pause className="w-3.5 h-3.5 fill-current" />
-                            <span>{language === 'hi' ? 'वीडियो बंद करें' : 'Stop'}</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setInlinePlayingVideoId(video.id)}
-                          className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-gov-navy-950 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-md hover:scale-103"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-current translate-x-0.5" />
-                          <span>{language === 'hi' ? 'सीधे चलाएं' : 'Play Video'}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Inspirational Student Quote Banner */}
-          <div className="relative z-10 mt-8 p-4 sm:p-5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-center sm:text-left">
-              <div className="w-10 h-10 rounded-xl bg-amber-400 text-gov-navy-950 flex items-center justify-center font-bold shrink-0">
-                <Flame className="w-5 h-5 fill-current" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-amber-300">
-                  {language === 'hi' ? '“सपने वो नहीं जो हम सोते हुए देखते हैं, सपने वो हैं जो हमें सोने नहीं देते।”' : '"Dreams are not what you see in sleep, dreams are those that do not let you sleep."'}
-                </div>
-                <div className="text-[11px] text-slate-300">
-                  — {language === 'hi' ? 'भारतरत्न डॉ. एपीजे अब्दुल कलाम' : 'Bharat Ratna Dr. A.P.J. Abdul Kalam'}
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => onNavigate('login-student')}
-              className="px-4 py-2 rounded-xl bg-white text-gov-navy-950 hover:bg-amber-100 text-xs font-extrabold shrink-0 transition-all cursor-pointer shadow-sm"
-            >
-              {language === 'hi' ? 'छात्र पोर्टल में लॉगिन करें' : 'Student Portal Login'}
-            </button>
-          </div>
-        </div>
-      </section>
-      )}
-
       {/* Featured Government Schemes Showcase */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
@@ -1592,110 +1544,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
           </div>
         </div>
       </section>
-
-      {/* Interactive Video Player Modal Lightbox */}
-      {selectedVideoModal && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-fadeIn"
-          onClick={() => setSelectedVideoModal(null)}
-        >
-          <div 
-            className="bg-slate-900 border border-slate-700 rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-4 bg-slate-950/80">
-              <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
-                  <Play className="w-4 h-4 fill-current" />
-                </div>
-                <div className="overflow-hidden">
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
-                    {selectedVideoModal.category} • {selectedVideoModal.albumName || 'Educational Showcase'}
-                  </span>
-                  <h3 className="font-bold text-sm sm:text-base text-white truncate">
-                    {language === 'hi' && selectedVideoModal.titleHi ? selectedVideoModal.titleHi : selectedVideoModal.titleEn}
-                  </h3>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setSelectedVideoModal(null)}
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Video Player Frame */}
-            <div className="aspect-video bg-black relative">
-              {(() => {
-                const parsed = parseVideoUrl(selectedVideoModal.videoURL || (selectedVideoModal.youtubeId ? `https://youtube.com/watch?v=${selectedVideoModal.youtubeId}` : ''));
-                if (parsed.embedUrl) {
-                  return (
-                    <iframe
-                      src={`${parsed.embedUrl}?autoplay=1&rel=0&modestbranding=1`}
-                      title={selectedVideoModal.titleEn}
-                      className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  );
-                } else if (selectedVideoModal.videoURL) {
-                  return (
-                    <video
-                      src={selectedVideoModal.videoURL}
-                      controls
-                      autoPlay
-                      className="w-full h-full object-contain"
-                    />
-                  );
-                } else {
-                  return (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
-                      <Film className="w-12 h-12 text-slate-600 mb-2" />
-                      <p className="text-sm font-medium">Video player is preparing content.</p>
-                    </div>
-                  );
-                }
-              })()}
-            </div>
-
-            {/* Modal Description & Action Bar */}
-            <div className="p-5 bg-slate-900/90 border-t border-slate-800 space-y-3">
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                {language === 'hi' && selectedVideoModal.captionHi ? selectedVideoModal.captionHi : selectedVideoModal.captionEn || selectedVideoModal.titleEn}
-              </p>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800 text-xs">
-                <div className="flex items-center gap-2 text-slate-400">
-                  <span className="font-bold text-amber-400">Uploader:</span>
-                  <span>{selectedVideoModal.uploaderName || 'Faculty Educator'}</span>
-                  {selectedVideoModal.date && (
-                    <>
-                      <span>•</span>
-                      <span>{selectedVideoModal.date}</span>
-                    </>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedVideoModal(null);
-                      onNavigate('gallery');
-                    }}
-                    className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>{language === 'hi' ? 'पूरी गैलरी में देखें' : 'View Full Archive'}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

@@ -3,9 +3,12 @@
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
-  html, body {
+  html {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
@@ -13,6 +16,32 @@
     padding: 0;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    font-family: "Plus Jakarta Sans", "Noto Sans Devanagari", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-synthesis: none;
+    font-optical-sizing: auto;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    font-family: "Plus Jakarta Sans", "Noto Sans Devanagari", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #0f172a; /* Slate 900 for ultra-sharp high contrast */
+    background-color: #f8fafc;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-synthesis: none;
+    font-optical-sizing: auto;
+    letter-spacing: -0.011em;
   }
 
   #root {
@@ -21,9 +50,45 @@
     overflow-x: hidden;
     min-height: 100vh;
   }
+
+  /* Ensure all typography elements render with razor-sharp clarity without any subpixel blur */
+  h1, h2, h3, h4, h5, h6, p, span, a, button, input, select, textarea, label, td, th, li, strong, b, em {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Prevent text blurring on translated / animated parent containers */
+  .transform, [class*="translate-"], [class*="animate-"] {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform-style: flat;
+  }
+
+  /* High-legibility contrast tuning: eliminate washed-out light gray text */
+  .text-slate-400 {
+    color: #64748b !important; /* Crisp high-contrast medium slate */
+  }
+
+  .text-slate-500 {
+    color: #475569 !important; /* Crisp high-contrast readable dark slate */
+  }
+
+  .text-slate-600 {
+    color: #334155 !important;
+  }
+
+  /* High contrast mode for accessibility */
+  .contrast-more {
+    filter: contrast(115%);
+  }
 }
 
 @theme {
+  --font-sans: "Plus Jakarta Sans", "Noto Sans Devanagari", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Plus Jakarta Sans", "Noto Sans Devanagari", "Inter", sans-serif;
+  --font-hindi: "Noto Sans Devanagari", "Tiro Devanagari Hindi", sans-serif;
+
   --color-gov-amber: #FF9933;
   --color-gov-amber-50: #fffaf0;
   --color-gov-amber-100: #ffeed4;
@@ -135,11 +200,33 @@
   animation: heroFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes marqueeScroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: inline-flex;
+  width: max-content;
+  will-change: transform;
+  animation: marqueeScroll var(--marquee-duration, 30s) linear infinite;
+}
+
+.pause-on-hover:hover,
+.marquee-container:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-hero-headline,
   .animate-hero-subtitle,
   .animate-hero-badges,
-  .animate-fade-in {
+  .animate-fade-in,
+  .animate-marquee {
     animation: none !important;
     transform: none !important;
   }

@@ -3,18 +3,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { 
   Bell, 
-  User, 
   LogOut, 
   Menu, 
-  Sparkles, 
   Building, 
   ShieldCheck, 
   BookOpen, 
-  GraduationCap, 
-  CheckCircle2,
-  ChevronDown
+  GraduationCap
 } from 'lucide-react';
-import { UserRole } from '../../types';
 import { UserAvatar } from './UserAvatar';
 
 interface HeaderProps {
@@ -24,17 +19,11 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, currentPageTitle, onNavigateToPublic }) => {
-  const { userProfile, role, logout, switchDemoRole } = useAuth();
+  const { userProfile, role, logout } = useAuth();
   const { settings, notices } = useSchool();
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showNoticesDropdown, setShowNoticesDropdown] = useState(false);
 
   const activeNotices = notices.filter(n => n.status === 'active').slice(0, 4);
-
-  const handleRoleChange = (newRole: UserRole) => {
-    switchDemoRole(newRole);
-    setShowRoleMenu(false);
-  };
 
   const getRoleBadge = () => {
     switch (role) {
@@ -91,68 +80,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, currentPageTitl
           </div>
         </div>
 
-        {/* Right Side: Demo Switcher, Notices, User Profile */}
+        {/* Right Side: Notices, Public Link, User Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Demo Switcher Pill */}
-          <div className="relative">
-            <button
-              onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 transition-colors"
-              id="btn-switch-demo-persona"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>Switch Persona</span>
-              <ChevronDown className="w-3 h-3 text-slate-500" />
-            </button>
-
-            {showRoleMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                <div className="px-3 py-1.5 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Test As Persona
-                </div>
-                <button
-                  onClick={() => handleRoleChange('admin')}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${role === 'admin' ? 'font-bold text-red-700 bg-red-50' : 'text-slate-700'}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-red-600" />
-                    <div>
-                      <div>Head Teacher (Admin)</div>
-                      <div className="text-[10px] text-slate-500">Shri R. K. Sharma</div>
-                    </div>
-                  </div>
-                  {role === 'admin' && <CheckCircle2 className="w-3.5 h-3.5 text-red-600" />}
-                </button>
-                <button
-                  onClick={() => handleRoleChange('teacher')}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${role === 'teacher' ? 'font-bold text-emerald-700 bg-emerald-50' : 'text-slate-700'}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-emerald-600" />
-                    <div>
-                      <div>Science Teacher</div>
-                      <div className="text-[10px] text-slate-500">Smt. Anjali Verma</div>
-                    </div>
-                  </div>
-                  {role === 'teacher' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                </button>
-                <button
-                  onClick={() => handleRoleChange('student')}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${role === 'student' ? 'font-bold text-blue-700 bg-blue-50' : 'text-slate-700'}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-blue-600" />
-                    <div>
-                      <div>Class 8 Student</div>
-                      <div className="text-[10px] text-slate-500">Aarav Sharma (Roll 01)</div>
-                    </div>
-                  </div>
-                  {role === 'student' && <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />}
-                </button>
-              </div>
-            )}
-          </div>
-
           {/* Public Website View Shortcut */}
           {onNavigateToPublic && (
             <button

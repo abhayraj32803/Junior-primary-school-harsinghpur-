@@ -8,9 +8,11 @@ import {
   Wrench, 
   Gift, 
   GraduationCap, 
-  Phone
+  Phone,
+  Radio
 } from 'lucide-react';
 import { AdminHomepage } from '../AdminHomepage';
+import { AdminNoticeTicker } from '../AdminNoticeTicker';
 import { AdminEducationalVideos } from '../AdminEducationalVideos';
 import { AdminMediaLibrary } from '../AdminMediaLibrary';
 import { AdminSchoolProfile } from '../AdminSchoolProfile';
@@ -21,6 +23,7 @@ import { AdminContact } from '../AdminContact';
 
 export type WebsiteSubTab = 
   | 'homepage-mgmt' 
+  | 'notice-ticker'
   | 'educational-videos' 
   | 'media-library' 
   | 'school-profile' 
@@ -53,6 +56,13 @@ export const AdminWebsiteHub: React.FC<AdminWebsiteHubProps> = ({
       labelEn: 'Homepage & Banners',
       labelHi: 'मुख्य पृष्ठ प्रबंधन',
       icon: Sparkles
+    },
+    {
+      id: 'notice-ticker' as WebsiteSubTab,
+      labelEn: 'Notice Ticker & Flash Alerts',
+      labelHi: 'लाइव सूचना टिकर',
+      icon: Radio,
+      badge: 'Live'
     },
     {
       id: 'educational-videos' as WebsiteSubTab,
@@ -158,6 +168,7 @@ export const AdminWebsiteHub: React.FC<AdminWebsiteHubProps> = ({
       {/* Active Sub-module Container */}
       <div className="animate-in fade-in duration-150">
         {activeSubTab === 'homepage-mgmt' && <AdminHomepage />}
+        {activeSubTab === 'notice-ticker' && <AdminNoticeTicker />}
         {activeSubTab === 'educational-videos' && <AdminEducationalVideos />}
         {activeSubTab === 'media-library' && <AdminMediaLibrary />}
         {activeSubTab === 'school-profile' && <AdminSchoolProfile />}

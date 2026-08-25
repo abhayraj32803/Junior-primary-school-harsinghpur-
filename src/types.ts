@@ -318,6 +318,36 @@ export interface SchoolClass {
   createdAt: string;
 }
 
+export type PromotionAction = 'PROMOTE' | 'RETAIN' | 'TRANSFER' | 'GRADUATE';
+
+export interface PromotionDecision {
+  studentId: string;
+  action: PromotionAction;
+  targetClassNumber: number;
+  targetClassId: string;
+  targetSectionName: string;
+  targetSectionId: string;
+  newRollNumber: string;
+  academicYear: string;
+  remarks?: string;
+  percentage?: number;
+  isPassed?: boolean;
+}
+
+export interface PromotionBatchSummary {
+  id: string;
+  sourceClassNumber: number;
+  sourceAcademicYear?: string;
+  targetAcademicYear: string;
+  promotedCount: number;
+  retainedCount: number;
+  transferredCount: number;
+  graduatedCount: number;
+  totalProcessed: number;
+  promotedBy: string;
+  timestamp: string;
+}
+
 export interface Section {
   id: string;
   classId: string;
@@ -691,6 +721,7 @@ export interface SchoolSettings {
   heroBannerImage?: string;
   heroBannerAspectRatio?: '21:9' | '16:9' | '3:1' | '4:3' | '1:1' | 'free';
   heroBannerLayout?: 'panoramic_header' | 'dual_column' | 'ambient_background';
+  heroBannerTextColor?: 'light' | 'dark'; // 'light' for white text with dark overlay, 'dark' for dark text with light overlay
   heroBannerOverlayOpacity?: number; // 0 to 100
   heroBannerHeadlineHi?: string;
   heroBannerHeadlineEn?: string;
@@ -699,11 +730,50 @@ export interface SchoolSettings {
   heroBannerCarouselEnabled?: boolean;
   heroBannerCarouselImages?: string[];
   heroBannerCarouselInterval?: number; // rotation interval in seconds (e.g., 3, 5, 8, 10)
+  // Hero Banner CTA (Call-to-Action) Action Buttons
+  heroBannerCtaEnabled?: boolean;
+  heroBannerCtaTextHi?: string;
+  heroBannerCtaTextEn?: string;
+  heroBannerCtaLink?: string; // target page id (e.g. 'admission', 'gallery', 'facilities', 'schemes') or URL
+  heroBannerCtaIcon?: string; // 'GraduationCap' | 'Images' | 'Building2' | 'Gift' | 'FileText' | 'Phone' | 'ArrowRight' | 'Sparkles'
+  heroBannerSecondaryCtaEnabled?: boolean;
+  heroBannerSecondaryCtaTextHi?: string;
+  heroBannerSecondaryCtaTextEn?: string;
+  heroBannerSecondaryCtaLink?: string;
+  heroBannerSecondaryCtaIcon?: string;
   // Teacher Video & Media Upload Permissions
   allowTeacherVideoUpload?: boolean;
   teacherVideoApprovalRequired?: boolean;
   teacherVideoMaxDurationMinutes?: number;
   teacherVideoAllowedFormats?: string[];
+  // Live Notice Ticker & Flash Alerts
+  noticeTicker?: NoticeTickerConfig;
+}
+
+export interface NoticeTickerAlert {
+  id: string;
+  textEn: string;
+  textHi: string;
+  badgeLabelEn?: string; // e.g. "FLASH NEWS", "ADMISSION", "HOLIDAY", "EXAMS", "MDM", "IMPORTANT", "EMERGENCY"
+  badgeLabelHi?: string; // e.g. "ताज़ा खबर", "प्रवेश", "अवकाश", "परीक्षा", "मिड-डे मील", "महत्वपूर्ण", "आपातकालीन"
+  priority?: 'normal' | 'important' | 'urgent';
+  linkTarget?: string; // e.g., 'notices', 'admission', 'schemes', 'facilities', 'contact', 'gallery', 'documents' or URL
+  isActive: boolean;
+  startDate?: string;
+  endDate?: string;
+  order?: number;
+  createdAt?: string;
+}
+
+export interface NoticeTickerConfig {
+  enabled: boolean;
+  speed: 'slow' | 'medium' | 'fast'; // slow: 45s, medium: 28s, fast: 16s
+  pauseOnHover: boolean;
+  themeStyle: 'amber_gold' | 'crimson_alert' | 'emerald_gov' | 'navy_classic' | 'modern_dark';
+  mode: 'custom_alerts' | 'auto_sync_notices' | 'combined'; // custom alerts, public circulars, or merged
+  customAlerts: NoticeTickerAlert[];
+  headerLabelEn?: string; // default: "Flash Update"
+  headerLabelHi?: string; // default: "नवीनतम सूचना"
 }
 
 

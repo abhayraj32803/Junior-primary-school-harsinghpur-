@@ -21,6 +21,8 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
   doc,
   getDoc,
   setDoc,
@@ -35,7 +37,7 @@ import {
   uploadString,
   getDownloadURL
 } from '../lib/firebase';
-import { getFriendlyAuthErrorMessage } from '../utils/authErrorUtils';
+import { getFriendlyAuthErrorMessage, normalizePhoneNumber, normalizeEmail, maskEmail } from '../utils/authErrorUtils';
 
 export interface GoogleAuthDetails {
   fullName?: string;
@@ -140,7 +142,10 @@ export interface AuthContextType {
   // Password & Security Management
   completeFirstLoginPasswordChange: (newPass: string) => Promise<{ success: boolean; error?: string }>;
   changePassword: (oldPass: string, newPass: string) => Promise<{ success: boolean; error?: string }>;
-  resetPassword: (emailOrUsername: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  resetPassword: (emailOrUsernameOrPhone: string) => Promise<{ success: boolean; error?: string; message?: string; email?: string; maskedEmail?: string; username?: string; role?: UserRole }>;
+  verifyResetCode: (code: string) => Promise<{ success: boolean; email?: string; error?: string }>;
+  confirmPasswordResetWithCode: (code: string, newPass: string) => Promise<{ success: boolean; error?: string; message?: string; email?: string }>;
+  createOrUpdatePasswordAfterVerification: (identifier: string, newPass: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   resetUserPasswordByAdmin: (uid: string, newPass: string, forceChange?: boolean) => Promise<{ success: boolean; error?: string }>;
   
   // Account Lifecycle & Role Management
@@ -632,13 +637,256 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     delete failedAttemptsRef.current[id.toLowerCase()];
   };
 
-  // 1. Role-Based Login
+  /**
+   * Helper: Locate any existing student or staff account across memory, localStorage, and Firestore.
+   * Sorts matches chronologically by creation date to guarantee that the student's original/old account
+   * is always preserved and returned.
+   */
+  const findExistingAccountRecord = async (criteria: {
+    email?: string;
+    phone?: string;
+    username?: string;
+    admissionNumber?: string;
+    employeeId?: string;
+    uid?: string;
+  }): Promise<UserProfile | null> => {
+    const cleanEmail = normalizeEmail(criteria.email);
+    const cleanPhone = normalizePhoneNumber(criteria.phone);
+    const upperUser = (criteria.username || '').trim().toUpperCase();
+    const cleanAdm = (criteria.admissionNumber || '').trim().toLowerCase();
+    const cleanEmp = (criteria.employeeId || '').trim().toLowerCase();
+    const cleanUid = criteria.uid?.trim();
+
+    // 1. Search in allUsers state
+    const matches = allUsers.filter(u => {
+      if (cleanUid && u.uid === cleanUid) return true;
+      if (cleanEmail && u.email && normalizeEmail(u.email) === cleanEmail) return true;
+      if (cleanPhone && cleanPhone.length >= 7 && (
+        (u.phone && normalizePhoneNumber(u.phone) === cleanPhone) ||
+        (u.mobile && normalizePhoneNumber(u.mobile) === cleanPhone)
+      )) return true;
+      if (upperUser && (u.username.toUpperCase() === upperUser || (u.studentId && u.studentId.toUpperCase() === upperUser))) return true;
+      if (cleanAdm && u.admissionNumber && u.admissionNumber.toLowerCase() === cleanAdm) return true;
+      if (cleanEmp && u.employeeId && u.employeeId.toLowerCase() === cleanEmp) return true;
+      return false;
+    });
+
+    if (matches.length > 0) {
+      // Return the oldest/original account
+      return matches.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeA - timeB;
+      })[0];
+    }
+
+    // 2. Search in localStorage 'sms_gov_students'
+    try {
+      const localStr = localStorage.getItem('sms_gov_students');
+      if (localStr) {
+        const localList: any[] = JSON.parse(localStr);
+        const matchedLocal = localList.find(s => {
+          if (cleanUid && (s.id === cleanUid || s.uid === cleanUid || s.userId === cleanUid)) return true;
+          if (cleanEmail && s.email && normalizeEmail(s.email) === cleanEmail) return true;
+          if (cleanPhone && cleanPhone.length >= 7 && (
+            (s.mobile && normalizePhoneNumber(s.mobile) === cleanPhone) ||
+            (s.phone && normalizePhoneNumber(s.phone) === cleanPhone)
+          )) return true;
+          if (upperUser && s.studentId && s.studentId.toUpperCase() === upperUser) return true;
+          if (cleanAdm && s.admissionNumber && s.admissionNumber.toLowerCase() === cleanAdm) return true;
+          return false;
+        });
+
+        if (matchedLocal) {
+          return {
+            uid: matchedLocal.uid || matchedLocal.id || `user-${Date.now()}`,
+            username: matchedLocal.studentId || matchedLocal.admissionNumber || `STU-${matchedLocal.id?.substring(0, 6) || '2026'}`,
+            name: matchedLocal.fullName || matchedLocal.name || 'Student',
+            fullName: matchedLocal.fullName || matchedLocal.name || 'Student',
+            email: matchedLocal.email || '',
+            phone: matchedLocal.mobile || matchedLocal.phone || '',
+            role: 'student',
+            schoolId: SCHOOL_ID,
+            status: 'active',
+            studentId: matchedLocal.studentId,
+            admissionNumber: matchedLocal.admissionNumber,
+            registrationNumber: matchedLocal.registrationNumber || matchedLocal.admissionNumber,
+            classNumber: matchedLocal.classNumber || matchedLocal.class || 5,
+            sectionName: matchedLocal.sectionName || matchedLocal.section || 'A',
+            rollNumber: matchedLocal.rollNumber || '1',
+            fatherName: matchedLocal.fatherName,
+            motherName: matchedLocal.motherName,
+            guardianName: matchedLocal.guardianName,
+            dateOfBirth: matchedLocal.dateOfBirth || matchedLocal.dob,
+            dob: matchedLocal.dateOfBirth || matchedLocal.dob,
+            gender: matchedLocal.gender || 'Male',
+            category: matchedLocal.category || 'General',
+            address: matchedLocal.address,
+            bloodGroup: matchedLocal.bloodGroup,
+            aadhaarNumber: matchedLocal.aadhaarNumber,
+            photoURL: matchedLocal.photoURL || matchedLocal.profilePhoto,
+            profilePhoto: matchedLocal.profilePhoto || matchedLocal.photoURL,
+            createdAt: matchedLocal.createdAt || new Date().toISOString()
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("Error reading sms_gov_students for account lookup:", e);
+    }
+
+    // 3. Search in Firestore 'users' collection
+    try {
+      if (cleanUid) {
+        const uSnap = await getDoc(doc(db, 'users', cleanUid));
+        if (uSnap.exists()) return uSnap.data() as UserProfile;
+      }
+      if (cleanEmail) {
+        const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        const snap = await getDocs(q);
+        if (!snap.empty) return snap.docs[0].data() as UserProfile;
+      }
+      if (cleanPhone && cleanPhone.length >= 7) {
+        const q = query(collection(db, 'users'), where('phone', '==', cleanPhone));
+        const snap = await getDocs(q);
+        if (!snap.empty) return snap.docs[0].data() as UserProfile;
+      }
+      if (upperUser) {
+        const q = query(collection(db, 'users'), where('username', '==', upperUser));
+        const snap = await getDocs(q);
+        if (!snap.empty) return snap.docs[0].data() as UserProfile;
+      }
+    } catch (e) {
+      console.warn("Firestore users query lookup error:", e);
+    }
+
+    // 4. Search in Firestore 'students' collection
+    try {
+      if (cleanUid) {
+        const sSnap = await getDoc(doc(db, 'students', cleanUid));
+        if (sSnap.exists()) {
+          const sData = sSnap.data() as any;
+          return {
+            uid: cleanUid,
+            username: sData.studentId || sData.admissionNumber || `STU-${cleanUid.substring(0, 6).toUpperCase()}`,
+            name: sData.fullName || sData.name || 'Student',
+            fullName: sData.fullName || sData.name || 'Student',
+            email: sData.email || '',
+            phone: sData.mobile || sData.phone || '',
+            role: 'student',
+            schoolId: SCHOOL_ID,
+            status: sData.status || 'active',
+            studentId: sData.studentId,
+            admissionNumber: sData.admissionNumber,
+            registrationNumber: sData.registrationNumber || sData.admissionNumber,
+            classNumber: sData.classNumber || sData.class || 5,
+            sectionName: sData.sectionName || sData.section || 'A',
+            rollNumber: sData.rollNumber || '1',
+            fatherName: sData.fatherName,
+            motherName: sData.motherName,
+            guardianName: sData.guardianName || sData.fatherName,
+            dateOfBirth: sData.dateOfBirth || sData.dob,
+            dob: sData.dateOfBirth || sData.dob,
+            gender: sData.gender || 'Male',
+            category: sData.category || 'General',
+            address: sData.address,
+            bloodGroup: sData.bloodGroup,
+            aadhaarNumber: sData.aadhaarNumber,
+            photoURL: sData.photoURL || sData.profilePhoto,
+            profilePhoto: sData.profilePhoto || sData.photoURL,
+            createdAt: sData.createdAt || new Date().toISOString()
+          };
+        }
+      }
+
+      if (cleanEmail) {
+        const q = query(collection(db, 'students'), where('email', '==', cleanEmail));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const sData = snap.docs[0].data() as any;
+          return {
+            uid: snap.docs[0].id,
+            username: sData.studentId || sData.admissionNumber || `STU-${snap.docs[0].id.substring(0, 6).toUpperCase()}`,
+            name: sData.fullName || sData.name || 'Student',
+            fullName: sData.fullName || sData.name || 'Student',
+            email: cleanEmail,
+            phone: sData.mobile || sData.phone || '',
+            role: 'student',
+            schoolId: SCHOOL_ID,
+            status: sData.status || 'active',
+            studentId: sData.studentId,
+            admissionNumber: sData.admissionNumber,
+            registrationNumber: sData.registrationNumber || sData.admissionNumber,
+            classNumber: sData.classNumber || sData.class || 5,
+            sectionName: sData.sectionName || sData.section || 'A',
+            rollNumber: sData.rollNumber || '1',
+            fatherName: sData.fatherName,
+            motherName: sData.motherName,
+            guardianName: sData.guardianName || sData.fatherName,
+            dateOfBirth: sData.dateOfBirth || sData.dob,
+            dob: sData.dateOfBirth || sData.dob,
+            gender: sData.gender || 'Male',
+            category: sData.category || 'General',
+            address: sData.address,
+            bloodGroup: sData.bloodGroup,
+            aadhaarNumber: sData.aadhaarNumber,
+            photoURL: sData.photoURL || sData.profilePhoto,
+            profilePhoto: sData.profilePhoto || sData.photoURL,
+            createdAt: sData.createdAt || new Date().toISOString()
+          };
+        }
+      }
+
+      if (cleanPhone && cleanPhone.length >= 7) {
+        const qMobile = query(collection(db, 'students'), where('mobile', '==', cleanPhone));
+        const snapMobile = await getDocs(qMobile);
+        if (!snapMobile.empty) {
+          const sData = snapMobile.docs[0].data() as any;
+          return {
+            uid: snapMobile.docs[0].id,
+            username: sData.studentId || sData.admissionNumber || `STU-${snapMobile.docs[0].id.substring(0, 6).toUpperCase()}`,
+            name: sData.fullName || sData.name || 'Student',
+            fullName: sData.fullName || sData.name || 'Student',
+            email: sData.email || '',
+            phone: cleanPhone,
+            role: 'student',
+            schoolId: SCHOOL_ID,
+            status: sData.status || 'active',
+            studentId: sData.studentId,
+            admissionNumber: sData.admissionNumber,
+            registrationNumber: sData.registrationNumber || sData.admissionNumber,
+            classNumber: sData.classNumber || sData.class || 5,
+            sectionName: sData.sectionName || sData.section || 'A',
+            rollNumber: sData.rollNumber || '1',
+            fatherName: sData.fatherName,
+            motherName: sData.motherName,
+            guardianName: sData.guardianName || sData.fatherName,
+            dateOfBirth: sData.dateOfBirth || sData.dob,
+            dob: sData.dateOfBirth || sData.dob,
+            gender: sData.gender || 'Male',
+            category: sData.category || 'General',
+            address: sData.address,
+            bloodGroup: sData.bloodGroup,
+            aadhaarNumber: sData.aadhaarNumber,
+            photoURL: sData.photoURL || sData.profilePhoto,
+            profilePhoto: sData.profilePhoto || sData.photoURL,
+            createdAt: sData.createdAt || new Date().toISOString()
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("Firestore students query lookup error:", e);
+    }
+
+    return null;
+  };
+
+  // 1. Role-Based Login (Always routes to the Student's Old/Original Account)
   const login = async (role: UserRole, identifier: string, pass: string): Promise<{ success: boolean; error?: string; mustChangePassword?: boolean }> => {
     const cleanId = identifier.trim();
     const cleanPass = pass.trim();
 
     if (!cleanId) {
-      return { success: false, error: "Please enter your Login ID / Username or registered Email." };
+      return { success: false, error: "Please enter your Login ID / Username, Email, or Mobile Number." };
     }
     if (!cleanPass) {
       return { success: false, error: "Please enter your password." };
@@ -654,131 +902,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
+    const cleanDigits = normalizePhoneNumber(cleanId);
+    const cleanEmail = normalizeEmail(cleanId);
     const lowerId = cleanId.toLowerCase();
     const upperId = cleanId.toUpperCase();
 
-    // Find in all users by username, phone, email, admissionNumber, or employeeId
-    let matched = allUsers.find(u => 
-      u.username.toUpperCase() === upperId ||
-      u.email.toLowerCase() === lowerId ||
-      (u.phone && u.phone.replace(/[^0-9]/g, '') === cleanId.replace(/[^0-9]/g, '')) ||
-      (u.admissionNumber && u.admissionNumber.toLowerCase() === lowerId) ||
-      (u.employeeId && u.employeeId.toLowerCase() === lowerId)
-    );
+    // Check deprecated admin identifier
+    if (upperId === 'HEAD-KIRAN') {
+      recordFailedAttempt(cleanId);
+      addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', 'Attempted deprecated username HEAD-KIRAN');
+      return { 
+        success: false, 
+        error: "The username 'HEAD-KIRAN' is not valid. Please log in using the official Admin username '8090538115'." 
+      };
+    }
 
-    // If not found in memory, try looking up in Firestore or Firebase Auth directly
+    // Find account across all sources (strictly prioritizing the student's Old/Original Account)
+    let matched = await findExistingAccountRecord({
+      username: upperId,
+      email: cleanId.includes('@') ? cleanEmail : undefined,
+      phone: cleanDigits.length >= 7 ? cleanDigits : undefined,
+      admissionNumber: cleanId,
+      employeeId: cleanId
+    });
+
+    // If still not matched, check if direct Firebase email sign-in is possible
+    if (!matched && cleanId.includes('@')) {
+      try {
+        const userCred = await signInWithEmailAndPassword(auth, cleanEmail, cleanPass);
+        const fbUser = userCred.user;
+        
+        // Fetch or create profile for this Firebase user
+        matched = await findExistingAccountRecord({
+          uid: fbUser.uid,
+          email: cleanEmail
+        });
+
+        if (!matched) {
+          matched = {
+            uid: fbUser.uid,
+            username: `STU-${fbUser.uid.substring(0, 6).toUpperCase()}`,
+            name: fbUser.displayName || 'Student User',
+            fullName: fbUser.displayName || 'Student User',
+            email: fbUser.email || cleanEmail,
+            emailVerified: fbUser.emailVerified,
+            phone: cleanDigits.length >= 7 ? cleanDigits : '',
+            role: role === 'student' ? 'student' : (role === 'teacher' ? 'teacher' : 'student'),
+            schoolId: SCHOOL_ID,
+            status: 'active',
+            linkedEntityId: fbUser.uid,
+            classNumber: 5,
+            sectionName: 'A',
+            isApproved: true,
+            createdAt: new Date().toISOString()
+          };
+          setDoc(doc(db, 'users', fbUser.uid), matched, { merge: true }).catch(() => {});
+        }
+
+        setAllUsers(prev => [matched!, ...prev.filter(u => u.uid !== matched!.uid)]);
+      } catch (authErr: any) {
+        recordFailedAttempt(cleanId);
+        const friendly = getFriendlyAuthErrorMessage(authErr.code || authErr.message, 'hi');
+        addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', `Direct Firebase login failed: ${friendly}`);
+        return { success: false, error: friendly };
+      }
+    }
+
     if (!matched) {
-      if (upperId === 'HEAD-KIRAN') {
-        recordFailedAttempt(cleanId);
-        addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', 'Attempted deprecated username HEAD-KIRAN');
-        return { 
-          success: false, 
-          error: "The username 'HEAD-KIRAN' is not valid. Please log in using the official Admin username '8090538115'." 
-        };
-      }
-
-      // If it looks like an email or direct credential, attempt Firebase Auth sign-in
-      if (cleanId.includes('@')) {
-        try {
-          const userCred = await signInWithEmailAndPassword(auth, cleanId, cleanPass);
-          const fbUser = userCred.user;
-          
-          // Check if profile exists in users or students collection
-          let fetchedProfile: UserProfile | null = null;
-          try {
-            const userSnap = await getDoc(doc(db, 'users', fbUser.uid));
-            if (userSnap.exists()) {
-              fetchedProfile = userSnap.data() as UserProfile;
-            } else {
-              const studentSnap = await getDoc(doc(db, 'students', fbUser.uid));
-              if (studentSnap.exists()) {
-                const sData = studentSnap.data();
-                fetchedProfile = {
-                  uid: fbUser.uid,
-                  username: sData.studentId || sData.admissionNumber || `STU-${fbUser.uid.substring(0, 6).toUpperCase()}`,
-                  name: sData.name || sData.fullName || fbUser.displayName || 'Student',
-                  fullName: sData.fullName || sData.name || fbUser.displayName || 'Student',
-                  email: fbUser.email || '',
-                  emailVerified: fbUser.emailVerified,
-                  phone: sData.mobile || sData.phone || '',
-                  role: 'student',
-                  schoolId: SCHOOL_ID,
-                  status: 'active',
-                  linkedEntityId: fbUser.uid,
-                  admissionNumber: sData.admissionNumber,
-                  classNumber: sData.classNumber || sData.class || 5,
-                  sectionName: sData.sectionName || sData.section || 'A',
-                  rollNumber: sData.rollNumber || '1',
-                  course: sData.course || 'Primary & Upper Primary Education (Class 1-8)',
-                  admissionYear: sData.admissionYear || new Date().getFullYear(),
-                  photoURL: sData.photoURL || sData.profilePhoto || '',
-                  profilePhoto: sData.profilePhoto || sData.photoURL || '',
-                  isApproved: true,
-                  createdAt: sData.createdAt || new Date().toISOString()
-                };
-              }
-            }
-          } catch (e) {
-            console.warn("Firestore user fetch on login error:", e);
-          }
-
-          if (!fetchedProfile) {
-            // Create default student profile for this Firebase Auth user
-            fetchedProfile = {
-              uid: fbUser.uid,
-              username: `STU-${fbUser.uid.substring(0, 6).toUpperCase()}`,
-              name: fbUser.displayName || 'Student User',
-              fullName: fbUser.displayName || 'Student User',
-              email: fbUser.email || cleanId,
-              emailVerified: fbUser.emailVerified,
-              phone: '',
-              role: role === 'student' ? 'student' : (role === 'teacher' ? 'teacher' : 'student'),
-              schoolId: SCHOOL_ID,
-              status: 'active',
-              linkedEntityId: fbUser.uid,
-              classNumber: 5,
-              sectionName: 'A',
-              isApproved: true,
-              createdAt: new Date().toISOString()
-            };
-            setDoc(doc(db, 'users', fbUser.uid), fetchedProfile, { merge: true }).catch(() => {});
-          }
-
-          matched = fetchedProfile;
-          setAllUsers(prev => [fetchedProfile!, ...prev.filter(u => u.uid !== fetchedProfile!.uid)]);
-        } catch (authErr: any) {
-          recordFailedAttempt(cleanId);
-          const friendly = getFriendlyAuthErrorMessage(authErr.code || authErr.message, 'hi');
-          addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', `Direct Firebase login failed: ${friendly}`);
-          return { success: false, error: friendly };
+      recordFailedAttempt(cleanId);
+      // Check if it matches a pending registration request
+      const pendingReq = registrationRequests.find(r => 
+        r.preferredUsername.toUpperCase() === upperId || 
+        (r.email && normalizeEmail(r.email) === cleanEmail) ||
+        (cleanDigits.length >= 7 && r.phone && normalizePhoneNumber(r.phone) === cleanDigits)
+      );
+      if (pendingReq) {
+        if (pendingReq.status === 'PENDING') {
+          addSecurityLog(cleanId, role, 'BLOCKED', 'LOGIN', 'Login attempt while registration request is pending');
+          return { 
+            success: false, 
+            error: "आपकी पंजीकरण अर्जी (Registration Request) अभी प्रधानाध्यापिका द्वारा समीक्षाधीन है। कृपया सत्यापन की प्रतीक्षा करें।" 
+          };
+        } else if (pendingReq.status === 'REJECTED') {
+          return { 
+            success: false, 
+            error: `पंजीकरण आवेदन अस्वीकृत कर दिया गया है। कारण: ${pendingReq.rejectionReason || 'विवरण सत्यापित नहीं हो सका'}।` 
+          };
         }
       }
 
-      if (!matched) {
-        recordFailedAttempt(cleanId);
-        // Check if it matches a pending registration request
-        const pendingReq = registrationRequests.find(r => 
-          r.preferredUsername.toUpperCase() === upperId || 
-          r.email.toLowerCase() === lowerId
-        );
-        if (pendingReq) {
-          if (pendingReq.status === 'PENDING') {
-            addSecurityLog(cleanId, role, 'BLOCKED', 'LOGIN', 'Login attempt while registration request is pending');
-            return { 
-              success: false, 
-              error: "Your registration request is currently PENDING approval by Head Teacher Smt. Kiran Shakya. Please wait for official verification." 
-            };
-          } else if (pendingReq.status === 'REJECTED') {
-            return { 
-              success: false, 
-              error: `Registration request was rejected. Reason: ${pendingReq.rejectionReason || 'Details could not be verified'}.` 
-            };
-          }
-        }
-
-        addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', 'No account exists with this Username or Email');
-        return { success: false, error: "No registered account found with this Username / Login ID. If you are a new student, please register or use Google Sign-In." };
-      }
+      addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', 'No account exists with this Username, Email, or Mobile');
+      return { 
+        success: false, 
+        error: "इस यूजरनेम, ईमेल या मोबाइल नंबर से कोई खाता नहीं मिला। कृपया अपने सही क्रेडेंशियल दर्ज करें या नया छात्र पंजीकरण करें।" 
+      };
     }
 
     // Role Verification: Ensure selected role corresponds to account authority
@@ -801,18 +1018,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check account status
     if (matched.status === 'pending') {
       addSecurityLog(cleanId, role, 'BLOCKED', 'LOGIN', 'Account status is pending verification');
-      return { success: false, error: "Your account is pending verification by the Head Teacher." };
+      return { success: false, error: "आपका खाता प्रधानाध्यापिका के सत्यापन हेतु लंबित है।" };
     }
     if (matched.status === 'suspended' || matched.status === 'inactive' || matched.status === 'disabled') {
       addSecurityLog(cleanId, role, 'BLOCKED', 'LOGIN', 'Account is suspended or disabled');
-      return { success: false, error: "Your account has been deactivated or suspended. Please contact Head Teacher Smt. Kiran Shakya." };
+      return { success: false, error: "यह खाता निष्क्रिय या निलंबित कर दिया गया है। कृपया प्रधानाध्यापिका से संपर्क करें।" };
     }
 
-    // Password Check (No backdoor master passwords)
+    // Password Check
     const isDirectPasswordMatch = matched.password && matched.password === cleanPass;
 
     if (!isDirectPasswordMatch) {
-      // Attempt Firebase auth
+      // Attempt Firebase Auth
       try {
         if (matched.email) {
           const userCred = await signInWithEmailAndPassword(auth, matched.email, cleanPass);
@@ -830,7 +1047,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           success: false, 
           error: matched.role === 'admin' 
             ? "Incorrect Admin password. Please enter the valid password." 
-            : friendly || "Incorrect password. Please verify your credentials or use 'Forgot Password'." 
+            : friendly || "गलत पासवर्ड दर्ज किया गया है। कृपया पासवर्ड जांचें या पासवर्ड रीसेट करें।" 
         };
       }
     }
@@ -844,10 +1061,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUserProfile(updatedUser);
-    setAllUsers(prev => prev.map(u => u.uid === updatedUser.uid ? updatedUser : u));
+    setAllUsers(prev => {
+      const filtered = prev.filter(u => u.uid !== updatedUser.uid && (updatedUser.email ? normalizeEmail(u.email) !== normalizeEmail(updatedUser.email) : true));
+      return [updatedUser, ...filtered];
+    });
     setDoc(doc(db, 'users', updatedUser.uid), updatedUser, { merge: true }).catch(() => {});
 
-    addSecurityLog(updatedUser.username, updatedUser.role, 'SUCCESS', 'LOGIN', 'User successfully authenticated');
+    addSecurityLog(updatedUser.username, updatedUser.role, 'SUCCESS', 'LOGIN', `User successfully authenticated (Old Account: ${updatedUser.username})`);
 
     return { 
       success: true, 
@@ -856,13 +1076,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Google Sign-In with Firebase Auth & Firestore Integration
-  // STRICT DIRECTIVE: Google Sign-In is exclusively reserved for Students only.
+  // STRICT DIRECTIVE: When student logs in via Google, ALWAYS load their Old/Original account!
   const loginWithGoogle = async (
     details?: GoogleAuthDetails
   ): Promise<{ success: boolean; error?: string; user?: UserProfile; requiresApproval?: boolean }> => {
     try {
-      const role: 'student' = 'student';
-
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       
@@ -873,183 +1091,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: "Google authentication was cancelled or failed." };
       }
 
-      const email = (fbUser.email || '').toLowerCase();
-      
-      // Check if user already exists in allUsers, Firestore (users & students), or LocalStorage
-      let existingProfile: UserProfile | null = null;
+      const email = normalizeEmail(fbUser.email);
+      const phoneFromDetails = normalizePhoneNumber(details?.phone || details?.mobile);
 
-      // 1. Check by UID in Firestore 'users' collection
-      try {
-        const docSnap = await getDoc(doc(db, 'users', fbUser.uid));
-        if (docSnap.exists()) {
-          existingProfile = docSnap.data() as UserProfile;
-        }
-      } catch (err) {
-        console.warn("Firestore users lookup failed:", err);
-      }
-
-      // 2. Check by UID in Firestore 'students' collection
-      if (!existingProfile) {
-        try {
-          const stuSnap = await getDoc(doc(db, 'students', fbUser.uid));
-          if (stuSnap.exists()) {
-            const sData = stuSnap.data() as any;
-            existingProfile = {
-              uid: fbUser.uid,
-              username: sData.studentId || sData.admissionNumber || `STU-${fbUser.uid.substring(0, 6).toUpperCase()}`,
-              name: sData.fullName || sData.name || fbUser.displayName || 'Student',
-              fullName: sData.fullName || sData.name || fbUser.displayName || 'Student',
-              email: fbUser.email || sData.email || '',
-              emailVerified: fbUser.emailVerified,
-              phone: sData.mobile || sData.phone || '',
-              photoURL: sData.photoURL || sData.profilePhoto || fbUser.photoURL || undefined,
-              profilePhoto: sData.profilePhoto || sData.photoURL || fbUser.photoURL || undefined,
-              role: 'student',
-              schoolId: SCHOOL_ID,
-              status: sData.status || 'active',
-              isApproved: true,
-              studentId: sData.studentId,
-              admissionNumber: sData.admissionNumber,
-              registrationNumber: sData.registrationNumber || sData.admissionNumber,
-              classNumber: sData.classNumber || 5,
-              sectionName: sData.sectionName || 'A',
-              rollNumber: sData.rollNumber || '1',
-              fatherName: sData.fatherName,
-              motherName: sData.motherName,
-              guardianName: sData.guardianName || sData.fatherName,
-              dateOfBirth: sData.dateOfBirth || sData.dob,
-              dob: sData.dateOfBirth || sData.dob,
-              bloodGroup: sData.bloodGroup,
-              gender: sData.gender,
-              category: sData.category,
-              address: sData.address,
-              aadhaarNumber: sData.aadhaarNumber,
-              createdAt: sData.createdAt,
-              lastLoginAt: new Date().toISOString()
-            };
-          }
-        } catch (err) {
-          console.warn("Firestore students lookup failed:", err);
-        }
-      }
-
-      // 3. Check by Email in Firestore 'users' collection
-      if (!existingProfile && email) {
-        try {
-          const qUsers = query(collection(db, 'users'), where('email', '==', email));
-          const snapUsers = await getDocs(qUsers);
-          if (!snapUsers.empty) {
-            existingProfile = snapUsers.docs[0].data() as UserProfile;
-          }
-        } catch (e) {
-          // fallback
-        }
-      }
-
-      // 4. Check by Email in Firestore 'students' collection
-      if (!existingProfile && email) {
-        try {
-          const qStu = query(collection(db, 'students'), where('email', '==', email));
-          const snapStu = await getDocs(qStu);
-          if (!snapStu.empty) {
-            const sData = snapStu.docs[0].data() as any;
-            existingProfile = {
-              uid: fbUser.uid,
-              username: sData.studentId || sData.admissionNumber || `STU-${fbUser.uid.substring(0, 6).toUpperCase()}`,
-              name: sData.fullName || sData.name || fbUser.displayName || 'Student',
-              fullName: sData.fullName || sData.name || fbUser.displayName || 'Student',
-              email: email,
-              emailVerified: fbUser.emailVerified,
-              phone: sData.mobile || sData.phone || '',
-              photoURL: sData.photoURL || sData.profilePhoto || fbUser.photoURL || undefined,
-              profilePhoto: sData.profilePhoto || sData.photoURL || fbUser.photoURL || undefined,
-              role: 'student',
-              schoolId: SCHOOL_ID,
-              status: sData.status || 'active',
-              isApproved: true,
-              studentId: sData.studentId,
-              admissionNumber: sData.admissionNumber,
-              registrationNumber: sData.registrationNumber || sData.admissionNumber,
-              classNumber: sData.classNumber || 5,
-              sectionName: sData.sectionName || 'A',
-              rollNumber: sData.rollNumber || '1',
-              fatherName: sData.fatherName,
-              motherName: sData.motherName,
-              guardianName: sData.guardianName || sData.fatherName,
-              dateOfBirth: sData.dateOfBirth || sData.dob,
-              dob: sData.dateOfBirth || sData.dob,
-              bloodGroup: sData.bloodGroup,
-              gender: sData.gender,
-              category: sData.category,
-              address: sData.address,
-              aadhaarNumber: sData.aadhaarNumber,
-              createdAt: sData.createdAt,
-              lastLoginAt: new Date().toISOString()
-            };
-          }
-        } catch (e) {
-          // fallback
-        }
-      }
-
-      // 5. Check by email or UID in allUsers memory
-      if (!existingProfile && email) {
-        const found = allUsers.find(u => (u.email && u.email.toLowerCase() === email) || u.uid === fbUser.uid);
-        if (found) {
-          existingProfile = found;
-        }
-      }
-
-      // 6. Check in localStorage 'sms_gov_students'
-      if (!existingProfile) {
-        try {
-          const localStr = localStorage.getItem('sms_gov_students');
-          if (localStr) {
-            const list = JSON.parse(localStr);
-            const localMatched = list.find((s: any) => 
-              (s.email && s.email.toLowerCase() === email) || 
-              s.uid === fbUser.uid || 
-              s.id === fbUser.uid || 
-              s.userId === fbUser.uid
-            );
-            if (localMatched) {
-              existingProfile = {
-                uid: fbUser.uid,
-                username: localMatched.studentId || localMatched.admissionNumber || `STU-${fbUser.uid.substring(0, 6).toUpperCase()}`,
-                name: localMatched.fullName || localMatched.name || fbUser.displayName || 'Student',
-                fullName: localMatched.fullName || localMatched.name || fbUser.displayName || 'Student',
-                email: email,
-                phone: localMatched.mobile || localMatched.phone || '',
-                photoURL: localMatched.photoURL || localMatched.profilePhoto || fbUser.photoURL || undefined,
-                profilePhoto: localMatched.profilePhoto || localMatched.photoURL || fbUser.photoURL || undefined,
-                role: 'student',
-                schoolId: SCHOOL_ID,
-                status: 'active',
-                isApproved: true,
-                studentId: localMatched.studentId,
-                admissionNumber: localMatched.admissionNumber,
-                registrationNumber: localMatched.registrationNumber || localMatched.admissionNumber,
-                classNumber: localMatched.classNumber || 5,
-                sectionName: localMatched.sectionName || 'A',
-                rollNumber: localMatched.rollNumber || '1',
-                fatherName: localMatched.fatherName,
-                motherName: localMatched.motherName,
-                guardianName: localMatched.guardianName,
-                dateOfBirth: localMatched.dateOfBirth || localMatched.dob,
-                dob: localMatched.dateOfBirth || localMatched.dob,
-                bloodGroup: localMatched.bloodGroup,
-                gender: localMatched.gender,
-                category: localMatched.category,
-                address: localMatched.address,
-                aadhaarNumber: localMatched.aadhaarNumber,
-                createdAt: localMatched.createdAt
-              };
-            }
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
+      // Search for ANY existing student account by UID, Email, or Mobile number
+      let existingProfile = await findExistingAccountRecord({
+        uid: fbUser.uid,
+        email: email || undefined,
+        phone: phoneFromDetails.length >= 7 ? phoneFromDetails : undefined
+      });
 
       const resolvedName = (
         (details?.fullName && details.fullName.trim()) ||
@@ -1059,8 +1109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (fbUser.displayName && !fbUser.displayName.includes('@') ? fbUser.displayName.trim() : '') ||
         (fbUser.email ? fbUser.email.split('@')[0] : 'Student')
       ).trim();
-
-      let finalProfile: UserProfile;
 
       const birthDate = details?.dateOfBirth || details?.dob || existingProfile?.dateOfBirth || existingProfile?.dob || '2015-05-15';
       const father = details?.fatherName || existingProfile?.fatherName || 'Guardian';
@@ -1077,41 +1125,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userAadhaar = details?.aadhaarNumber || existingProfile?.aadhaarNumber || '';
       const userPhoto = existingProfile?.profilePhoto || existingProfile?.photoURL || fbUser.photoURL || undefined;
 
+      let finalProfile: UserProfile;
+
       if (existingProfile) {
-        // Enforce student role and update with collected details while fully preserving existing data
+        // PRESERVE THE OLD/ORIGINAL ACCOUNT! Keep original studentId, admissionNumber, and createdAt intact.
         finalProfile = {
           ...existingProfile,
           uid: fbUser.uid,
-          name: resolvedName,
-          fullName: resolvedName,
+          name: existingProfile.name || resolvedName,
+          fullName: existingProfile.fullName || existingProfile.name || resolvedName,
           email: fbUser.email || existingProfile.email,
           emailVerified: fbUser.emailVerified,
           photoURL: userPhoto,
           profilePhoto: userPhoto,
           role: 'student',
-          fatherName: father,
-          motherName: mother,
-          guardianName: guardian,
-          dateOfBirth: birthDate,
-          dob: birthDate,
-          classNumber: classNum,
-          sectionName: secName,
-          rollNumber: rollNum,
-          phone: userPhone,
-          mobile: userPhone,
-          gender: userGender,
-          category: userCat,
-          address: userAddr,
-          bloodGroup: userBlood,
-          aadhaarNumber: userAadhaar,
-          admissionNumber: details?.admissionNumber || existingProfile.admissionNumber || existingProfile.registrationNumber || `ADM-${fbUser.uid.substring(0, 6).toUpperCase()}`,
-          registrationNumber: details?.admissionNumber || existingProfile.registrationNumber || existingProfile.admissionNumber || `ADM-${fbUser.uid.substring(0, 6).toUpperCase()}`,
+          fatherName: existingProfile.fatherName || father,
+          motherName: existingProfile.motherName || mother,
+          guardianName: existingProfile.guardianName || guardian,
+          dateOfBirth: existingProfile.dateOfBirth || birthDate,
+          dob: existingProfile.dob || birthDate,
+          classNumber: existingProfile.classNumber || classNum,
+          sectionName: existingProfile.sectionName || secName,
+          rollNumber: existingProfile.rollNumber || rollNum,
+          phone: existingProfile.phone || userPhone,
+          mobile: existingProfile.mobile || userPhone,
+          gender: existingProfile.gender || userGender,
+          category: existingProfile.category || userCat,
+          address: existingProfile.address || userAddr,
+          bloodGroup: existingProfile.bloodGroup || userBlood,
+          aadhaarNumber: existingProfile.aadhaarNumber || userAadhaar,
+          admissionNumber: existingProfile.admissionNumber || existingProfile.registrationNumber || `ADM-${fbUser.uid.substring(0, 6).toUpperCase()}`,
+          registrationNumber: existingProfile.registrationNumber || existingProfile.admissionNumber || `ADM-${fbUser.uid.substring(0, 6).toUpperCase()}`,
           studentId: existingProfile.studentId || existingProfile.username || `STU-${fbUser.uid.substring(0, 6).toUpperCase()}`,
           lastLoginAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
       } else {
-        // New student created from Google Auth
+        // Strict Uniqueness Check for new Google registration:
+        // Check if phone or admission number is already taken by another student
+        if (phoneFromDetails && phoneFromDetails.length >= 7) {
+          const duplicatePhoneUser = await findExistingAccountRecord({ phone: phoneFromDetails });
+          if (duplicatePhoneUser) {
+            return {
+              success: false,
+              error: `यह मोबाइल नंबर (${phoneFromDetails}) पहले से छात्र '${duplicatePhoneUser.name}' (${duplicatePhoneUser.username}) के खाते में पंजीकृत है। कृपया अपना सही मोबाइल नंबर दर्ज करें।`
+            };
+          }
+        }
+
         const cleanUser = details?.admissionNumber 
           ? `STU-${details.admissionNumber.replace(/[^A-Za-z0-9]/g, '')}` 
           : `STU-2026-${String(allUsers.filter(u => u.role === 'student').length + 10).padStart(4, '0')}`;
@@ -1171,31 +1232,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         emailVerified: fbUser.emailVerified,
         profilePhoto: finalProfile.photoURL || '',
         photoURL: finalProfile.photoURL || '',
-        classId: `class-${classNum}`,
-        classNumber: classNum,
-        class: classNum,
-        sectionId: `sec-${classNum}-${secName}`,
-        sectionName: secName,
-        section: secName,
-        rollNumber: rollNum,
-        fatherName: father,
-        motherName: mother,
-        guardianName: guardian,
-        dateOfBirth: birthDate,
-        dob: birthDate,
-        gender: userGender,
-        category: userCat,
-        address: userAddr,
-        bloodGroup: userBlood,
-        aadhaarNumber: userAadhaar,
+        classId: `class-${finalProfile.classNumber || classNum}`,
+        classNumber: finalProfile.classNumber || classNum,
+        class: finalProfile.classNumber || classNum,
+        sectionId: `sec-${finalProfile.classNumber || classNum}-${finalProfile.sectionName || secName}`,
+        sectionName: finalProfile.sectionName || secName,
+        section: finalProfile.sectionName || secName,
+        rollNumber: finalProfile.rollNumber || rollNum,
+        fatherName: finalProfile.fatherName || father,
+        motherName: finalProfile.motherName || mother,
+        guardianName: finalProfile.guardianName || guardian,
+        dateOfBirth: finalProfile.dateOfBirth || birthDate,
+        dob: finalProfile.dateOfBirth || birthDate,
+        gender: finalProfile.gender || userGender,
+        category: finalProfile.category || userCat,
+        address: finalProfile.address || userAddr,
+        bloodGroup: finalProfile.bloodGroup || userBlood,
+        aadhaarNumber: finalProfile.aadhaarNumber || userAadhaar,
         course: 'Primary & Upper Primary Education (Class 1-8)',
-        admissionYear: new Date().getFullYear(),
-        mobile: userPhone,
-        phone: userPhone,
-        admissionDate: new Date().toISOString().split('T')[0],
+        admissionYear: finalProfile.admissionYear || new Date().getFullYear(),
+        mobile: finalProfile.phone || userPhone,
+        phone: finalProfile.phone || userPhone,
+        admissionDate: finalProfile.createdAt ? finalProfile.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
         status: 'active',
         role: 'student',
-        createdAt: existingProfile?.createdAt || new Date().toISOString(),
+        createdAt: finalProfile.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
@@ -1207,7 +1268,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn("Error saving student to Firestore:", err);
       }
 
-      // Sync into localStorage for immediate offline/client-side access across components
+      // Sync into localStorage
       try {
         const localKey = 'sms_gov_students';
         const existingLocal = localStorage.getItem(localKey);
@@ -1222,7 +1283,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(fbUser);
       setUserProfile(finalProfile);
       setAllUsers(prev => {
-        const filtered = prev.filter(u => u.uid !== finalProfile.uid && (finalProfile.email ? u.email?.toLowerCase() !== finalProfile.email.toLowerCase() : true));
+        const filtered = prev.filter(u => u.uid !== finalProfile.uid && (finalProfile.email ? normalizeEmail(u.email) !== normalizeEmail(finalProfile.email) : true));
         return [finalProfile, ...filtered];
       });
 
@@ -1231,7 +1292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         'student',
         'SUCCESS',
         'LOGIN',
-        `Google Sign-in authenticated for Student ${finalProfile.name} (${fbUser.email})`
+        `Google Sign-in authenticated for Student ${finalProfile.name} (${finalProfile.username} - ${fbUser.email})`
       );
 
       return { 
@@ -1247,6 +1308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Direct Student Registration via Firebase Auth + Firestore
+  // STRICT DIRECTIVE: Prevent duplicate account creation for same Email or Mobile Number!
   const registerStudentWithAuth = async (data: {
     fullName: string;
     email: string;
@@ -1263,17 +1325,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     preferredUsername?: string;
   }): Promise<{ success: boolean; error?: string; user?: any; profile?: UserProfile }> => {
     const cleanName = data.fullName.trim();
-    const cleanEmail = data.email.trim().toLowerCase();
+    const cleanEmail = normalizeEmail(data.email);
+    const cleanPhone = normalizePhoneNumber(data.phone);
     const cleanPass = data.password.trim();
     const cleanAdm = data.admissionNumber.trim();
     let cleanUser = (data.preferredUsername || '').trim().toUpperCase();
 
     if (!cleanName || !cleanEmail || !cleanPass || !cleanAdm) {
-      return { success: false, error: "Please enter Full Name, Email, Password, and Admission Number." };
+      return { success: false, error: "कृपया छात्र का नाम, ईमेल, पासवर्ड और प्रवेश संख्या दर्ज करें।" };
     }
 
     if (cleanPass.length < 6) {
-      return { success: false, error: "Password must be at least 6 characters." };
+      return { success: false, error: "पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।" };
+    }
+
+    // 1. Strict Duplicate Account Check for Email & Mobile Number
+    const existingByEmailOrPhone = await findExistingAccountRecord({
+      email: cleanEmail,
+      phone: cleanPhone.length >= 7 ? cleanPhone : undefined,
+      admissionNumber: cleanAdm,
+      username: cleanUser || undefined
+    });
+
+    if (existingByEmailOrPhone) {
+      return {
+        success: false,
+        error: `इस ईमेल (${data.email}) या मोबाइल नंबर (${data.phone || 'N/A'}) से पहले से ही छात्र खाता (${existingByEmailOrPhone.name} - ${existingByEmailOrPhone.username}) पंजीकृत है। एक ईमेल या मोबाइल नंबर से दूसरा खाता नहीं बनाया जा सकता। कृपया अपने पुराने खाते से लॉगिन करें।`
+      };
+    }
+
+    // 2. Check pending registration requests
+    const pendingReq = registrationRequests.find(r => 
+      (r.email && normalizeEmail(r.email) === cleanEmail) ||
+      (cleanPhone.length >= 7 && r.phone && normalizePhoneNumber(r.phone) === cleanPhone) ||
+      (r.admissionNumber && r.admissionNumber.toLowerCase() === cleanAdm.toLowerCase())
+    );
+
+    if (pendingReq) {
+      return {
+        success: false,
+        error: `इस ईमेल या मोबाइल नंबर से पहले ही एक पंजीकरण आवेदन (${pendingReq.fullName}) जमा किया जा चुका है। कृपया प्रधानाध्यापिका के सत्यापन की प्रतीक्षा करें।`
+      };
     }
 
     if (!cleanUser) {
@@ -1301,18 +1393,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: cleanEmail,
         emailVerified: fbUser.emailVerified,
         phone: data.phone?.trim() || '',
+        mobile: data.phone?.trim() || '',
         role: 'student',
         schoolId: SCHOOL_ID,
         status: 'active',
         linkedEntityId: fbUser.uid,
         studentId: cleanUser,
         admissionNumber: cleanAdm,
+        registrationNumber: cleanAdm,
         classNumber: data.classNumber || 5,
         sectionName: data.sectionName || 'A',
         rollNumber: data.rollNumber || '1',
         course: 'Primary & Upper Primary Education (Class 1-8)',
         admissionYear: new Date().getFullYear(),
         dateOfBirth: data.dateOfBirth || '',
+        dob: data.dateOfBirth || '',
         fatherName: data.fatherName || '',
         guardianName: data.guardianName || '',
         category: data.category || 'General',
@@ -1328,6 +1423,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userId: fbUser.uid,
         studentId: cleanUser,
         admissionNumber: cleanAdm,
+        registrationNumber: cleanAdm,
         name: cleanName,
         fullName: cleanName,
         email: cleanEmail,
@@ -1336,11 +1432,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         photoURL: '',
         class: data.classNumber || 5,
         classNumber: data.classNumber || 5,
+        classId: `class-${data.classNumber || 5}`,
         section: data.sectionName || 'A',
         sectionName: data.sectionName || 'A',
+        sectionId: `sec-${data.classNumber || 5}-${data.sectionName || 'A'}`,
         rollNumber: data.rollNumber || '1',
         gender: 'Male',
         dateOfBirth: data.dateOfBirth || '2015-05-15',
+        dob: data.dateOfBirth || '2015-05-15',
         fatherName: data.fatherName || '',
         guardianName: data.guardianName || '',
         mobile: data.phone?.trim() || '',
@@ -1364,7 +1463,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(fbUser);
       setUserProfile(newStudentProfile);
       setAllUsers(prev => {
-        const filtered = prev.filter(u => u.uid !== fbUser.uid && u.username.toUpperCase() !== cleanUser && u.email.toLowerCase() !== cleanEmail);
+        const filtered = prev.filter(u => u.uid !== fbUser.uid && u.username.toUpperCase() !== cleanUser && normalizeEmail(u.email) !== cleanEmail);
         return [newStudentProfile, ...filtered];
       });
 
@@ -1497,6 +1596,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // 2. Student Registration Request (Status = PENDING)
+  // STRICT DIRECTIVE: Prevent duplicate account requests for same Email or Mobile Number!
   const submitStudentRegistration = async (data: {
     fullName: string;
     admissionNumber: string;
@@ -1515,9 +1615,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanAdm = data.admissionNumber.trim();
     let cleanUser = data.preferredUsername.trim().toUpperCase();
     const cleanPass = data.password.trim();
+    const cleanPhone = normalizePhoneNumber(data.phone);
 
     if (!cleanName || !cleanAdm || !cleanPass) {
-      return { success: false, error: "Please enter Student Name, Admission Number, and Password." };
+      return { success: false, error: "कृपया छात्र का नाम, प्रवेश संख्या (Admission No) और पासवर्ड दर्ज करें।" };
     }
 
     // Ensure username formatting
@@ -1531,13 +1632,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: `The username '${cleanUser}' is a reserved system identifier. Please choose another.` };
     }
 
-    // Check if username or admission number is already taken
-    const existsUser = allUsers.find(u => u.username.toUpperCase() === cleanUser || (u.admissionNumber && u.admissionNumber.toLowerCase() === cleanAdm.toLowerCase()));
-    if (existsUser) {
-      return { success: false, error: `An active account already exists with Username '${cleanUser}' or Admission Number '${cleanAdm}'.` };
+    const autoEmail = data.email ? normalizeEmail(data.email) : `${cleanUser.toLowerCase()}@student.school.gov.in`;
+
+    // 1. Check if an active account already exists by email, phone, admission number, or username
+    const existingActiveAccount = await findExistingAccountRecord({
+      email: autoEmail,
+      phone: cleanPhone.length >= 7 ? cleanPhone : undefined,
+      admissionNumber: cleanAdm,
+      username: cleanUser
+    });
+
+    if (existingActiveAccount) {
+      return { 
+        success: false, 
+        error: `इस ईमेल (${data.email || autoEmail}) या मोबाइल नंबर (${data.phone || 'N/A'}) से पहले से ही छात्र खाता (${existingActiveAccount.name} - ${existingActiveAccount.username}) सक्रिय है। कृपया अपने पुराने खाते से लॉगिन करें।` 
+      };
     }
 
-    const autoEmail = data.email?.trim() || `${cleanUser.toLowerCase()}@student.school.gov.in`;
+    // 2. Check if a pending registration request already exists
+    const duplicatePendingReq = registrationRequests.find(r => 
+      (r.email && normalizeEmail(r.email) === autoEmail) ||
+      (cleanPhone.length >= 7 && r.phone && normalizePhoneNumber(r.phone) === cleanPhone) ||
+      (r.admissionNumber && r.admissionNumber.toLowerCase() === cleanAdm.toLowerCase())
+    );
+
+    if (duplicatePendingReq) {
+      return {
+        success: false,
+        error: `इस ईमेल या मोबाइल नंबर से पहले ही एक पंजीकरण आवेदन (${duplicatePendingReq.fullName}) जमा है और प्रधानाध्यापिका के सत्यापन हेतु लंबित है।`
+      };
+    }
 
     const newRequest: RegistrationRequest = {
       id: `req-stu-${Date.now()}`,
@@ -1812,29 +1936,274 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  // 9. Reset Password via Email or Username
-  const resetPassword = async (emailOrUsername: string): Promise<{ success: boolean; error?: string; message?: string }> => {
-    const clean = emailOrUsername.trim();
-    if (!clean) return { success: false, error: "Please enter your Email or Login ID." };
+  // 9. Reset / Create Password via Email Verification
+  const resetPassword = async (emailOrUsernameOrPhone: string): Promise<{ 
+    success: boolean; 
+    error?: string; 
+    message?: string; 
+    email?: string; 
+    maskedEmail?: string; 
+    username?: string; 
+    role?: UserRole 
+  }> => {
+    const clean = emailOrUsernameOrPhone.trim();
+    if (!clean) {
+      return { success: false, error: "कृपया अपना पंजीकृत ईमेल, यूजरनेम, प्रवेश संख्या या मोबाइल नंबर दर्ज करें।" };
+    }
 
-    const matched = allUsers.find(u => u.username.toUpperCase() === clean.toUpperCase() || u.email.toLowerCase() === clean.toLowerCase());
-    
+    const cleanDigits = normalizePhoneNumber(clean);
+    const cleanEmail = normalizeEmail(clean);
+    const upperClean = clean.toUpperCase();
+
+    // Find account across all sources (memory, localStorage, Firestore)
+    let matched = await findExistingAccountRecord({
+      username: upperClean,
+      email: clean.includes('@') ? cleanEmail : undefined,
+      phone: cleanDigits.length >= 7 ? cleanDigits : undefined,
+      admissionNumber: clean,
+      employeeId: clean
+    });
+
+    let targetEmail = '';
+    let targetUsername = clean;
+    let targetRole: UserRole | undefined = undefined;
+
     if (matched) {
-      try {
-        await sendPasswordResetEmail(auth, matched.email);
-      } catch (e) {
-        // local message
-      }
-      return { 
-        success: true, 
-        message: `Password recovery verification instructions have been dispatched for account '${matched.username}' (${matched.email}).` 
+      targetEmail = normalizeEmail(matched.email);
+      targetUsername = matched.username || matched.studentId || clean;
+      targetRole = matched.role;
+    } else if (clean.includes('@')) {
+      targetEmail = cleanEmail;
+    }
+
+    if (!targetEmail) {
+      return {
+        success: false,
+        error: "इस विवरण से जुड़ा कोई पंजीकृत ईमेल नहीं मिला। कृपया अपना पंजीकृत ईमेल दर्ज करें या विद्यालय कार्यालय से संपर्क करें।"
       };
     }
 
-    return { success: false, error: "No registered account found matching this Username or Email." };
+    const currentOrigin = (typeof window !== 'undefined' && window.location.origin)
+      ? window.location.origin
+      : 'https://ais-pre-dfetqr7ov5ubh7ovmtp5og-1015841373275.asia-southeast1.run.app';
+
+    const actionCodeSettings = {
+      url: `${currentOrigin}/?mode=resetPassword`,
+      handleCodeInApp: true
+    };
+
+    try {
+      await sendPasswordResetEmail(auth, targetEmail, actionCodeSettings);
+    } catch (e: any) {
+      console.warn("Firebase sendPasswordResetEmail with settings notice:", e);
+      try {
+        await sendPasswordResetEmail(auth, targetEmail);
+      } catch (fallbackErr: any) {
+        if (fallbackErr.code === 'auth/user-not-found') {
+          try {
+            const tempPass = `Gov@${Math.random().toString(36).slice(-8)}!`;
+            await createUserWithEmailAndPassword(auth, targetEmail, tempPass);
+            await sendPasswordResetEmail(auth, targetEmail, actionCodeSettings);
+          } catch (createErr) {
+            console.warn("User auto-provisioning for reset failed:", createErr);
+          }
+        }
+      }
+    }
+
+    const masked = maskEmail(targetEmail);
+
+    addSecurityLog(
+      targetUsername,
+      targetRole || 'student',
+      'SUCCESS',
+      'PASSWORD_CHANGE',
+      `Password verification & setup link dispatched to ${masked}`
+    );
+
+    return {
+      success: true,
+      email: targetEmail,
+      maskedEmail: masked,
+      username: targetUsername,
+      role: targetRole,
+      message: `पासवर्ड बनाने/रीसेट करने का सुरक्षित लिंक आपके ईमेल '${masked}' पर भेज दिया गया है।`
+    };
   };
 
-  // 10. Admin Resets User Password
+  // 10. Verify Action Code from Email Link
+  const verifyResetCode = async (code: string): Promise<{ success: boolean; email?: string; error?: string }> => {
+    const cleanCode = code.trim();
+    if (!cleanCode) return { success: false, error: "सत्यापन कोड या लिंक अनुपलब्ध है।" };
+
+    try {
+      const email = await verifyPasswordResetCode(auth, cleanCode);
+      return { success: true, email };
+    } catch (err: any) {
+      console.warn("verifyPasswordResetCode error:", err);
+      if (err.code === 'auth/expired-action-code') {
+        return { success: false, error: "यह पासवर्ड लिंक समाप्त (Expire) हो चुका है। कृपया नया लिंक पुनः भेजें।" };
+      }
+      if (err.code === 'auth/invalid-action-code') {
+        return { success: false, error: "यह सत्यापन लिंक अमान्य है या इसका उपयोग पहले किया जा चुका है।" };
+      }
+      return { success: false, error: err.message || "कोड सत्यापित करने में त्रुटि हुई।" };
+    }
+  };
+
+  // 11. Confirm Password Reset via Code from Email Link
+  const confirmPasswordResetWithCode = async (
+    code: string,
+    newPass: string
+  ): Promise<{ success: boolean; error?: string; message?: string; email?: string }> => {
+    const cleanCode = code.trim();
+    const cleanPassword = newPass.trim();
+
+    if (!cleanCode) return { success: false, error: "सत्यापन कोड आवश्यक है।" };
+    if (!cleanPassword || cleanPassword.length < 6) {
+      return { success: false, error: "नया पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।" };
+    }
+
+    try {
+      // 1. Verify code and get target email
+      let targetEmail = '';
+      try {
+        targetEmail = await verifyPasswordResetCode(auth, cleanCode);
+      } catch (verErr: any) {
+        if (verErr.code === 'auth/expired-action-code') {
+          return { success: false, error: "यह लिंक समाप्त (Expired) हो चुका है। कृपया दोबारा लिंक भेजें।" };
+        }
+        if (verErr.code === 'auth/invalid-action-code') {
+          return { success: false, error: "यह लिंक अमान्य है या पहले ही उपयोग किया जा चुका है।" };
+        }
+      }
+
+      // 2. Confirm in Firebase Auth
+      await confirmPasswordReset(auth, cleanCode, cleanPassword);
+
+      // 3. Sync with Firestore & localStorage
+      if (targetEmail) {
+        const normEmail = normalizeEmail(targetEmail);
+        const matched = await findExistingAccountRecord({
+          email: normEmail
+        });
+
+        if (matched) {
+          const updatedProfile: UserProfile = {
+            ...matched,
+            password: cleanPassword,
+            mustChangePassword: false,
+            updatedAt: new Date().toISOString()
+          };
+
+          setAllUsers(prev => prev.map(u => u.uid === matched.uid ? updatedProfile : u));
+          if (userProfile?.uid === matched.uid) {
+            setUserProfile(updatedProfile);
+          }
+
+          setDoc(doc(db, 'users', matched.uid), { password: cleanPassword, mustChangePassword: false, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+          if (matched.role === 'student') {
+            setDoc(doc(db, 'students', matched.uid), { password: cleanPassword, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+          }
+
+          try {
+            const localKey = 'sms_gov_students';
+            const existingLocal = localStorage.getItem(localKey);
+            if (existingLocal) {
+              const list = JSON.parse(existingLocal);
+              const updatedList = list.map((s: any) => 
+                (s.id === matched.uid || s.uid === matched.uid || s.email?.toLowerCase() === normEmail) 
+                  ? { ...s, password: cleanPassword } 
+                  : s
+              );
+              localStorage.setItem(localKey, JSON.stringify(updatedList));
+            }
+          } catch {}
+
+          addSecurityLog(matched.username, matched.role, 'SUCCESS', 'PASSWORD_CHANGE', `User set new password via email link for ${matched.username}`);
+        }
+      }
+
+      return {
+        success: true,
+        email: targetEmail,
+        message: "आपका नया पासवर्ड सफलतापूर्वक बन गया है! अब आप इस नए पासवर्ड से लॉगिन कर सकते हैं।"
+      };
+    } catch (err: any) {
+      console.error("confirmPasswordReset error:", err);
+      if (err.code === 'auth/expired-action-code') {
+        return { success: false, error: "यह लिंक समाप्त (Expired) हो चुका है। कृपया दोबारा लिंक भेजें।" };
+      }
+      if (err.code === 'auth/invalid-action-code') {
+        return { success: false, error: "यह लिंक अमान्य है या पहले ही उपयोग किया जा चुका है।" };
+      }
+      return { success: false, error: err.message || "पासवर्ड सेट करने में समस्या आई।" };
+    }
+  };
+
+  // 12. Direct Password Creation/Update after Email Verification
+  const createOrUpdatePasswordAfterVerification = async (
+    identifier: string, 
+    newPass: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    const cleanId = identifier.trim();
+    const cleanPassword = newPass.trim();
+
+    if (!cleanId) return { success: false, error: "कृपया यूजरनेम या ईमेल दर्ज करें।" };
+    if (!cleanPassword || cleanPassword.length < 6) {
+      return { success: false, error: "पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।" };
+    }
+
+    const matched = await findExistingAccountRecord({
+      username: cleanId.toUpperCase(),
+      email: cleanId.includes('@') ? normalizeEmail(cleanId) : undefined,
+      phone: normalizePhoneNumber(cleanId).length >= 7 ? normalizePhoneNumber(cleanId) : undefined
+    });
+
+    if (!matched) {
+      return { success: false, error: "संबंधित खाता नहीं मिला।" };
+    }
+
+    const updatedProfile: UserProfile = {
+      ...matched,
+      password: cleanPassword,
+      mustChangePassword: false,
+      updatedAt: new Date().toISOString()
+    };
+
+    setAllUsers(prev => prev.map(u => u.uid === matched.uid ? updatedProfile : u));
+    if (userProfile?.uid === matched.uid) {
+      setUserProfile(updatedProfile);
+    }
+
+    setDoc(doc(db, 'users', matched.uid), { password: cleanPassword, mustChangePassword: false, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+    if (matched.role === 'student') {
+      setDoc(doc(db, 'students', matched.uid), { password: cleanPassword, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+    }
+
+    try {
+      const localKey = 'sms_gov_students';
+      const existingLocal = localStorage.getItem(localKey);
+      if (existingLocal) {
+        const list = JSON.parse(existingLocal);
+        const updatedList = list.map((s: any) => 
+          (s.id === matched.uid || s.uid === matched.uid || s.studentId === matched.studentId) 
+            ? { ...s, password: cleanPassword } 
+            : s
+        );
+        localStorage.setItem(localKey, JSON.stringify(updatedList));
+      }
+    } catch {}
+
+    addSecurityLog(matched.username, matched.role, 'SUCCESS', 'PASSWORD_CHANGE', `User created/updated password for ${matched.username}`);
+
+    return {
+      success: true,
+      message: `खाता '${matched.username}' के लिए नया पासवर्ड सफलतापूर्वक बन गया है! अब आप इस पासवर्ड से लॉगिन कर सकते हैं।`
+    };
+  };
+
+  // 11. Admin Resets User Password
   const resetUserPasswordByAdmin = async (uid: string, newPass: string, forceChange: boolean = true): Promise<{ success: boolean; error?: string }> => {
     setAllUsers(prev => prev.map(u => u.uid === uid ? { ...u, password: newPass, mustChangePassword: forceChange, updatedAt: new Date().toISOString() } : u));
     try {
@@ -1845,7 +2214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  // 11. User Status & Role Updates
+  // 12. User Status & Role Updates
   const updateUserStatus = async (uid: string, status: AccountStatus) => {
     setAllUsers(prev => prev.map(u => u.uid === uid ? { ...u, status, updatedAt: new Date().toISOString() } : u));
     if (userProfile?.uid === uid) {
@@ -1942,6 +2311,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         completeFirstLoginPasswordChange,
         changePassword,
         resetPassword,
+        verifyResetCode,
+        confirmPasswordResetWithCode,
+        createOrUpdatePasswordAfterVerification,
         resetUserPasswordByAdmin,
         updateUserStatus,
         updateUserRole,

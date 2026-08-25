@@ -4,14 +4,16 @@ import {
   CalendarCheck2, 
   Award, 
   BookOpenCheck, 
-  Bell
+  Bell,
+  Radio
 } from 'lucide-react';
 import { AdminAttendance } from '../AdminAttendance';
 import { AdminExaminations } from '../AdminExaminations';
 import { AdminHomework } from '../AdminHomework';
 import { AdminNotices } from '../AdminNotices';
+import { AdminNoticeTicker } from '../AdminNoticeTicker';
 
-export type OperationsSubTab = 'attendance' | 'examinations' | 'homework' | 'notices';
+export type OperationsSubTab = 'attendance' | 'examinations' | 'homework' | 'notices' | 'notice-ticker';
 
 interface AdminOperationsHubProps {
   initialSubTab?: OperationsSubTab;
@@ -60,6 +62,13 @@ export const AdminOperationsHub: React.FC<AdminOperationsHubProps> = ({
       labelHi: 'शासनादेश एवं सूचना पट्ट',
       icon: Bell,
       badge: activeNoticesCount > 0 ? `${activeNoticesCount} Active` : undefined
+    },
+    {
+      id: 'notice-ticker' as OperationsSubTab,
+      labelEn: 'Live Notice Ticker & Flash Alerts',
+      labelHi: 'लाइव सूचना टिकर व फ्लैश अलर्ट',
+      icon: Radio,
+      badge: 'Live'
     }
   ];
 
@@ -125,6 +134,7 @@ export const AdminOperationsHub: React.FC<AdminOperationsHubProps> = ({
         {activeSubTab === 'examinations' && <AdminExaminations />}
         {activeSubTab === 'homework' && <AdminHomework />}
         {activeSubTab === 'notices' && <AdminNotices />}
+        {activeSubTab === 'notice-ticker' && <AdminNoticeTicker />}
       </div>
     </div>
   );

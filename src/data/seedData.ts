@@ -129,6 +129,7 @@ export const initialSettings: SchoolSettings = {
   heroBannerImage: "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=2000&q=80",
   heroBannerAspectRatio: "21:9",
   heroBannerLayout: "panoramic_header",
+  heroBannerTextColor: "light",
   heroBannerOverlayOpacity: 60,
   heroBannerHeadlineHi: "कंपोजिट उच्च प्राथमिक विद्यालय हरसिंहपुर गोवा",
   heroBannerHeadlineEn: "Composite JHS Harsinghpur Gova",
@@ -142,10 +143,79 @@ export const initialSettings: SchoolSettings = {
     "https://images.unsplash.com/photo-1594608661623-aa0bd3a69d98?auto=format&fit=crop&w=2000&q=80"
   ],
   heroBannerCarouselInterval: 5,
+  heroBannerCtaEnabled: true,
+  heroBannerCtaTextHi: "नि:शुल्क प्रवेश प्रक्रिया",
+  heroBannerCtaTextEn: "Free Admission",
+  heroBannerCtaLink: "admission",
+  heroBannerCtaIcon: "GraduationCap",
+  heroBannerSecondaryCtaEnabled: true,
+  heroBannerSecondaryCtaTextHi: "डीबीटी व योजनाएं",
+  heroBannerSecondaryCtaTextEn: "Govt. Schemes",
+  heroBannerSecondaryCtaLink: "schemes",
+  heroBannerSecondaryCtaIcon: "Gift",
   allowTeacherVideoUpload: true,
   teacherVideoApprovalRequired: false,
   teacherVideoMaxDurationMinutes: 15,
-  teacherVideoAllowedFormats: ["Direct MP4/WebM Video", "YouTube Video & Shorts", "Google Drive Links"]
+  teacherVideoAllowedFormats: ["Direct MP4/WebM Video", "YouTube Video & Shorts", "Google Drive Links"],
+  noticeTicker: {
+    enabled: true,
+    speed: "medium",
+    pauseOnHover: true,
+    themeStyle: "amber_gold",
+    mode: "combined",
+    headerLabelEn: "Flash Updates",
+    headerLabelHi: "नवीनतम सूचना व अलर्ट",
+    customAlerts: [
+      {
+        id: "tck-01",
+        textHi: "सत्र 2025-26 हेतु कक्षा 1 से 8 में शत-प्रतिशत नि:शुल्क प्रवेश प्रारंभ! तुरंत संपर्क करें।",
+        textEn: "Session 2025–26 100% Free Admissions open for Classes 1 to 8! Contact school office.",
+        badgeLabelHi: "प्रवेश प्रारंभ",
+        badgeLabelEn: "ADMISSIONS OPEN",
+        priority: "urgent",
+        linkTarget: "admission",
+        isActive: true,
+        order: 1,
+        createdAt: "2025-04-01T08:00:00.000Z"
+      },
+      {
+        id: "tck-02",
+        textHi: "सभी छात्र-छात्राओं को नि:शुल्क पाठ्यपुस्तकें, यूनिफॉर्म डीबीटी (₹1,200), जूता-मोजा एवं मिड-डे मील उपलब्ध।",
+        textEn: "Free SCERT textbooks, DBT ₹1,200 uniform allowance, shoes-socks and nutritious Mid-Day Meal provided to all students.",
+        badgeLabelHi: "डीबीटी व योजनाएं",
+        badgeLabelEn: "GOVT SCHEMES",
+        priority: "important",
+        linkTarget: "schemes",
+        isActive: true,
+        order: 2,
+        createdAt: "2025-04-01T08:00:00.000Z"
+      },
+      {
+        id: "tck-03",
+        textHi: "विद्यालय समय: प्रातः 08:00 बजे से दोपहर 02:00 बजे तक (शीतकालीन/ग्रीष्मकालीन समयानुसार)।",
+        textEn: "Regular School Timings: 08:00 AM to 02:00 PM (as per basic education calendar).",
+        badgeLabelHi: "समय सारिणी",
+        badgeLabelEn: "SCHOOL TIMINGS",
+        priority: "normal",
+        linkTarget: "contact",
+        isActive: true,
+        order: 3,
+        createdAt: "2025-04-01T08:00:00.000Z"
+      },
+      {
+        id: "tck-04",
+        textHi: "निपुण भारत मिशन के अंतर्गत बुनियादी भाषा एवं संख्या ज्ञान (FLN) का उच्च स्तरीय शिक्षण संचालित।",
+        textEn: "NIPUN Bharat Foundational Literacy & Numeracy (FLN) interactive smart classes actively running.",
+        badgeLabelHi: "निपुण भारत",
+        badgeLabelEn: "NIPUN BHARAT",
+        priority: "normal",
+        linkTarget: "gallery",
+        isActive: true,
+        order: 4,
+        createdAt: "2025-04-01T08:00:00.000Z"
+      }
+    ]
+  }
 };
 
 // Historical Records explicitly isolated from current data

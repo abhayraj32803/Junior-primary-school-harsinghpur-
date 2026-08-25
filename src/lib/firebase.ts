@@ -11,7 +11,11 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult
+  getRedirectResult,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
+  checkActionCode,
+  applyActionCode
 } from 'firebase/auth';
 import { 
   initializeFirestore,
@@ -21,6 +25,7 @@ import {
   doc, 
   getDoc, 
   getDocs, 
+  getDocFromServer,
   setDoc, 
   updateDoc, 
   deleteDoc, 
@@ -55,14 +60,14 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// Set Firestore log level to error to avoid noisy offline warning notices in console
+// Set Firestore log level to silent/error to avoid noisy warnings during initial connection
 try {
   setLogLevel('error');
 } catch (e) {
   // ignore
 }
 
-// Use custom firestore database ID with auto-detect long polling for maximum reliability
+// Use custom firestore database ID with forced long polling for maximum reliability in iframe environments
 export const db = (() => {
   try {
     const dbId = (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)')
@@ -70,7 +75,7 @@ export const db = (() => {
       : undefined;
 
     return initializeFirestore(app, {
-      experimentalAutoDetectLongPolling: true,
+      experimentalForceLongPolling: true,
       ignoreUndefinedProperties: true
     }, dbId);
   } catch (e) {
@@ -93,10 +98,15 @@ export {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
+  checkActionCode,
+  applyActionCode,
   collection,
   doc,
   getDoc,
   getDocs,
+  getDocFromServer,
   setDoc,
   updateDoc,
   deleteDoc,
