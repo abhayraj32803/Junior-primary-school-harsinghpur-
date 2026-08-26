@@ -118,6 +118,8 @@ export interface UserProfile {
   emailVerified?: boolean;
   phone?: string;
   mobile?: string;
+  showPhonePublicly?: boolean;
+  showOnWebsite?: boolean;
   role: UserRole;
   schoolId: string; // e.g. '09290205902'
   status: AccountStatus;
@@ -146,6 +148,8 @@ export interface UserProfile {
   registrationNumber?: string;
   designation?: string;
   subject?: string;
+  qualification?: string;
+  specialization?: string;
   isApproved?: boolean;
   password?: string;
   lastLoginAt?: string;
@@ -285,17 +289,22 @@ export interface Student {
 export interface Teacher {
   id: string;
   userId?: string;
-  employeeId: string; // e.g., 'TCH-001'
+  username?: string;
+  employeeId: string; // e.g., 'TCH-001', 'EHMS-104928'
   name: string;
   email: string;
   phone: string;
+  showPhonePublicly?: boolean; // If true, mobile number is shown on website teacher directory
+  showOnWebsite?: boolean;     // If true, teacher is listed in public website
   address?: string;
-  designation: string; // 'Head Teacher / Headmaster', 'Assistant Teacher', 'Shiksha Mitra'
+  designation: string; // 'Head Teacher / Headmaster', 'Assistant Teacher (Primary)', 'Assistant Teacher (Upper Primary)', 'Shiksha Mitra'
   qualification: string;
   specialization?: string;
   assignedClasses?: string;
   assignedSubjects?: string;
   joiningDate: string;
+  experience?: string;
+  gender?: 'Male' | 'Female' | 'Other';
   status: TeacherStatus;
   verificationStatus?: DataVerificationStatus;
   source?: string;

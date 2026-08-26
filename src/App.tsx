@@ -207,7 +207,7 @@ const SchoolAppInner: React.FC = () => {
         activePublicView === 'login-admin' ? 'admin' : 'student';
 
       return (
-        <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 flex flex-col justify-center selection:bg-amber-500 selection:text-slate-950">
+        <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#f3f6fa] flex flex-col justify-center selection:bg-amber-500 selection:text-slate-950">
           <LoginPage 
             initialRole={initialRole}
             onSuccess={() => handleNavigatePage('portal')} 

@@ -36,7 +36,7 @@ type TeacherTab = 'directory' | 'pending_approvals' | 'access_control';
 
 export const AdminTeachers: React.FC = () => {
   const { teachers, teacherAssignments, addTeacher, updateTeacher, language, settings, addAuditLog } = useSchool();
-  const { registrationRequests, approveRegistrationRequest, rejectRegistrationRequest, allUsers, setAllUsers } = useAuth();
+  const { registrationRequests, approveRegistrationRequest, rejectRegistrationRequest, allUsers, setAllUsers, createTeacherDirectly, resetUserPasswordByAdmin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TeacherTab>('directory');
   const [searchTerm, setSearchTerm] = useState('');
@@ -86,6 +86,7 @@ export const AdminTeachers: React.FC = () => {
     name: '',
     email: '',
     phone: '',
+    username: '',
     qualification: '',
     designation: 'Assistant Teacher (Primary)',
     specialization: '',
@@ -93,7 +94,9 @@ export const AdminTeachers: React.FC = () => {
     address: 'School Residential Campus, District',
     photoURL: '',
     autoCreateLogin: true,
-    initialPassword: 'Teacher@2026'
+    initialPassword: 'Teacher@2026',
+    showPhonePublicly: false,
+    showOnWebsite: true
   });
 
   // Pending teacher requests
@@ -128,11 +131,13 @@ export const AdminTeachers: React.FC = () => {
   // Handle open Add Modal
   const handleOpenAdd = () => {
     const nextIndex = teachers.length + 1;
+    const defaultUsername = `TCH-2026-${String(nextIndex).padStart(3, '0')}`;
     setFormData({
-      employeeId: `TCH-2026-${String(nextIndex).padStart(3, '0')}`,
+      employeeId: defaultUsername,
       name: '',
       email: '',
-      phone: '+91 98',
+      phone: '+91 ',
+      username: defaultUsername,
       qualification: 'B.Sc, B.Ed (Basic Education)',
       designation: 'Assistant Teacher (Primary)',
       specialization: 'General Primary & Environmental Studies',
@@ -140,7 +145,9 @@ export const AdminTeachers: React.FC = () => {
       address: 'School Campus, Farrukhabad UP',
       photoURL: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop&q=80',
       autoCreateLogin: true,
-      initialPassword: 'Teacher@2026'
+      initialPassword: 'Teacher@2026',
+      showPhonePublicly: false,
+      showOnWebsite: true
     });
     setIsAddModalOpen(true);
   };
@@ -148,11 +155,17 @@ export const AdminTeachers: React.FC = () => {
   // Handle open Edit Modal
   const handleOpenEdit = (t: Teacher) => {
     setSelectedTeacher(t);
+    const userAcc = allUsers.find(u => 
+      (t.employeeId && u.employeeId === t.employeeId) ||
+      (t.email && u.email === t.email) ||
+      (u.name.toLowerCase() === t.name.toLowerCase() && u.role === 'teacher')
+    );
     setFormData({
       employeeId: t.employeeId,
       name: t.name,
       email: t.email,
       phone: t.phone,
+      username: userAcc?.username || t.employeeId || '',
       qualification: t.qualification,
       designation: t.designation,
       specialization: t.specialization || '',
@@ -160,7 +173,9 @@ export const AdminTeachers: React.FC = () => {
       address: t.address,
       photoURL: t.photoURL || '',
       autoCreateLogin: false,
-      initialPassword: ''
+      initialPassword: '',
+      showPhonePublicly: t.showPhonePublicly ?? false,
+      showOnWebsite: t.showOnWebsite ?? true
     });
     setIsEditModalOpen(true);
   };
@@ -179,15 +194,37 @@ export const AdminTeachers: React.FC = () => {
       joiningDate: formData.joiningDate,
       address: formData.address,
       photoURL: formData.photoURL,
-      status: 'active'
+      status: 'active',
+      showPhonePublicly: formData.showPhonePublicly,
+      showOnWebsite: formData.showOnWebsite
     });
 
     setIsAddModalOpen(false);
 
+    let createdUsername = formData.username || formData.employeeId.toUpperCase();
+
     if (formData.autoCreateLogin) {
+      const authRes = await createTeacherDirectly({
+        fullName: formData.name,
+        employeeId: formData.employeeId,
+        designation: formData.designation,
+        subject: formData.specialization,
+        qualification: formData.qualification,
+        phone: formData.phone,
+        email: formData.email,
+        username: formData.username || formData.employeeId,
+        password: formData.initialPassword || 'Teacher@2026',
+        showPhonePublicly: formData.showPhonePublicly,
+        showOnWebsite: formData.showOnWebsite
+      });
+
+      if (authRes.success && authRes.generatedUsername) {
+        createdUsername = authRes.generatedUsername;
+      }
+
       setCredentialSlip({
         name: formData.name,
-        username: formData.employeeId.toUpperCase(),
+        username: createdUsername,
         role: 'Teacher',
         designation: formData.designation,
         employeeId: formData.employeeId,
@@ -197,7 +234,7 @@ export const AdminTeachers: React.FC = () => {
       });
     }
 
-    setBannerNotice(language === 'hi' ? `शिक्षक ${formData.name} का रिकॉर्ड सफलतापूर्वक जोड़ा गया!` : `Teacher record for ${formData.name} created successfully!`);
+    setBannerNotice(language === 'hi' ? `शिक्षक ${formData.name} का रिकॉर्ड एवं यूजरनेम (${createdUsername}) सफलतापूर्वक सृजित किया गया!` : `Teacher record for ${formData.name} & login account (${createdUsername}) created successfully!`);
     setTimeout(() => setBannerNotice(null), 5000);
   };
 
@@ -215,10 +252,12 @@ export const AdminTeachers: React.FC = () => {
       specialization: formData.specialization,
       joiningDate: formData.joiningDate,
       address: formData.address,
-      photoURL: formData.photoURL
+      photoURL: formData.photoURL,
+      showPhonePublicly: formData.showPhonePublicly,
+      showOnWebsite: formData.showOnWebsite
     });
     setIsEditModalOpen(false);
-    setBannerNotice(language === 'hi' ? `शिक्षक विवरण सफलतापूर्वक अपडेट किया गया!` : `Faculty record updated successfully!`);
+    setBannerNotice(language === 'hi' ? `शिक्षक विवरण एवं गोपनीयता सेटिंग्स सफलतापूर्वक अपडेट की गईं!` : `Faculty record and privacy settings updated successfully!`);
     setTimeout(() => setBannerNotice(null), 4000);
   };
 
@@ -1401,21 +1440,100 @@ Instructions:
             />
           </div>
 
-          <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-2xl flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-amber-950 block">
-                {language === 'hi' ? 'लॉगिन क्रेडेंशियल स्वतः तैयार करें' : 'Auto-Generate Portal Login Account'}
-              </span>
-              <span className="text-[11px] text-amber-800">
-                {language === 'hi' ? 'प्रारंभिक पासवर्ड: Teacher@2026' : 'Default password: Teacher@2026'}
-              </span>
+          {/* Credentials and Security Settings for Faculty */}
+          <div className="p-4 bg-amber-50/80 border border-amber-200/80 rounded-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-black text-amber-950 block">
+                  {language === 'hi' ? 'शिक्षक यूजरनेम व लॉगिन पासवर्ड (Admin Controlled Credentials)' : 'Faculty Login ID & Security Password'}
+                </span>
+                <span className="text-[11px] text-amber-800">
+                  {language === 'hi' ? 'शिक्षक स्वयं खाता नहीं बना सकते, एडमिन द्वारा ही यूजरनेम/पासवर्ड सृजित होगा' : 'Teachers cannot self-register; Admin creates and manages their login credentials directly.'}
+                </span>
+              </div>
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.autoCreateLogin}
+                  onChange={(e) => setFormData({ ...formData, autoCreateLogin: e.target.checked })}
+                  className="w-4 h-4 accent-amber-600 rounded"
+                />
+                <span className="text-xs font-bold text-amber-900">{language === 'hi' ? 'सक्रिय लॉगिन बनाएं' : 'Enable Portal Login'}</span>
+              </label>
             </div>
-            <input
-              type="checkbox"
-              checked={formData.autoCreateLogin}
-              onChange={(e) => setFormData({ ...formData, autoCreateLogin: e.target.checked })}
-              className="w-4 h-4 accent-amber-500 rounded"
-            />
+
+            {formData.autoCreateLogin && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200">
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                    {language === 'hi' ? 'पोर्टल यूजरनेम (Username ID)' : 'Portal Username'} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value.toUpperCase() })}
+                    placeholder="TCH-2026-001"
+                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-mono font-bold text-amber-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                    {language === 'hi' ? 'प्रारंभिक पासवर्ड (Password)' : 'Initial Password'} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.initialPassword}
+                    onChange={(e) => setFormData({ ...formData, initialPassword: e.target.value })}
+                    placeholder="Teacher@2026"
+                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-mono font-bold text-slate-900"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Privacy & Public Website Display Controls */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+            <div className="text-xs font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-blue-600" />
+              <span>{language === 'hi' ? 'वेबसाइट प्रदर्शन एवं गोपनीयता सेटिंग्स (Website Display & Privacy)' : 'Website Directory & Privacy Controls'}</span>
+            </div>
+
+            <label className="flex items-start gap-2.5 p-2 bg-white rounded-xl border border-slate-200/70 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.showOnWebsite}
+                onChange={(e) => setFormData({ ...formData, showOnWebsite: e.target.checked })}
+                className="w-4 h-4 mt-0.5 accent-blue-600 rounded"
+              />
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">
+                  {language === 'hi' ? 'वेबसाइट के "शिक्षक एवं स्टॉफ" अनुभाग में प्रदर्शित करें' : 'Show in Website Faculty Section / Directory'}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {language === 'hi' ? 'वेबसाइट पर शिक्षक का नाम, पदनाम, योग्यता एवं फोटो दिखाई देगा' : 'Teacher name, designation, qualification and photo will be visible publicly.'}
+                </span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-2.5 p-2 bg-white rounded-xl border border-slate-200/70 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.showPhonePublicly}
+                onChange={(e) => setFormData({ ...formData, showPhonePublicly: e.target.checked })}
+                className="w-4 h-4 mt-0.5 accent-emerald-600 rounded"
+              />
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">
+                  {language === 'hi' ? 'वेबसाइट पर शिक्षक का मोबाइल नंबर सार्वजनिक प्रदर्शित करें' : 'Display Mobile Number Publicly on Website'}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {language === 'hi' ? 'यदि शिक्षक अनुमति दें तो अभिभावकों/जनता हेतु मोबाइल नंबर दृश्यमान रहेगा, अन्यथा गोपनीय रहेगा' : 'Mobile number will only be visible if allowed; otherwise kept private.'}
+                </span>
+              </div>
+            </label>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
@@ -1535,6 +1653,48 @@ Instructions:
               onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
             />
+          </div>
+
+          {/* Privacy & Public Website Display Controls */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+            <div className="text-xs font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-blue-600" />
+              <span>{language === 'hi' ? 'वेबसाइट प्रदर्शन एवं गोपनीयता सेटिंग्स (Website Display & Privacy)' : 'Website Directory & Privacy Controls'}</span>
+            </div>
+
+            <label className="flex items-start gap-2.5 p-2 bg-white rounded-xl border border-slate-200/70 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.showOnWebsite}
+                onChange={(e) => setFormData({ ...formData, showOnWebsite: e.target.checked })}
+                className="w-4 h-4 mt-0.5 accent-blue-600 rounded"
+              />
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">
+                  {language === 'hi' ? 'वेबसाइट के "शिक्षक एवं स्टॉफ" अनुभाग में प्रदर्शित करें' : 'Show in Website Faculty Section / Directory'}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {language === 'hi' ? 'वेबसाइट पर शिक्षक का नाम, पदनाम, योग्यता एवं फोटो दिखाई देगा' : 'Teacher name, designation, qualification and photo will be visible publicly.'}
+                </span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-2.5 p-2 bg-white rounded-xl border border-slate-200/70 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.showPhonePublicly}
+                onChange={(e) => setFormData({ ...formData, showPhonePublicly: e.target.checked })}
+                className="w-4 h-4 mt-0.5 accent-emerald-600 rounded"
+              />
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">
+                  {language === 'hi' ? 'वेबसाइट पर शिक्षक का मोबाइल नंबर सार्वजनिक प्रदर्शित करें' : 'Display Mobile Number Publicly on Website'}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {language === 'hi' ? 'यदि शिक्षक अनुमति दें तो अभिभावकों/जनता हेतु मोबाइल नंबर दृश्यमान रहेगा, अन्यथा गोपनीय रहेगा' : 'Mobile number will only be visible if allowed; otherwise kept private.'}
+                </span>
+              </div>
+            </label>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">

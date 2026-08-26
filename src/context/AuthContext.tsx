@@ -141,6 +141,11 @@ export interface AuthContextType {
     email: string;
     assignedClasses?: number[];
     temporaryPassword?: string;
+    password?: string;
+    username?: string;
+    showPhonePublicly?: boolean;
+    showOnWebsite?: boolean;
+    mustChangePassword?: boolean;
   }) => Promise<{ success: boolean; error?: string; user?: UserProfile; generatedUsername?: string }>;
   createStudentDirectly: (data: {
     fullName: string;
@@ -1854,7 +1859,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true, request: newRequest };
   };
 
-  // 4. Direct Teacher Creation by Head Teacher (Active with Temporary Password & mustChangePassword: true)
+  // 4. Direct Teacher Creation by Head Teacher (Active with Admin-configured credentials)
   const createTeacherDirectly = async (data: {
     fullName: string;
     employeeId: string;
@@ -1866,24 +1871,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string;
     assignedClasses?: number[];
     temporaryPassword?: string;
+    password?: string;
+    username?: string;
+    showPhonePublicly?: boolean;
+    showOnWebsite?: boolean;
+    mustChangePassword?: boolean;
   }): Promise<{ success: boolean; error?: string; user?: UserProfile; generatedUsername?: string }> => {
     const cleanName = data.fullName.trim();
     const cleanEmp = data.employeeId.trim();
     const cleanEmail = data.email.trim().toLowerCase();
-    const tempPass = data.temporaryPassword?.trim() || `GovTeacher@${Math.floor(1000 + Math.random() * 9000)}`;
+    const tempPass = data.password?.trim() || data.temporaryPassword?.trim() || `GovTeacher@${Math.floor(1000 + Math.random() * 9000)}`;
 
     const nextNumber = allUsers.filter(u => u.role === 'teacher').length + 1;
-    const generatedUsername = `TCH-2026-${String(nextNumber).padStart(3, '0')}`;
+    const finalUsername = (data.username && data.username.trim().toUpperCase()) 
+      ? data.username.trim().toUpperCase() 
+      : `TCH-2026-${String(nextNumber).padStart(3, '0')}`;
 
     const newUid = `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const linkedEntityId = `tch-${cleanEmp.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || nextNumber}`;
 
     const newTeacherProfile: UserProfile = {
       uid: newUid,
-      username: generatedUsername,
+      username: finalUsername,
       name: cleanName,
+      fullName: cleanName,
       email: cleanEmail,
       phone: data.phone.trim(),
+      mobile: data.phone.trim(),
       role: 'teacher',
       schoolId: SCHOOL_ID,
       status: 'active',
@@ -1892,16 +1906,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       designation: data.designation || 'Assistant Teacher (Primary)',
       subject: data.subject,
       isApproved: true,
-      mustChangePassword: true, // Requires mandatory password update on first login
+      mustChangePassword: data.mustChangePassword !== undefined ? data.mustChangePassword : true,
       password: tempPass,
-      createdAt: new Date().toISOString()
+      showPhonePublicly: data.showPhonePublicly !== undefined ? data.showPhonePublicly : false,
+      showOnWebsite: data.showOnWebsite !== undefined ? data.showOnWebsite : true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
-    setAllUsers(prev => [...prev, newTeacherProfile]);
+    setAllUsers(prev => [...prev.filter(u => u.uid !== newUid && u.username.toUpperCase() !== finalUsername), newTeacherProfile]);
     setDoc(doc(db, 'users', newUid), newTeacherProfile).catch(() => {});
-    addSecurityLog(generatedUsername, 'teacher', 'SUCCESS', 'LOGIN', `Teacher account provisioned by Head Teacher with temporary password`);
+    addSecurityLog(finalUsername, 'teacher', 'SUCCESS', 'LOGIN', `Teacher account provisioned by Head Teacher/Admin (${finalUsername})`);
 
-    return { success: true, user: newTeacherProfile, generatedUsername };
+    return { success: true, user: newTeacherProfile, generatedUsername: finalUsername };
   };
 
   // 4b. Direct Student & User Profile Creation by Admin / Head Teacher
@@ -2270,39 +2287,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // 1. Dispatch 6-digit OTP via custom SMTP Mailer
+    // 1. Dispatch 6-digit OTP via secure backend OTP service (OTP Only - No links)
     const otpResult = await sendPasswordResetOtpEmail(targetEmail, {
       username: targetUsername,
       role: targetRole || 'student'
     });
-
-    // 2. Also trigger Firebase reset email as background fallback
-    const currentOrigin = (typeof window !== 'undefined' && window.location.origin)
-      ? window.location.origin
-      : 'https://ais-pre-dfetqr7ov5ubh7ovmtp5og-1015841373275.asia-southeast1.run.app';
-
-    const actionCodeSettings = {
-      url: `${currentOrigin}/?mode=resetPassword`,
-      handleCodeInApp: true
-    };
-
-    try {
-      await sendPasswordResetEmail(auth, targetEmail, actionCodeSettings);
-    } catch (e: any) {
-      try {
-        await sendPasswordResetEmail(auth, targetEmail);
-      } catch (fallbackErr: any) {
-        if (fallbackErr.code === 'auth/user-not-found') {
-          try {
-            const tempPass = `Gov@${Math.random().toString(36).slice(-8)}!`;
-            await createUserWithEmailAndPassword(auth, targetEmail, tempPass);
-            await sendPasswordResetEmail(auth, targetEmail, actionCodeSettings);
-          } catch (createErr) {
-            // ignore
-          }
-        }
-      }
-    }
 
     const masked = maskEmail(targetEmail);
 
@@ -2311,7 +2300,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       targetRole || 'student',
       'SUCCESS',
       'PASSWORD_CHANGE',
-      `6-digit password reset OTP email dispatched via SMTP to ${masked}`
+      `6-digit password reset OTP email dispatched to ${masked}`
     );
 
     return {
@@ -2321,7 +2310,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       username: targetUsername,
       role: targetRole,
       otpSent: otpResult.success,
-      message: `6-अंकों का पासवर्ड रीसेट सुरक्षा कोड (OTP) आपके पंजीकृत ईमेल '${masked}' पर भेज दिया गया है।`
+      message: `यदि यह ईमेल पंजीकृत है, तो 6-अंकों का सत्यापन कोड भेज दिया गया है।`
     };
   };
 

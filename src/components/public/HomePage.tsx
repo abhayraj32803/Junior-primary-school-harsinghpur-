@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion, type Variants } from 'motion/react';
 import { useSchool } from '../../context/SchoolContext';
 import { recordPrivatePageView } from '../../utils/visitorAnalytics';
 import { 
@@ -118,13 +119,50 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         { id: '4', title: 'पौष्टिक मध्याह्न भोजन वितरण', imageUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80', category: 'Campus' }
       ];
 
+  // Government portal dignified cubic-bezier easing curve
+  const GOV_EASING: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+  const pageContainerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.12,
+        delayChildren: 0.05,
+      },
+    },
+  };
+
+  const sectionFadeInVariants: Variants = {
+    hidden: {
+      opacity: 0,
+      y: 20,
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.7,
+        ease: GOV_EASING,
+      },
+    },
+  };
+
   return (
-    <div className="space-y-12 sm:space-y-16 pb-16">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={pageContainerVariants}
+      className="space-y-12 sm:space-y-16 pb-16"
+    >
       
       {/* =========================================================================
           1. HERO SECTION (Vibrant, Colorful School Banner)
           ========================================================================= */}
-      <section className="relative bg-gov-navy-950 text-white overflow-hidden rounded-b-3xl sm:rounded-b-4xl border-b-4 border-gov-amber-500 shadow-xl">
+      <motion.section
+        variants={sectionFadeInVariants}
+        className="relative bg-gov-navy-950 text-white overflow-hidden rounded-b-3xl sm:rounded-b-4xl border-b-4 border-gov-amber-500 shadow-xl"
+      >
         {/* Subtle Decorative Gradient Aura / Glow */}
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-gov-amber-500/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/2 -right-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
@@ -208,12 +246,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
         {/* Bottom Tricolor Ribbon Accent */}
         <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-white to-emerald-500 opacity-90" />
-      </section>
+      </motion.section>
 
       {/* =========================================================================
           2. SCHOOL INFORMATION (4 Colorful & Vibrant Stat Cards)
           ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <motion.section
+        variants={sectionFadeInVariants}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
           
           {/* Card 1: Classes 1-8 (Warm Amber / Saffron) */}
@@ -293,12 +334,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </div>
 
         </div>
-      </section>
+      </motion.section>
 
       {/* =========================================================================
           3. ABOUT OUR SCHOOL (Rich & Attractive Warm Theme)
           ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <motion.section
+        variants={sectionFadeInVariants}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+      >
         <div className="bg-gradient-to-br from-white via-slate-50 to-amber-50/30 rounded-3xl p-6 sm:p-9 border-2 border-amber-200/70 shadow-sm relative overflow-hidden">
           <div className="absolute -top-16 -right-16 w-64 h-64 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
           
@@ -336,12 +380,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* =========================================================================
           4. IMPORTANT NOTICES (Latest 4 Notices with Colorful Category Badges)
           ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+      <motion.section
+        variants={sectionFadeInVariants}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4"
+      >
         
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -407,12 +454,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           )}
         </div>
 
-      </section>
+      </motion.section>
 
       {/* =========================================================================
           5. OUR FACILITIES (6 Colorful & Attractive Cards)
           ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+      <motion.section
+        variants={sectionFadeInVariants}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4"
+      >
         
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -500,12 +550,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           })}
         </div>
 
-      </section>
+      </motion.section>
 
       {/* =========================================================================
           6. ACTIVITIES & GALLERY (Rich & Colorful Combined Section)
           ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <motion.section
+        variants={sectionFadeInVariants}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6"
+      >
         
         <div className="bg-gradient-to-br from-white via-slate-50 to-purple-50/20 rounded-3xl p-6 sm:p-9 border-2 border-purple-200/60 shadow-sm space-y-6 relative overflow-hidden">
           <div className="absolute -top-16 -right-16 w-64 h-64 bg-purple-400/10 rounded-full blur-2xl pointer-events-none" />
@@ -610,12 +663,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
         </div>
 
-      </section>
+      </motion.section>
 
       {/* =========================================================================
           7. CONTACT & LOCATION (Address, Phone, Email, Google Map, Timings, Links)
           ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <motion.section
+        variants={sectionFadeInVariants}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6"
+      >
         
         <div className="bg-gradient-to-br from-white via-slate-50 to-blue-50/20 rounded-3xl p-6 sm:p-9 border-2 border-blue-200/60 shadow-sm space-y-6 relative overflow-hidden">
           <div className="absolute -top-16 -right-16 w-64 h-64 bg-blue-400/10 rounded-full blur-2xl pointer-events-none" />
@@ -762,8 +818,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
         </div>
 
-      </section>
+      </motion.section>
 
-    </div>
+    </motion.div>
   );
 };
