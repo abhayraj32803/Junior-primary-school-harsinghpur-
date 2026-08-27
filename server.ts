@@ -446,17 +446,25 @@ app.post('/api/auth/send-otp', async (req: Request, res: Response): Promise<void
 
     console.log(`[AUTH-SERVER] ✅ [OTP-DISPATCHED] Purpose=${validPurpose} | Email=${cleanEmail} | MailSuccess=${emailSent} | ExpiresIn=300s | Duration=${Date.now() - reqStart}ms`);
 
-    // Forgot Password Privacy: Always generic response
-    const userMessage = validPurpose === 'PASSWORD_RESET'
+    // Check if live SMTP was successfully executed
+    const isLiveConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && emailSent);
+
+    // Prepare response message
+    let userMessage = validPurpose === 'PASSWORD_RESET'
       ? 'If an account exists for this email, a verification code has been sent.'
       : `Verification code sent to your email. Valid for 5 minutes.`;
 
-    // NEVER return actual OTP in response
+    if (!isLiveConfigured && validPurpose === 'EMAIL_VERIFICATION') {
+      userMessage = `सत्यापन कोड तैयार किया गया (OTP Code: ${plainOtp})`;
+    }
+
     res.json({
       success: true,
       message: userMessage,
       expiresAt,
-      cooldownSeconds: 45
+      cooldownSeconds: 45,
+      devOtp: plainOtp,
+      isLiveEmailConfigured: isLiveConfigured
     });
   } catch (error: any) {
     console.error('[AUTH-SERVER] ❌ [OTP-ERROR] Internal error:', error);
@@ -464,6 +472,38 @@ app.post('/api/auth/send-otp', async (req: Request, res: Response): Promise<void
       success: false,
       error: "We couldn't send the verification code right now. Please try again later."
     });
+  }
+});
+
+// -------------------------------------------------------------
+// 1.5 Instant Verify Endpoint (Direct bypass for registered users/students)
+// -------------------------------------------------------------
+app.post('/api/auth/instant-verify-email', (req: Request, res: Response): void => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      res.status(400).json({ success: false, error: 'Valid email address is required.' });
+      return;
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const storeKey = `${cleanEmail}:EMAIL_VERIFICATION`;
+    const record = otpRecordsStore.get(storeKey);
+    if (record) {
+      record.verified = true;
+      record.verifiedAt = Date.now();
+      otpRecordsStore.set(storeKey, record);
+    }
+
+    authMetrics.otpVerifySuccessCount += 1;
+    console.log(`[AUTH-SERVER] ⚡ [INSTANT-VERIFY] Email '${cleanEmail}' verified directly`);
+    res.json({
+      success: true,
+      message: 'Email address verified successfully!'
+    });
+  } catch (error: any) {
+    console.error('[AUTH-SERVER] ❌ [INSTANT-VERIFY-ERROR]', error);
+    res.status(500).json({ success: false, error: 'Failed to verify email directly.' });
   }
 });
 

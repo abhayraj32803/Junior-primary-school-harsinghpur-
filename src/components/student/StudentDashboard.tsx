@@ -27,7 +27,8 @@ import {
   Mail,
   Send,
   RefreshCw,
-  KeyRound
+  KeyRound,
+  Zap
 } from 'lucide-react';
 import { StudentEmailVerificationModal } from '../common/StudentEmailVerificationModal';
 import { ReportCardPrint } from '../common/ReportCardPrint';
@@ -42,7 +43,13 @@ interface StudentDashboardProps {
 }
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigateTab }) => {
-  const { userProfile, isEmailVerified, sendStudentVerificationEmail, checkAndReloadEmailVerification } = useAuth();
+  const { 
+    userProfile, 
+    isEmailVerified, 
+    sendStudentVerificationEmail, 
+    checkAndReloadEmailVerification,
+    instantVerifyStudentEmail 
+  } = useAuth();
   const { 
     students, 
     examinations, 
@@ -69,6 +76,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigateTa
       setEmailStatusMsg(res.message || 'सत्यापन कोड/लिंक भेज दिया गया है।');
     } else {
       setEmailStatusMsg(res.error || 'ईमेल भेजने में त्रुटि हुई।');
+    }
+  };
+
+  const handleInstantVerifyEmail = async () => {
+    setResendingEmail(true);
+    setEmailStatusMsg(null);
+    const res = await instantVerifyStudentEmail();
+    setResendingEmail(false);
+    if (res.success) {
+      setEmailStatusMsg(res.message || 'ईमेल और खाता सफलतापूर्वक सत्यापित हो गया!');
+    } else {
+      setEmailStatusMsg(res.error || 'सत्यापन विफल रहा।');
     }
   };
 
@@ -159,13 +178,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigateTa
               <span>{language === 'hi' ? 'सत्यापन कोड दर्ज करें' : 'Enter 6-Digit OTP'}</span>
             </button>
             <button
+              onClick={handleInstantVerifyEmail}
+              disabled={resendingEmail}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              title="Instant 1-Click Verification"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-300" />
+              <span>{language === 'hi' ? '⚡ 1-क्लिक सत्यापन' : '⚡ 1-Click Verify'}</span>
+            </button>
+            <button
               onClick={handleResendEmail}
               disabled={resendingEmail}
               className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
               title="Resend code"
             >
               <Send className="w-3.5 h-3.5 text-blue-600" />
-              <span>{resendingEmail ? '...' : (language === 'hi' ? 'कोड पुनः भेजें' : 'Resend')}</span>
+              <span>{resendingEmail ? '...' : (language === 'hi' ? 'कोड भेजें' : 'Resend')}</span>
             </button>
             <button
               onClick={handleCheckEmail}

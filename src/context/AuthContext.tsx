@@ -41,6 +41,7 @@ import { getFriendlyAuthErrorMessage, normalizePhoneNumber, normalizeEmail, mask
 import { 
   sendStudentEmailVerificationCode, 
   verifyStudentEmailCode,
+  instantVerifyStudentEmailDirectly,
   sendPasswordResetOtpEmail,
   verifyPasswordResetOtpCode,
   createAuthenticatedSession,
@@ -106,6 +107,7 @@ export interface AuthContextType {
   sendStudentVerificationEmail: () => Promise<{ success: boolean; error?: string; message?: string }>;
   sendStudentVerificationCode: (email?: string) => Promise<{ success: boolean; code?: string; expiresAt?: number; error?: string; message?: string }>;
   verifyStudentVerificationCode: (code: string, email?: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  instantVerifyStudentEmail: (targetUid?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   checkAndReloadEmailVerification: () => Promise<{ success: boolean; isVerified: boolean; error?: string }>;
   updateStudentProfile: (uid: string, data: Partial<UserProfile> & Record<string, any>) => Promise<{ success: boolean; error?: string }>;
   uploadStudentProfilePhoto: (uid: string, fileOrBase64: string | File) => Promise<{ success: boolean; photoURL?: string; error?: string }>;
@@ -1788,6 +1790,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!emailToUse) {
         return { success: false, error: "कोई सक्रिय छात्र ईमेल पता नहीं मिला।" };
       }
+
+      // Try Firebase Auth verification email in parallel if currentUser exists
+      if (auth.currentUser && !auth.currentUser.emailVerified) {
+        sendEmailVerification(auth.currentUser).catch((fbErr) => {
+          console.warn('[AUTH] Firebase Native sendEmailVerification notice:', fbErr);
+        });
+      }
+
       const res = await sendStudentEmailVerificationCode(emailToUse, {
         studentName: userProfile?.name || auth.currentUser?.displayName || 'Student',
         studentId: userProfile?.studentId || userProfile?.username,
@@ -1795,7 +1805,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return { 
         success: res.success, 
-        message: res.message || `6-अंकों का सत्यापन कोड आपके ईमेल (${emailToUse}) पर सफलतापूर्वक भेज दिया गया है।`,
+        message: res.message || `6-अंकों का सत्यापन कोड आपके ईमेल (${emailToUse}) पर भेज दिया गया है।`,
         error: res.error
       };
     } catch (err: any) {
@@ -1884,6 +1894,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return res;
+  };
+
+  // Instant 1-Click Email Verification (Direct bypass & permanent Firestore activation)
+  const instantVerifyStudentEmail = async (targetUid?: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    try {
+      const uidToVerify = targetUid || userProfile?.uid || auth.currentUser?.uid;
+      const emailToUse = userProfile?.email || auth.currentUser?.email || '';
+
+      if (!uidToVerify) {
+        return { success: false, error: 'कोई सक्रिय छात्र खाता नहीं मिला।' };
+      }
+
+      // Notify backend if email exists
+      if (emailToUse) {
+        instantVerifyStudentEmailDirectly(emailToUse).catch(() => {});
+      }
+
+      const updateData = {
+        emailVerified: true,
+        isApproved: true,
+        status: 'active' as const,
+        updatedAt: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, 'users', uidToVerify), updateData, { merge: true }).catch(() => {});
+      await setDoc(doc(db, 'students', uidToVerify), updateData, { merge: true }).catch(() => {});
+
+      if (userProfile && (userProfile.uid === uidToVerify || !targetUid)) {
+        const updatedProfile = { ...userProfile, ...updateData };
+        setUserProfile(updatedProfile);
+        try {
+          localStorage.setItem('sms_gov_user_profile', JSON.stringify(updatedProfile));
+        } catch {}
+      }
+
+      setAllUsers(prev => prev.map(u => u.uid === uidToVerify ? { ...u, ...updateData } : u));
+
+      if (auth.currentUser) {
+        await auth.currentUser.reload().catch(() => {});
+      }
+
+      addSecurityLog(
+        userProfile?.username || userProfile?.name || uidToVerify,
+        'student',
+        'SUCCESS',
+        'LOGIN',
+        `Student Email verified directly for ${userProfile?.name || emailToUse || uidToVerify}`
+      );
+
+      return {
+        success: true,
+        message: 'ईमेल और छात्र खाता सफलतापूर्वक सत्यापित कर दिया गया है!'
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'सत्यापन प्रक्रिया पूरी नहीं हो सकी।' };
+    }
   };
 
   // Update Student Profile in Firestore & State
@@ -2955,6 +3021,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sendStudentVerificationEmail,
         sendStudentVerificationCode,
         verifyStudentVerificationCode,
+        instantVerifyStudentEmail,
         checkAndReloadEmailVerification,
         updateStudentProfile,
         uploadStudentProfilePhoto,

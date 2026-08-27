@@ -31,7 +31,8 @@ import {
   CreditCard,
   UserCheck,
   Mail,
-  KeyRound
+  KeyRound,
+  Zap
 } from 'lucide-react';
 import { StudentEmailVerificationModal } from '../common/StudentEmailVerificationModal';
 import { StudentIdCardPrint } from '../common/StudentIdCardPrint';
@@ -47,7 +48,7 @@ interface StudentProfileProps {
 }
 
 export const StudentProfile: React.FC<StudentProfileProps> = ({ onNavigateTab }) => {
-  const { userProfile, updateStudentProfile, isEmailVerified, checkAndReloadEmailVerification } = useAuth();
+  const { userProfile, updateStudentProfile, isEmailVerified, checkAndReloadEmailVerification, instantVerifyStudentEmail } = useAuth();
   const { students, documents, settings, language, updateStudent } = useSchool();
 
   const currentStudent = resolveCurrentStudent(userProfile, students);
@@ -56,8 +57,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ onNavigateTab })
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [is360Open, setIs360Open] = useState(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [instantLoading, setInstantLoading] = useState(false);
   const [selectedDocForViewer, setSelectedDocForViewer] = useState<StudentDocument | null>(null);
   const [activeTab, setActiveTab] = useState<'biodata' | 'academic' | 'contact' | 'docs'>('biodata');
+
+  const handleInstantVerify = async () => {
+    setInstantLoading(true);
+    await instantVerifyStudentEmail();
+    setInstantLoading(false);
+  };
 
   // Profile Edit State
   const [isEditing, setIsEditing] = useState(false);
@@ -538,14 +546,26 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ onNavigateTab })
                       <span>{userProfile?.email || currentStudent?.email || 'student@school.gov.in'}</span>
                     </div>
                     {!isEmailVerified && (
-                      <button
-                        type="button"
-                        onClick={() => setIsVerificationModalOpen(true)}
-                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                      >
-                        <KeyRound className="w-3.5 h-3.5 text-amber-300" />
-                        <span>{language === 'hi' ? '6-अंकों का कोड दर्ज करें' : 'Verify with 6-Digit OTP'}</span>
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsVerificationModalOpen(true)}
+                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-amber-300" />
+                          <span>{language === 'hi' ? '6-अंकों का कोड दर्ज करें' : 'Verify OTP'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleInstantVerify}
+                          disabled={instantLoading}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                          title="Instant 1-Click Verification"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-amber-300" />
+                          <span>{instantLoading ? '...' : (language === 'hi' ? '⚡ 1-क्लिक सत्यापन' : '⚡ Instant Verify')}</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
