@@ -54,7 +54,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     login, 
     isAuthenticated, 
     userProfile, 
-    logout 
+    logout,
+    createOrUpdatePasswordAfterVerification
   } = useAuth();
   const { settings, language } = useSchool();
 
@@ -124,6 +125,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       return;
     }
 
+    console.log('[AUTH-CLIENT] 🚀 [LOGIN-SUBMIT-TRIGGERED]', {
+      role: selectedRole,
+      identifier: identifier.trim(),
+      timestamp: new Date().toISOString()
+    });
+
     setError(null);
     setLoading(true);
 
@@ -131,8 +138,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setLoading(false);
 
     if (res.success) {
+      console.log('[AUTH-CLIENT] 🎉 [LOGIN-SUBMIT-SUCCESS] User authenticated successfully. Redirecting...');
       handleSuccess();
     } else {
+      console.warn('[AUTH-CLIENT] ⚠️ [LOGIN-SUBMIT-ERROR] Login failed:', res.error);
       setError(res.error || (language === 'hi' ? 'लॉगिन असफल रहा। कृपया सही क्रेडेंशियल दर्ज करें।' : 'Failed to authenticate. Please check your credentials.'));
     }
   };
@@ -234,6 +243,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setResetLoading(true);
     const targetEmail = resetResult?.email || resetInput.trim();
     const res = await completePasswordResetWithToken(targetEmail, resetSessionToken, directPassword);
+    
+    // Also synchronize password with AuthContext, Firestore, and local state
+    try {
+      const syncTarget = resetResult?.username || resetResult?.email || resetInput.trim();
+      await createOrUpdatePasswordAfterVerification(syncTarget, directPassword);
+      if (resetResult?.email && syncTarget !== resetResult.email) {
+        await createOrUpdatePasswordAfterVerification(resetResult.email, directPassword);
+      }
+    } catch (syncErr) {
+      console.warn("Password sync warning:", syncErr);
+    }
+    
     setResetLoading(false);
 
     if (res.success) {

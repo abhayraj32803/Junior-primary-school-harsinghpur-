@@ -13,7 +13,8 @@ import {
   Palette,
   CheckCircle2,
   ShieldCheck,
-  Zap
+  Zap,
+  Clock
 } from 'lucide-react';
 import { AdminHomepage } from '../AdminHomepage';
 import { AdminNoticeTicker } from '../AdminNoticeTicker';
@@ -24,10 +25,12 @@ import { AdminFacilities } from '../AdminFacilities';
 import { AdminSchemes } from '../AdminSchemes';
 import { AdminAdmission } from '../AdminAdmission';
 import { AdminContact } from '../AdminContact';
+import { AdminTimingsCalendar } from '../AdminTimingsCalendar';
 
 export type WebsiteSubTab = 
   | 'homepage-mgmt' 
   | 'notice-ticker'
+  | 'timings-calendar-mgmt'
   | 'educational-videos' 
   | 'media-library' 
   | 'school-profile' 
@@ -199,6 +202,13 @@ export const AdminWebsiteHub: React.FC<AdminWebsiteHubProps> = ({
       labelHi: 'लाइव सूचना टिकर',
       icon: Radio,
       badge: 'Live'
+    },
+    {
+      id: 'timings-calendar-mgmt' as WebsiteSubTab,
+      labelEn: 'School Timings & Academic Calendar',
+      labelHi: 'विद्यालय समय व शैक्षिक कैलेंडर',
+      icon: Clock,
+      badge: 'Public Sync'
     },
     {
       id: 'educational-videos' as WebsiteSubTab,
@@ -395,6 +405,7 @@ export const AdminWebsiteHub: React.FC<AdminWebsiteHubProps> = ({
       <div className="animate-in fade-in duration-150">
         {activeSubTab === 'homepage-mgmt' && <AdminHomepage />}
         {activeSubTab === 'notice-ticker' && <AdminNoticeTicker />}
+        {activeSubTab === 'timings-calendar-mgmt' && <AdminTimingsCalendar />}
         {activeSubTab === 'educational-videos' && <AdminEducationalVideos />}
         {activeSubTab === 'media-library' && <AdminMediaLibrary />}
         {activeSubTab === 'school-profile' && <AdminSchoolProfile />}

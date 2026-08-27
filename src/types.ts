@@ -3,7 +3,7 @@ export type UserRole = 'admin' | 'teacher' | 'student';
 export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type AccountStatus = 'active' | 'inactive' | 'pending' | 'suspended' | 'disabled';
 
-export type AttendanceStatus = 'present' | 'absent' | 'late';
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'half_day' | 'half-day';
 
 export type StudentStatus = 'active' | 'inactive' | 'transferred';
 export type TeacherStatus = 'active' | 'on_leave' | 'inactive';
@@ -761,6 +761,92 @@ export interface SchoolSettings {
   homepageFacilities?: HomepageFacilityItem[];
   // Cohesive Portal Theme Palette
   themePalette?: 'government_professional' | 'tricolor_vibrant' | 'royal_navy' | 'modern_emerald';
+  // School Timings & Academic Calendar Configuration (Reflected on Contact, About & Public Pages)
+  schoolTimings?: SchoolTimingsConfig;
+  academicCalendar?: AcademicCalendarConfig;
+}
+
+export interface SchoolHolidayItem {
+  id: string;
+  titleEn: string;
+  titleHi: string;
+  startDate: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+  daysCount: number;
+  type: 'Gazetted' | 'Restricted' | 'Vacation' | 'National Holiday' | 'Regional';
+  descriptionEn?: string;
+  descriptionHi?: string;
+  academicYear?: string;
+  isActive: boolean;
+}
+
+export interface AcademicMilestone {
+  id: string;
+  titleEn: string;
+  titleHi: string;
+  date: string;
+  endDate?: string;
+  category: 'Session' | 'Examination' | 'Admission' | 'Vacation' | 'Evaluation' | 'Event';
+  descriptionEn?: string;
+  descriptionHi?: string;
+}
+
+export interface SchoolTimingsConfig {
+  activeScheduleMode: 'auto' | 'summer' | 'winter' | 'custom';
+  
+  // Summer Schedule (1 April - 30 Sept)
+  summerTiming: {
+    openingTime: string; // "08:00 AM"
+    closingTime: string; // "02:00 PM"
+    assemblyTime: string; // "08:00 AM - 08:20 AM"
+    recessTime: string;   // "10:30 AM - 11:00 AM"
+    effectivePeriodEn: string; // "1 April to 30 September"
+    effectivePeriodHi: string; // "1 अप्रैल से 30 सितम्बर"
+  };
+
+  // Winter Schedule (1 Oct - 31 March)
+  winterTiming: {
+    openingTime: string; // "09:00 AM"
+    closingTime: string; // "03:00 PM"
+    assemblyTime: string; // "09:00 AM - 09:20 AM"
+    recessTime: string;   // "11:30 AM - 12:00 PM"
+    effectivePeriodEn: string; // "1 October to 31 March"
+    effectivePeriodHi: string; // "1 अक्टूबर से 31 मार्च"
+  };
+
+  // Office & Public Helpdesk Hours
+  officeHours: {
+    startTime: string; // "08:30 AM"
+    endTime: string;   // "01:30 PM"
+    workingDaysSummaryEn: string;
+    workingDaysSummaryHi: string;
+    visitorGuidelineEn: string;
+    visitorGuidelineHi: string;
+  };
+
+  workingDaysList: string[];
+  weeklyOff: string;
+  notesEn?: string;
+  notesHi?: string;
+  lastUpdated?: string;
+}
+
+export interface AcademicCalendarConfig {
+  academicYear: string; // "2025-2026"
+  sessionStart: string; // "2025-04-01"
+  sessionEnd: string;   // "2026-03-31"
+  totalWorkingDaysTarget: number; // 240
+  summerVacationStart: string; // "2025-05-20"
+  summerVacationEnd: string;   // "2025-06-30"
+  winterVacationStart: string; // "2025-12-31"
+  winterVacationEnd: string;   // "2026-01-14"
+  halfYearlyExamPeriod: string; // "October 2025"
+  annualExamPeriod: string;     // "March 2026"
+  resultsDeclarationDate: string; // "2026-03-31"
+  officialCalendarDocUrl?: string;
+  holidays: SchoolHolidayItem[];
+  milestones: AcademicMilestone[];
+  lastUpdated?: string;
 }
 
 export interface HomepageFacilityItem {

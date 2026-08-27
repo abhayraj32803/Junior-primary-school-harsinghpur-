@@ -10,7 +10,12 @@ import {
   Building, 
   ShieldCheck, 
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  CalendarDays,
+  Sun,
+  Snowflake,
+  Coffee,
+  Info
 } from 'lucide-react';
 
 export const ContactPage: React.FC = () => {
@@ -28,6 +33,65 @@ export const ContactPage: React.FC = () => {
     e.preventDefault();
     setSubmitted(true);
   };
+
+  // Timings from settings
+  const timings = settings.schoolTimings;
+  const calendar = settings.academicCalendar;
+
+  // Determine active schedule details
+  const getActiveTiming = () => {
+    if (!timings) {
+      return {
+        labelEn: 'Summer Schedule',
+        labelHi: 'ग्रीष्मकालीन समय',
+        isSummer: true,
+        open: '08:00 AM',
+        close: '02:00 PM',
+        assembly: '08:00 AM – 08:20 AM',
+        recess: '10:30 AM – 11:00 AM',
+        officeStart: '08:30 AM',
+        officeEnd: '01:30 PM',
+        summaryHi: 'सोमवार से शनिवार (रविवार एवं राजपत्रित अवकाश में बंद)',
+        summaryEn: 'Monday to Saturday (Sunday Closed)'
+      };
+    }
+
+    let isSummer = true;
+    if (timings.activeScheduleMode === 'winter') {
+      isSummer = false;
+    } else if (timings.activeScheduleMode === 'summer' || timings.activeScheduleMode === 'custom') {
+      isSummer = true;
+    } else {
+      const month = new Date().getMonth() + 1;
+      isSummer = month >= 4 && month <= 9;
+    }
+
+    const currentSeasonal = isSummer ? timings.summerTiming : timings.winterTiming;
+    return {
+      labelEn: isSummer ? 'Summer Schedule' : 'Winter Schedule',
+      labelHi: isSummer ? 'ग्रीष्मकालीन समय' : 'शीतकालीन समय',
+      isSummer,
+      open: currentSeasonal?.openingTime || (isSummer ? '08:00 AM' : '09:00 AM'),
+      close: currentSeasonal?.closingTime || (isSummer ? '02:00 PM' : '03:00 PM'),
+      assembly: currentSeasonal?.assemblyTime || (isSummer ? '08:00 AM – 08:20 AM' : '09:00 AM – 09:20 AM'),
+      recess: currentSeasonal?.recessTime || (isSummer ? '10:30 AM – 11:00 AM' : '11:30 AM – 12:00 PM'),
+      officeStart: timings.officeHours?.startTime || '08:30 AM',
+      officeEnd: timings.officeHours?.endTime || '01:30 PM',
+      summaryHi: timings.officeHours?.workingDaysSummaryHi || 'सोमवार से शनिवार (रविवार एवं राजपत्रित अवकाश में बंद)',
+      summaryEn: timings.officeHours?.workingDaysSummaryEn || 'Monday to Saturday (Closed on Sundays & Gazetted Holidays)',
+      guidelineHi: timings.officeHours?.visitorGuidelineHi,
+      guidelineEn: timings.officeHours?.visitorGuidelineEn
+    };
+  };
+
+  const activeTiming = getActiveTiming();
+
+  // Upcoming holidays
+  const allHolidays = calendar?.holidays || [];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const upcomingHolidays = allHolidays
+    .filter(h => h.isActive !== false)
+    .slice(0, 4);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-10 sm:space-y-12 overflow-x-hidden">
@@ -92,19 +156,45 @@ export const ContactPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
+              {/* Dynamic Daily School Timings */}
+              <div className="flex items-start gap-3 border-t border-slate-800/80 pt-3">
                 <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
-                <div>
-                  <div className="font-bold text-white text-xs">
-                    {language === 'hi' ? 'विद्यालय कार्य समय' : 'School Office Timings'}
+                <div className="space-y-1.5 w-full">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">
+                      {language === 'hi' ? 'विद्यालय दैनिक संचालन समय' : 'Daily School Operating Hours'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-bold">
+                      {language === 'hi' ? activeTiming.labelHi : activeTiming.labelEn}
+                    </span>
                   </div>
-                  <p className="text-slate-300 mt-0.5">
-                    {language === 'hi' 
-                      ? 'सोमवार से शनिवार: 08:30 AM से 03:00 PM (रविवार एवं राजपत्रित अवकाश बंद)' 
-                      : 'Monday to Saturday: 08:30 AM to 03:00 PM (Sunday Closed)'}
+
+                  <p className="text-white font-mono font-bold text-sm">
+                    {activeTiming.open} – {activeTiming.close}
                   </p>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-300 pt-1">
+                    <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/50">
+                      <span className="text-slate-400 block text-[10px]">{language === 'hi' ? 'प्रातः प्रार्थना:' : 'Prayer Assembly:'}</span>
+                      <span className="font-semibold text-slate-200">{activeTiming.assembly}</span>
+                    </div>
+                    <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/50">
+                      <span className="text-slate-400 block text-[10px]">{language === 'hi' ? 'मध्याह्न भोजन (MDM):' : 'MDM Recess:'}</span>
+                      <span className="font-semibold text-slate-200">{activeTiming.recess}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/40 text-[11px] text-slate-300 space-y-1">
+                    <div className="flex items-center justify-between text-slate-200 font-medium">
+                      <span>{language === 'hi' ? 'कार्यालय / जनसामान्य समय:' : 'Office / Visitor Timings:'}</span>
+                      <span className="text-amber-300 font-mono font-bold">{activeTiming.officeStart} – {activeTiming.officeEnd}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      {language === 'hi' ? activeTiming.summaryHi : activeTiming.summaryEn}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -114,6 +204,49 @@ export const ContactPage: React.FC = () => {
               <span>{language === 'hi' ? 'शिक्षा का अधिकार (RTE 2009) सहायता केंद्र' : 'Right to Education (RTE) Helpdesk Active'}</span>
             </div>
           </div>
+
+          {/* Upcoming School Holidays & Closures Card */}
+          {upcomingHolidays.length > 0 && (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4 text-amber-600" />
+                  <h4 className="font-bold text-slate-900 text-xs sm:text-sm">
+                    {language === 'hi' ? 'आगामी शासकीय अवकाश एवं सूचना' : 'Upcoming Holidays & Closures'}
+                  </h4>
+                </div>
+                <span className="text-[10px] font-bold text-slate-400 font-mono">
+                  Session {calendar?.academicYear || '2025-26'}
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                {upcomingHolidays.map((hol) => (
+                  <div key={hol.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <div className="font-bold text-slate-900">
+                        {language === 'hi' ? hol.titleHi : hol.titleEn}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
+                        <span>{hol.startDate} {hol.endDate && `to ${hol.endDate}`}</span>
+                        <span>•</span>
+                        <span className="font-semibold text-slate-700">{hol.daysCount} {hol.daysCount > 1 ? 'days' : 'day'}</span>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 ${
+                      hol.type === 'National Holiday'
+                        ? 'bg-blue-100 text-blue-800'
+                        : hol.type === 'Vacation'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-900'
+                    }`}>
+                      {hol.type}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Query Submission Form */}

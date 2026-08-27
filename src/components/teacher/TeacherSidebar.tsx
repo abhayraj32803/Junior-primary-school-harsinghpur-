@@ -63,7 +63,7 @@ export const TeacherSidebar: React.FC<TeacherSidebarProps> = ({
       items: [
         { id: 'dashboard', labelEn: 'Faculty Dashboard', labelHi: 'शिक्षक डैशबोर्ड', icon: Home },
         { id: 'students', labelEn: 'Assigned Students', labelHi: 'कक्षा के छात्र', icon: GraduationCap },
-        { id: 'attendance', labelEn: 'Daily Attendance', labelHi: 'छात्र उपस्थिति', icon: CalendarCheck2 },
+        { id: 'attendance', labelEn: 'Attendance Register', labelHi: 'दैनिक उपस्थिति पंजिका', icon: CalendarCheck2 },
         { id: 'marks', labelEn: 'Marks & Evaluations', labelHi: 'परीक्षा प्राप्तांक व प्रगति', icon: Award },
         { id: 'homework', labelEn: 'Homework Desk', labelHi: 'दैनिक गृहकार्य', icon: BookOpenCheck, badge: homeworkList.length },
         { id: 'timetable', labelEn: 'Teaching Timetable', labelHi: 'शिक्षण समय-सारिणी', icon: Clock },

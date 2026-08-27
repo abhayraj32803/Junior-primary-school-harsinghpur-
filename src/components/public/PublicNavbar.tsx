@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { GlobalSearchModal } from '../common/GlobalSearchModal';
+import { QuickFinderModal } from './QuickFinderModal';
 import { 
   School, 
   LogIn, 
@@ -65,6 +66,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isFinderOpen, setIsFinderOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [fontSizeScale, setFontSizeScale] = useState<'normal' | 'large' | 'larger'>('normal');
   const [highContrast, setHighContrast] = useState(false);
@@ -177,6 +179,20 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
         onNavigate={(p) => {
           handleNavClick(p);
           setIsSearchOpen(false);
+        }}
+      />
+
+      {/* Quick Finder / Easy Guide Modal for Students & Parents */}
+      <QuickFinderModal
+        isOpen={isFinderOpen}
+        onClose={() => setIsFinderOpen(false)}
+        onNavigate={(p) => {
+          handleNavClick(p);
+          setIsFinderOpen(false);
+        }}
+        onOpenPortal={() => {
+          handleOpenPortal();
+          setIsFinderOpen(false);
         }}
       />
 
@@ -388,9 +404,20 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               </button>
             </div>
 
-            {/* Right: Quick Search + Free Admission CTA + Hamburger */}
+            {/* Right: Easy Guide + Quick Search + Free Admission CTA + Hamburger */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
               
+              {/* Easy Student & Parent Guide (कहाँ क्या मिलेगा?) */}
+              <button
+                onClick={() => setIsFinderOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-[11px] sm:text-xs shadow-md shadow-amber-500/20 hover:shadow-amber-500/40 transition-all cursor-pointer shrink-0 border border-amber-300 transform hover:-translate-y-0.5 active:scale-95"
+                title={language === 'hi' ? 'कक्षा 1 से 8 विद्यार्थी व अभिभावक आसान गाइड' : 'Class 1-8 Easy Navigation Guide'}
+                id="btn-nav-guide"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-slate-950 shrink-0" />
+                <span>{language === 'hi' ? 'कहाँ क्या मिलेगा?' : 'Easy Guide'}</span>
+              </button>
+
               {/* Universal Search (IIT Delhi Search Icon / Ctrl+K) */}
               <button
                 onClick={() => setIsSearchOpen(true)}
@@ -534,6 +561,31 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 <span>{language === 'hi' ? '← पिछले पृष्ठ पर वापस जाएं' : '← Back to Previous Screen'}</span>
               </button>
             )}
+
+            {/* Easy Guide Quick Banner in Mobile Drawer for Students & Parents */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setIsFinderOpen(true);
+              }}
+              className="w-full min-h-[50px] p-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-slate-950 text-left flex items-center justify-between shadow-md transition-all group cursor-pointer touch-manipulation border-2 border-amber-300 active:scale-[0.98]"
+              id="btn-drawer-quick-guide"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-white text-amber-700 flex items-center justify-center font-black text-sm shadow-xs shrink-0">
+                  🧭
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-slate-950 truncate">
+                    {language === 'hi' ? 'कहाँ क्या मिलेगा? (आसान गाइड)' : 'Where to Find What? (Guide)'}
+                  </div>
+                  <div className="text-[10px] text-amber-950 font-bold truncate">
+                    {language === 'hi' ? 'कक्षा 1-8 खाना, किताबें, रिजल्ट, छुट्टियां' : 'Class 1-8 Books, Food, Results'}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform shrink-0" />
+            </button>
 
             {/* Search Bar in Mobile Drawer */}
             <div 

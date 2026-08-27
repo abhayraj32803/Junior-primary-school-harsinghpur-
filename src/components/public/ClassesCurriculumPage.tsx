@@ -13,11 +13,28 @@ import {
 
 export const ClassesCurriculumPage: React.FC = () => {
   const { classes, subjects, sections, language } = useSchool();
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || 'class-1');
+  
+  // Read stored class id if navigated from Student Guide
+  const [selectedClassId, setSelectedClassId] = useState<string>(() => {
+    try {
+      const stored = sessionStorage.getItem('sms_selected_class_id');
+      if (stored && classes.some(c => c.id === stored)) {
+        return stored;
+      }
+    } catch {}
+    return classes[0]?.id || 'class-1';
+  });
 
   const currentClass = classes.find(c => c.id === selectedClassId) || classes[0];
   const classSubjects = subjects.filter(s => s.classId === selectedClassId);
   const classSections = sections.filter(s => s.classId === selectedClassId);
+
+  const handleSelectClass = (id: string) => {
+    setSelectedClassId(id);
+    try {
+      sessionStorage.setItem('sms_selected_class_id', id);
+    } catch {}
+  };
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 sm:space-y-10 overflow-x-hidden">
@@ -44,7 +61,7 @@ export const ClassesCurriculumPage: React.FC = () => {
           return (
             <button
               key={cls.id}
-              onClick={() => setSelectedClassId(cls.id)}
+              onClick={() => handleSelectClass(cls.id)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 isSelected
                   ? 'bg-slate-900 text-amber-400 shadow-md scale-105'

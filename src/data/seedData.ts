@@ -265,7 +265,383 @@ export const initialSettings: SchoolSettings = {
       descEn: 'Hygienic hot-cooked nutritious meals, seasonal fruits, and warm milk as per state menu.',
       icon: 'Utensils'
     }
-  ]
+  ],
+  schoolTimings: {
+    activeScheduleMode: 'auto',
+    summerTiming: {
+      openingTime: '08:00 AM',
+      closingTime: '02:00 PM',
+      assemblyTime: '08:00 AM – 08:20 AM',
+      recessTime: '10:30 AM – 11:00 AM',
+      effectivePeriodEn: '1 April to 30 September',
+      effectivePeriodHi: '1 अप्रैल से 30 सितम्बर (ग्रीष्मकालीन)'
+    },
+    winterTiming: {
+      openingTime: '09:00 AM',
+      closingTime: '03:00 PM',
+      assemblyTime: '09:00 AM – 09:20 AM',
+      recessTime: '11:30 AM – 12:00 PM',
+      effectivePeriodEn: '1 October to 31 March',
+      effectivePeriodHi: '1 अक्टूबर से 31 मार्च (शीतकालीन)'
+    },
+    officeHours: {
+      startTime: '08:30 AM',
+      endTime: '01:30 PM',
+      workingDaysSummaryEn: 'Monday to Saturday (Closed on Sunday & Gazetted Holidays)',
+      workingDaysSummaryHi: 'सोमवार से शनिवार (रविवार एवं राजपत्रित अवकाश में बंद)',
+      visitorGuidelineEn: 'Parents & public visitors are requested to meet the Headmaster with valid photo ID during office hours.',
+      visitorGuidelineHi: 'अभिभावक एवं आगंतुक वैध पहचान पत्र के साथ कार्यालय समय में प्रधानाध्यापिका से संपर्क करें।'
+    },
+    workingDaysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    weeklyOff: 'Sunday (रविवार)',
+    notesEn: 'Timings are regulated under Uttar Pradesh Basic Shiksha Parishad directives. Prayer assembly and Mid-Day Meal sessions are conducted strictly on schedule.',
+    notesHi: 'विद्यालय संचालन समय उत्तर प्रदेश बेसिक शिक्षा परिषद के शासनादेशों के अनुरूप है। प्रातः प्रार्थना सभा एवं मध्याह्न भोजन निर्धारित समय पर संपन्न होता है।',
+    lastUpdated: '2025-04-01'
+  },
+  academicCalendar: {
+    academicYear: '2025-2026',
+    sessionStart: '2025-04-01',
+    sessionEnd: '2026-03-31',
+    totalWorkingDaysTarget: 240,
+    summerVacationStart: '2025-05-20',
+    summerVacationEnd: '2025-06-30',
+    winterVacationStart: '2025-12-31',
+    winterVacationEnd: '2026-01-14',
+    halfYearlyExamPeriod: 'October / November 2025',
+    annualExamPeriod: 'March 2026',
+    resultsDeclarationDate: '2026-03-31',
+    officialCalendarDocUrl: '',
+    milestones: [
+      {
+        id: 'ms-01',
+        titleEn: 'Commencement of New Academic Session (2025-26)',
+        titleHi: 'नवीन शैक्षिक सत्र 2025-26 का शुभारंभ व प्रवेश उत्सव',
+        date: '2025-04-01',
+        category: 'Session',
+        descriptionEn: 'Free textbook distribution, student welcome, and admission drive start.',
+        descriptionHi: 'नि:शुल्क पाठ्यपुस्तक वितरण एवं छात्र नामांकन अभियान प्रारंभ।'
+      },
+      {
+        id: 'ms-02',
+        titleEn: 'Summer Vacation (ग्रीष्मकालीन अवकाश)',
+        titleHi: 'ग्रीष्मकालीन अवकाश (42 दिवस)',
+        date: '2025-05-20',
+        endDate: '2025-06-30',
+        category: 'Vacation',
+        descriptionEn: 'Annual summer break for students and primary teachers as per council order.',
+        descriptionHi: 'बेसिक शिक्षा परिषद के आदेशानुसार ग्रीष्मावकाश।'
+      },
+      {
+        id: 'ms-03',
+        titleEn: 'School Reopening & NIPUN Assessment Phase 1',
+        titleHi: 'विद्यालय पुनरारंभ एवं निपुण मूल्यांकन चरण-1',
+        date: '2025-07-01',
+        category: 'Evaluation',
+        descriptionEn: 'Classes resume with foundational literacy and numeracy diagnostics.',
+        descriptionHi: 'कक्षाओं का सुचारू संचालन व बुनियादी दक्षता मूल्यांकन।'
+      },
+      {
+        id: 'ms-04',
+        titleEn: 'Half Yearly Examinations (अर्द्धवार्षिक परीक्षा)',
+        titleHi: 'सत्रीय / अर्द्धवार्षिक परीक्षा 2025',
+        date: '2025-10-27',
+        endDate: '2025-11-04',
+        category: 'Examination',
+        descriptionEn: 'Council-prescribed mid-term assessment across Classes 1 through 8.',
+        descriptionHi: 'कक्षा 1 से 8 हेतु राज्य स्तरीय प्रश्नपत्रों पर आधारित मूल्यांकन।'
+      },
+      {
+        id: 'ms-05',
+        titleEn: 'Winter Vacation (शीतकालीन अवकाश)',
+        titleHi: 'शीतकालीन अवकाश (15 दिवस)',
+        date: '2025-12-31',
+        endDate: '2026-01-14',
+        category: 'Vacation',
+        descriptionEn: 'Winter recess as per Directorate of Basic Education order.',
+        descriptionHi: 'अत्यधिक ठंड एवं कोहरे के दृष्टिगत परिषद द्वारा घोषित शीतकालीन अवकाश।'
+      },
+      {
+        id: 'ms-06',
+        titleEn: 'Annual Examinations (वार्षिक परीक्षा 2026)',
+        titleHi: 'वार्षिक परीक्षा एवं मौखिक/लिखित मूल्यांकन',
+        date: '2026-03-16',
+        endDate: '2026-03-24',
+        category: 'Examination',
+        descriptionEn: 'Comprehensive annual examinations and portfolio grading.',
+        descriptionHi: 'कक्षा 1 से 8 के छात्र-छात्राओं का अंतिम वार्षिक मूल्यांकन।'
+      },
+      {
+        id: 'ms-07',
+        titleEn: 'Annual Report Card Distribution & SMC Meet',
+        titleHi: 'वार्षिक परीक्षाफल (प्रगति पत्रक) वितरण एवं एसएमसी बैठक',
+        date: '2026-03-31',
+        category: 'Session',
+        descriptionEn: 'Official distribution of Report Cards and graduation to next class.',
+        descriptionHi: 'अभिभावकों की उपस्थिति में प्रगति पत्रक वितरण व आगामी कक्षा में प्रोन्नति।'
+      }
+    ],
+    holidays: [
+      {
+        id: 'hol-01',
+        titleEn: 'Mahavir Jayanti',
+        titleHi: 'महावीर जयंती',
+        startDate: '2025-04-10',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Birth anniversary of Lord Mahavira',
+        descriptionHi: 'भगवान महावीर जन्म कल्याणक',
+        isActive: true
+      },
+      {
+        id: 'hol-02',
+        titleEn: 'Dr. B.R. Ambedkar Jayanti',
+        titleHi: 'डॉ. भीमराव आंबेडकर जयंती',
+        startDate: '2025-04-14',
+        daysCount: 1,
+        type: 'National Holiday',
+        descriptionEn: 'Birth anniversary of Constitution architect Bharat Ratna Babasaheb Ambedkar',
+        descriptionHi: 'संविधान निर्माता भारतरत्न बाबासाहेब डॉ. आंबेडकर जयंती',
+        isActive: true
+      },
+      {
+        id: 'hol-03',
+        titleEn: 'Good Friday',
+        titleHi: 'गुड फ्राइडे',
+        startDate: '2025-04-18',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Observance of Good Friday',
+        descriptionHi: 'ईसाई समुदाय का पवित्र दिवस',
+        isActive: true
+      },
+      {
+        id: 'hol-04',
+        titleEn: 'Summer Vacation (ग्रीष्मावकाश)',
+        titleHi: 'ग्रीष्मावकाश',
+        startDate: '2025-05-20',
+        endDate: '2025-06-30',
+        daysCount: 42,
+        type: 'Vacation',
+        descriptionEn: 'Annual Summer Break for UP Basic Schools',
+        descriptionHi: 'उत्तर प्रदेश बेसिक शिक्षा परिषद का ग्रीष्मकालीन अवकाश',
+        isActive: true
+      },
+      {
+        id: 'hol-05',
+        titleEn: 'Muharram',
+        titleHi: 'मोहर्रम',
+        startDate: '2025-07-06',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Observance of Muharram',
+        descriptionHi: 'मोहर्रम अवकाश (चांद के अनुसार)',
+        isActive: true
+      },
+      {
+        id: 'hol-06',
+        titleEn: 'Independence Day',
+        titleHi: 'स्वतंत्रता दिवस (ध्वजारोहण एवं राष्ट्रभक्ति कार्यक्रम)',
+        startDate: '2025-08-15',
+        daysCount: 1,
+        type: 'National Holiday',
+        descriptionEn: 'National Day — Flag hoisting, sweets distribution, and patriotic cultural presentations at school.',
+        descriptionHi: 'राष्ट्रीय पर्व — प्रातः 08:00 बजे ध्वजारोहण, सांस्कृतिक कार्यक्रम व मिष्ठान वितरण।',
+        isActive: true
+      },
+      {
+        id: 'hol-07',
+        titleEn: 'Raksha Bandhan',
+        titleHi: 'रक्षाबंधन',
+        startDate: '2025-08-09',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Traditional festival celebrating sibling bonds',
+        descriptionHi: 'रक्षाबंधन का पावन पर्व',
+        isActive: true
+      },
+      {
+        id: 'hol-08',
+        titleEn: 'Janmashtami',
+        titleHi: 'श्री कृष्ण जन्माष्टमी',
+        startDate: '2025-08-16',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Birth celebration of Lord Krishna',
+        descriptionHi: 'श्री कृष्ण जन्मोत्सव',
+        isActive: true
+      },
+      {
+        id: 'hol-09',
+        titleEn: 'Eid-e-Milad (Barawafat)',
+        titleHi: 'ईद-ए-मिलाद (बारावफात)',
+        startDate: '2025-09-05',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Prophet Muhammad birthday',
+        descriptionHi: 'बारावफात अवकाश (चांद के अनुसार)',
+        isActive: true
+      },
+      {
+        id: 'hol-10',
+        titleEn: 'Mahatma Gandhi Jayanti & Lal Bahadur Shastri Jayanti',
+        titleHi: 'महात्मा गांधी जयंती एवं लाल बहादुर शास्त्री जयंती',
+        startDate: '2025-10-02',
+        daysCount: 1,
+        type: 'National Holiday',
+        descriptionEn: 'National celebration — Tributes, cleanliness drive (Swachhta Abhiyan), and special assembly.',
+        descriptionHi: 'राष्ट्रीय पर्व — बापू व शास्त्री जी के चित्र पर पुष्पांजलि व स्वच्छता अभियान।',
+        isActive: true
+      },
+      {
+        id: 'hol-11',
+        titleEn: 'Maha Ashtami / Mahanavami / Vijayadashami (Dussehra)',
+        titleHi: 'दुर्गा पूजा, महानवमी एवं विजयादशमी (दशहरा)',
+        startDate: '2025-10-01',
+        endDate: '2025-10-03',
+        daysCount: 3,
+        type: 'Gazetted',
+        descriptionEn: 'Dussehra festival vacation',
+        descriptionHi: 'दशहरा व विजयोत्सव अवकाश',
+        isActive: true
+      },
+      {
+        id: 'hol-12',
+        titleEn: 'Maharshi Valmiki Jayanti',
+        titleHi: 'महर्षि वाल्मीकि जयंती',
+        startDate: '2025-10-07',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Birth anniversary of Adi Kavi Valmiki',
+        descriptionHi: 'रामायण रचयिता महर्षि वाल्मीकि जयंती',
+        isActive: true
+      },
+      {
+        id: 'hol-13',
+        titleEn: 'Deepawali, Govardhan Puja & Bhai Dooj',
+        titleHi: 'दीपावली, गोवर्धन पूजा एवं भैया दूज',
+        startDate: '2025-10-20',
+        endDate: '2025-10-23',
+        daysCount: 4,
+        type: 'Gazetted',
+        descriptionEn: 'Festival of lights and family festivities',
+        descriptionHi: 'दीपावली का दीपोत्सव एवं भैयादूज अवकाश',
+        isActive: true
+      },
+      {
+        id: 'hol-14',
+        titleEn: 'Chhath Puja',
+        titleHi: 'छठ पूजा (सायंकालीन अर्घ्य)',
+        startDate: '2025-10-28',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Sun worship festival holiday',
+        descriptionHi: 'सूर्य षष्ठी छठ पूजा पर्व',
+        isActive: true
+      },
+      {
+        id: 'hol-15',
+        titleEn: 'Guru Nanak Jayanti & Kartik Purnima',
+        titleHi: 'गुरु नानक जयंती व कार्तिक पूर्णिमा',
+        startDate: '2025-11-05',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Birth celebration of Guru Nanak Dev Ji',
+        descriptionHi: 'प्रकाश पर्व गुरु नानक देव जयंती व गंगा स्नान',
+        isActive: true
+      },
+      {
+        id: 'hol-16',
+        titleEn: 'Christmas Day',
+        titleHi: 'क्रिसमस डे (बड़ा दिन)',
+        startDate: '2025-12-25',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Christmas celebrations',
+        descriptionHi: 'ईसाई समुदाय का पावन पर्व',
+        isActive: true
+      },
+      {
+        id: 'hol-17',
+        titleEn: 'Winter Vacation (शीतकालीन अवकाश)',
+        titleHi: 'शीतकालीन अवकाश',
+        startDate: '2025-12-31',
+        endDate: '2026-01-14',
+        daysCount: 15,
+        type: 'Vacation',
+        descriptionEn: 'Council winter recess for all basic primary and upper primary schools in UP',
+        descriptionHi: 'शीत लहर के दृष्टिगत बेसिक शिक्षा परिषद का घोषित शीतकालीन अवकाश',
+        isActive: true
+      },
+      {
+        id: 'hol-18',
+        titleEn: 'Makar Sankranti',
+        titleHi: 'मकर संक्रांति / खिचड़ी पर्व',
+        startDate: '2026-01-14',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Makar Sankranti harvest festival',
+        descriptionHi: 'मकर संक्रांति व खिचड़ी पर्व',
+        isActive: true
+      },
+      {
+        id: 'hol-19',
+        titleEn: 'Republic Day',
+        titleHi: 'गणतंत्र दिवस (ध्वजारोहण एवं राष्ट्रभक्ति कार्यक्रम)',
+        startDate: '2026-01-26',
+        daysCount: 1,
+        type: 'National Holiday',
+        descriptionEn: 'National Day — Flag hoisting, patriotic songs, and speech competitions at campus.',
+        descriptionHi: 'राष्ट्रीय पर्व — प्रातः 08:30 बजे ध्वजारोहण व देशभक्ति बाल सभा।',
+        isActive: true
+      },
+      {
+        id: 'hol-20',
+        titleEn: 'Maha Shivratri',
+        titleHi: 'महाशिवरात्रि',
+        startDate: '2026-02-15',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Celebration of Maha Shivratri',
+        descriptionHi: 'महाशिवरात्रि व्रत एवं उत्सव',
+        isActive: true
+      },
+      {
+        id: 'hol-21',
+        titleEn: 'Holi & Holika Dahan',
+        titleHi: 'होलिका दहन एवं होली (धुलेंडी)',
+        startDate: '2026-03-03',
+        endDate: '2026-03-05',
+        daysCount: 3,
+        type: 'Gazetted',
+        descriptionEn: 'Festival of colors holiday',
+        descriptionHi: 'रंगोत्सव होली का पावन अवकाश',
+        isActive: true
+      },
+      {
+        id: 'hol-22',
+        titleEn: 'Eid-ul-Fitr (Alvida / Eid)',
+        titleHi: 'ईद-उल-फितर (मीठी ईद)',
+        startDate: '2026-03-20',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Eid celebration holiday',
+        descriptionHi: 'ईद-उल-फितर अवकाश (चांद के अनुसार)',
+        isActive: true
+      },
+      {
+        id: 'hol-23',
+        titleEn: 'Ram Navami',
+        titleHi: 'श्री राम नवमी',
+        startDate: '2026-03-27',
+        daysCount: 1,
+        type: 'Gazetted',
+        descriptionEn: 'Celebration of Lord Rama birth',
+        descriptionHi: 'श्री राम जन्मोत्सव',
+        isActive: true
+      }
+    ],
+    lastUpdated: '2025-04-01'
+  }
 };
 
 // Historical Records explicitly isolated from current data

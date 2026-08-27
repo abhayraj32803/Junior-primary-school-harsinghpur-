@@ -43,28 +43,15 @@ export const StudentIdCardPrint: React.FC<StudentIdCardPrintProps> = ({
   const [copiedNotification, setCopiedNotification] = useState<boolean>(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Generate dynamic official verification QR Code
+  // Generate dynamic official verification QR Code (points to secure server-side endpoint)
   useEffect(() => {
     const generateQR = async () => {
       try {
-        const verificationPayload = JSON.stringify({
-          type: "STUDENT_ID_VERIFICATION",
-          schoolName: settings.schoolName || "Govt. School",
-          diseCode: settings.schoolCode || "09290205902",
-          studentId: student.studentId || student.id,
-          admissionNo: student.admissionNumber || student.registrationNumber || "N/A",
-          name: student.fullName || student.name,
-          class: `Class ${student.classNumber || 5} - '${student.sectionName || 'A'}'`,
-          rollNo: student.rollNumber || "1",
-          dob: student.dateOfBirth || student.dob || "N/A",
-          bloodGroup: student.bloodGroup || "O+",
-          emergencyContact: student.mobile || student.phone || "N/A",
-          academicYear: settings.academicYear || "2025-2026",
-          validUntil: "31-03-2026",
-          status: "OFFICIALLY_VERIFIED"
-        });
+        const studentIdentifier = student.studentId || student.id;
+        const admissionNo = student.admissionNumber || student.registrationNumber || '';
+        const verifyEndpointUrl = `${window.location.origin}/?verify_id=${encodeURIComponent(studentIdentifier)}&adm=${encodeURIComponent(admissionNo)}`;
 
-        const url = await QRCode.toDataURL(verificationPayload, {
+        const url = await QRCode.toDataURL(verifyEndpointUrl, {
           width: 240,
           margin: 1,
           color: {

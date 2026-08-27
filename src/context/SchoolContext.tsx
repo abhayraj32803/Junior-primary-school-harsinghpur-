@@ -167,13 +167,13 @@ interface SchoolContextType {
 
   // Attendance Actions
   saveBulkAttendance: (
-    records: { studentId: string; status: AttendanceStatus; remarks?: string }[],
-    classId: string,
-    sectionId: string,
-    date: string,
+    records: any[],
+    classId?: string,
+    sectionId?: string,
+    date?: string,
     subjectId?: string,
     teacherId?: string
-  ) => Promise<void>;
+  ) => Promise<{ success: boolean; error?: string; count?: number }>;
   getStudentAttendanceStats: (studentId: string) => { total: number; present: number; absent: number; late: number; percentage: number };
   getClassAttendanceSummary: (classId: string, sectionId: string, date: string) => { total: number; present: number; absent: number; late: number; percentage: number };
 
@@ -1032,53 +1032,132 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (e) {}
   };
 
-  // Attendance Methods (Supports duplicate prevention for same date + student + class + subject)
+  // Attendance Methods (Supports duplicate prevention for same date + student + class + subject with strict teacher authorization)
   const saveBulkAttendance = async (
-    records: { studentId: string; status: AttendanceStatus; remarks?: string }[],
-    classId: string,
-    sectionId: string,
-    date: string,
+    records: any[],
+    classId?: string,
+    sectionId?: string,
+    date?: string,
     subjectId?: string,
     teacherId?: string
-  ) => {
+  ): Promise<{ success: boolean; error?: string; count?: number }> => {
+    if (!records || records.length === 0) {
+      return { success: false, error: 'No attendance records provided to save.' };
+    }
+
     if (userProfile?.role !== 'admin' && userProfile?.role !== 'teacher') {
       console.warn("Unauthorized attempt to record attendance.");
-      await addAuditLog('UNAUTHORIZED_ACTION', 'Attendance', `${classId}-${sectionId}`, 'Blocked unauthorized attempt to record attendance');
-      return;
+      await addAuditLog('UNAUTHORIZED_ACTION', 'Attendance', `${classId || 'N/A'}-${sectionId || 'N/A'}`, 'Blocked unauthorized attempt to record attendance (User is neither teacher nor admin)');
+      return { success: false, error: 'Unauthorized: Only faculty members and administrators are permitted to record attendance.' };
     }
-    const cls = classes.find(c => c.id === classId);
-    const sec = sections.find(s => s.id === sectionId);
-    const subj = subjects.find(s => s.id === subjectId);
-    const tch = teachers.find(t => t.id === teacherId);
+
+    // Extract contextual metadata from arguments or first record
+    const firstRec = records[0] || {};
+    const effectiveClassId = classId || firstRec.classId || (firstRec.classNumber ? `class-${firstRec.classNumber}` : 'class-1');
+    const effectiveSectionId = sectionId || firstRec.sectionId || (firstRec.sectionName ? `sec-${firstRec.classNumber || 1}-${firstRec.sectionName}` : 'sec-1-A');
+    const effectiveDate = date || firstRec.date || new Date().toISOString().split('T')[0];
+
+    const cls = classes.find(c => c.id === effectiveClassId || Number(c.classNumber) === Number(firstRec.classNumber));
+    const sec = sections.find(s => s.id === effectiveSectionId || s.sectionName === firstRec.sectionName);
+    const subj = subjects.find(s => s.id === subjectId || s.id === firstRec.subjectId);
+    
+    const targetClassNumber = cls?.classNumber || firstRec.classNumber || 1;
+    const targetSectionName = sec?.sectionName || firstRec.sectionName || 'A';
+
+    // Backend-level Authorization for Class Teachers
+    if (userProfile?.role === 'teacher') {
+      const currentTeacher = teachers.find(t => 
+        (userProfile.linkedEntityId && t.id === userProfile.linkedEntityId) ||
+        (userProfile.uid && (t.id === userProfile.uid || t.userId === userProfile.uid)) ||
+        (userProfile.email && t.email && t.email.toLowerCase() === userProfile.email.toLowerCase()) ||
+        (userProfile.name && t.name && t.name.toLowerCase() === userProfile.name.toLowerCase())
+      ) || teachers.find(t => t.id === 'tch-kiran-shakya') || teachers[0];
+
+      const teacherAsgns = teacherAssignments.filter(a => a.teacherId === currentTeacher?.id);
+      const designationLower = (currentTeacher?.designation || '').toLowerCase();
+      const isHeadTeacher = designationLower.includes('head') || 
+                            designationLower.includes('principal') ||
+                            designationLower.includes('in-charge') ||
+                            designationLower.includes('प्रधानाध्यापक') ||
+                            designationLower.includes('प्रधानाध्यापिका');
+      
+      const hasAssignment = teacherAsgns.some(a => 
+        a.classId === 'all' || 
+        a.classId === effectiveClassId || 
+        Number(a.classNumber) === Number(targetClassNumber) ||
+        String(a.classNumber).toLowerCase().includes('all') ||
+        String(a.classNumber).includes('1–8')
+      );
+
+      // If teacher has assigned classes and is not headmaster, enforce class ownership
+      if (teacherAsgns.length > 0 && !hasAssignment && !isHeadTeacher) {
+        const errorMsg = `Unauthorized Class Access: You are assigned to Class ${teacherAsgns.map(a => a.classNumber).join(', ')}. You are not authorized to mark attendance for Class ${targetClassNumber} Section ${targetSectionName}.`;
+        console.warn(errorMsg);
+        await addAuditLog(
+          'UNAUTHORIZED_ATTENDANCE_ATTEMPT',
+          'Attendance',
+          `Class-${targetClassNumber}-${targetSectionName}`,
+          `Teacher ${currentTeacher?.name || userProfile.name} was blocked from marking attendance for unassigned Class ${targetClassNumber}-${targetSectionName} on ${effectiveDate}.`
+        );
+        return { success: false, error: errorMsg };
+      }
+    }
+
+    const currentTeacher = teachers.find(t => 
+      (teacherId && t.id === teacherId) ||
+      (userProfile?.linkedEntityId && t.id === userProfile.linkedEntityId) ||
+      (userProfile?.uid && (t.id === userProfile.uid || t.userId === userProfile.uid))
+    ) || teachers[0];
 
     const updatedRecords: AttendanceRecord[] = [];
+    let presentCount = 0;
+    let absentCount = 0;
+    let lateCount = 0;
+    let halfDayCount = 0;
 
     // Filter out existing records matching studentId, date, classId, and subjectId to prevent duplicates
     setAttendance(prev => {
-      let filtered = prev.filter(a => {
-        const isMatch = a.classId === classId && a.sectionId === sectionId && a.date === date && (subjectId ? a.subjectId === subjectId : true);
+      const filtered = prev.filter(a => {
+        const isMatch = (a.classId === effectiveClassId || Number(a.classNumber) === Number(targetClassNumber)) && 
+                        (a.sectionId === effectiveSectionId || a.sectionName === targetSectionName) && 
+                        a.date === effectiveDate && 
+                        (subjectId ? a.subjectId === subjectId : true);
         return !isMatch;
       });
 
       const newEntries: AttendanceRecord[] = records.map(r => {
         const stu = students.find(s => s.id === r.studentId);
+        const normStatus: AttendanceStatus = (r.status === 'half_day' || r.status === 'half-day') 
+          ? 'half_day' 
+          : r.status === 'absent' 
+          ? 'absent' 
+          : r.status === 'late' 
+          ? 'late' 
+          : 'present';
+
+        if (normStatus === 'present') presentCount++;
+        else if (normStatus === 'absent') absentCount++;
+        else if (normStatus === 'late') lateCount++;
+        else if (normStatus === 'half_day') halfDayCount++;
+
         const entry: AttendanceRecord = {
-          id: `att-${r.studentId}-${date}-${subjectId || 'day'}-${Date.now().toString().slice(-4)}`,
+          id: `att-${r.studentId}-${effectiveDate}-${subjectId || 'day'}-${Date.now().toString().slice(-4)}`,
           studentId: r.studentId,
-          studentName: stu?.name || 'Student',
-          rollNumber: stu?.rollNumber || '',
-          teacherId: teacherId || userProfile?.linkedEntityId || 'tch-001',
-          teacherName: tch?.name || userProfile?.name || 'Class Teacher',
-          classId,
-          classNumber: cls?.classNumber || 8,
-          sectionId,
-          sectionName: sec?.sectionName || 'A',
-          subjectId: subjectId || undefined,
-          subjectName: subj?.name || undefined,
-          date,
-          status: r.status,
+          studentName: stu?.name || r.studentName || 'Student',
+          rollNumber: stu?.rollNumber || r.rollNumber || '',
+          teacherId: teacherId || currentTeacher?.id || userProfile?.linkedEntityId || 'tch-001',
+          teacherName: currentTeacher?.name || userProfile?.name || 'Class Teacher',
+          classId: effectiveClassId,
+          classNumber: Number(targetClassNumber),
+          sectionId: effectiveSectionId,
+          sectionName: targetSectionName,
+          subjectId: subjectId || r.subjectId || undefined,
+          subjectName: subj?.name || r.subjectName || undefined,
+          date: effectiveDate,
+          status: normStatus,
           remarks: r.remarks || '',
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
         updatedRecords.push(entry);
         return entry;
@@ -1087,40 +1166,56 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return [...newEntries, ...filtered];
     });
 
-    await addAuditLog('MARK_ATTENDANCE', 'Attendance', `${classId}-${sectionId}`, `Recorded attendance for Class ${cls?.classNumber || ''}-${sec?.sectionName || ''} on ${date} (${records.length} students)`);
+    // Comprehensive Audit Logging
+    await addAuditLog(
+      'MARK_ATTENDANCE',
+      'Attendance',
+      `Class-${targetClassNumber}-${targetSectionName}`,
+      `Recorded attendance register for Class ${targetClassNumber} - Section '${targetSectionName}' on ${effectiveDate}. Total: ${records.length} students (Present: ${presentCount}, Absent: ${absentCount}, Late: ${lateCount}, Half-Day: ${halfDayCount}) by ${userProfile?.name || 'Faculty'}`
+    );
 
     // Sync to Firestore
     try {
-      for (const rec of updatedRecords) {
-        await setDoc(doc(db, 'attendance', rec.id), rec);
+      if (db) {
+        for (const rec of updatedRecords) {
+          await setDoc(doc(db, 'attendance', rec.id), rec);
+        }
       }
     } catch (e) {
       console.warn("Firestore attendance sync:", e);
     }
+
+    return { success: true, count: updatedRecords.length };
   };
 
   const getStudentAttendanceStats = (studentId: string) => {
     const stuRecords = attendance.filter(a => a.studentId === studentId);
     const total = stuRecords.length;
-    if (total === 0) return { total: 0, present: 0, absent: 0, late: 0, percentage: 100 };
+    if (total === 0) return { total: 0, present: 0, absent: 0, late: 0, halfDay: 0, percentage: 100 };
     const present = stuRecords.filter(a => a.status === 'present').length;
     const late = stuRecords.filter(a => a.status === 'late').length;
+    const halfDay = stuRecords.filter(a => a.status === 'half_day' || a.status === 'half-day').length;
     const absent = stuRecords.filter(a => a.status === 'absent').length;
-    // Late counts as 0.75 or 1 present in standard calculation
-    const weightedPresent = present + (late * 0.8);
+    // Late counts as 0.8, Half day counts as 0.5 in standard calculation
+    const weightedPresent = present + (late * 0.8) + (halfDay * 0.5);
     const percentage = Math.round((weightedPresent / total) * 100);
-    return { total, present, absent, late, percentage };
+    return { total, present, absent, late, halfDay, percentage };
   };
 
   const getClassAttendanceSummary = (classId: string, sectionId: string, date: string) => {
-    const dayRecords = attendance.filter(a => a.classId === classId && a.sectionId === sectionId && a.date === date);
+    const dayRecords = attendance.filter(a => 
+      (a.classId === classId || String(a.classNumber) === classId.replace('class-', '')) && 
+      (a.sectionId === sectionId || a.sectionName === sectionId.replace(/sec-\d+-/, '')) && 
+      a.date === date
+    );
     const total = dayRecords.length;
-    if (total === 0) return { total: 0, present: 0, absent: 0, late: 0, percentage: 0 };
+    if (total === 0) return { total: 0, present: 0, absent: 0, late: 0, halfDay: 0, percentage: 0 };
     const present = dayRecords.filter(a => a.status === 'present').length;
     const late = dayRecords.filter(a => a.status === 'late').length;
+    const halfDay = dayRecords.filter(a => a.status === 'half_day' || a.status === 'half-day').length;
     const absent = dayRecords.filter(a => a.status === 'absent').length;
-    const percentage = Math.round(((present + late) / total) * 100);
-    return { total, present, absent, late, percentage };
+    const percentage = Math.round(((present + (late * 0.8) + (halfDay * 0.5)) / total) * 100);
+    return { total, present, absent, late, halfDay, percentage };
   };
 
   // Exam & Marks Methods

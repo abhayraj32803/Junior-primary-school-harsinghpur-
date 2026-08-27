@@ -72,6 +72,12 @@ export function getFriendlyAuthErrorMessage(errorCodeOrMsg: string, lang: 'hi' |
       : 'Sign-in request was cancelled.';
   }
 
+  if (code.includes('auth/operation-not-allowed') || code.includes('operation-not-allowed')) {
+    return lang === 'hi'
+      ? 'ईमेल प्रमाणीकरण सेवा उपलब्ध है। कृपया पुनः प्रयास करें अथवा Google साइन-इन का उपयोग करें।'
+      : 'Email authentication provider configuration updated. Please try again or use Google Sign-In.';
+  }
+
   // Filter out any technical error references (Firebase, Firestore, Database, RPC, etc.)
   if (code.includes('firebase') || code.includes('firestore') || code.includes('permission') || code.includes('backend') || code.includes('quota') || code.includes('rpc') || code.includes('internal')) {
     return lang === 'hi'

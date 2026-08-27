@@ -29,13 +29,14 @@ import {
   getFacilityIconComponent, 
   DEFAULT_HOMEPAGE_FACILITIES 
 } from '../../utils/facilityIconUtils';
+import { StudentParentGuide } from './StudentParentGuide';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
   onOpenPortal: () => void;
 }
 
-export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
+export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) => {
   const { 
     settings, 
     students, 
@@ -334,6 +335,19 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </div>
 
         </div>
+      </motion.section>
+
+      {/* =========================================================================
+          2.5. STUDENT & PARENT EASY GUIDE ("कहाँ पर क्या मिलेगा? आसान केंद्र")
+          ========================================================================= */}
+      <motion.section
+        variants={sectionFadeInVariants}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+      >
+        <StudentParentGuide 
+          onNavigate={onNavigate} 
+          onOpenPortal={onOpenPortal} 
+        />
       </motion.section>
 
       {/* =========================================================================

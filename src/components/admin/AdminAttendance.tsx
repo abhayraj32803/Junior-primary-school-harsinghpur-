@@ -78,9 +78,9 @@ export const AdminAttendance: React.FC = () => {
   const presentCount = Object.values(localAttendance).filter(s => s === 'present').length;
   const lateCount = Object.values(localAttendance).filter(s => s === 'late').length;
   const absentCount = Object.values(localAttendance).filter(s => s === 'absent').length;
-  const halfDayCount = Object.values(localAttendance).filter(s => s === 'half-day').length;
+  const halfDayCount = Object.values(localAttendance).filter(s => s === 'half-day' || s === 'half_day').length;
   const totalCount = classStudents.length;
-  const rate = totalCount > 0 ? Math.round(((presentCount + lateCount) / totalCount) * 100) : 0;
+  const rate = totalCount > 0 ? Math.round(((presentCount + (lateCount * 0.8) + (halfDayCount * 0.5)) / totalCount) * 100) : 0;
 
   return (
     <div className="space-y-6">
