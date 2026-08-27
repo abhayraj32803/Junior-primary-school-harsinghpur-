@@ -836,8 +836,8 @@ export const AdminBulkPromotion: React.FC = () => {
           </div>
         </div>
 
-        {/* The Student Table */}
-        <div className="overflow-x-auto">
+        {/* The Student Table: Desktop & Tablet View (>= 768px) */}
+        <div className="hidden md:block overflow-x-auto custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-100/80 border-y border-slate-200 text-[11px] font-black text-slate-700 uppercase tracking-wider">
@@ -849,13 +849,13 @@ export const AdminBulkPromotion: React.FC = () => {
                     className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
                   />
                 </th>
-                <th className="py-3 px-3 w-16">{language === 'hi' ? 'वर्तमान रोल' : 'Cur. Roll'}</th>
-                <th className="py-3 px-3 min-w-[180px]">{language === 'hi' ? 'विद्यार्थी का नाम व विवरण' : 'Student & Details'}</th>
-                <th className="py-3 px-3 min-w-[120px]">{language === 'hi' ? 'वार्षिक अंक/प्रदर्शन' : 'Annual Exam %'}</th>
-                <th className="py-3 px-3 min-w-[180px]">{language === 'hi' ? 'पदोन्नति निर्णय (Action)' : 'Promotion Decision'}</th>
-                <th className="py-3 px-3 min-w-[110px]">{language === 'hi' ? 'नवीन कक्षा/वर्ग' : 'Target Class/Sec'}</th>
-                <th className="py-3 px-3 w-20">{language === 'hi' ? 'नवीन रोल' : 'New Roll'}</th>
-                <th className="py-3 px-3 min-w-[200px]">{language === 'hi' ? 'टिप्पणी (Remarks)' : 'Progression Remarks'}</th>
+                <th className="py-3 px-3 w-16 whitespace-nowrap">{language === 'hi' ? 'वर्तमान रोल' : 'Cur. Roll'}</th>
+                <th className="py-3 px-3 min-w-[180px] whitespace-nowrap">{language === 'hi' ? 'विद्यार्थी का नाम व विवरण' : 'Student & Details'}</th>
+                <th className="py-3 px-3 min-w-[120px] whitespace-nowrap">{language === 'hi' ? 'वार्षिक अंक/प्रदर्शन' : 'Annual Exam %'}</th>
+                <th className="py-3 px-3 min-w-[180px] whitespace-nowrap">{language === 'hi' ? 'पदोन्नति निर्णय (Action)' : 'Promotion Decision'}</th>
+                <th className="py-3 px-3 min-w-[110px] whitespace-nowrap">{language === 'hi' ? 'नवीन कक्षा/वर्ग' : 'Target Class/Sec'}</th>
+                <th className="py-3 px-3 w-20 whitespace-nowrap">{language === 'hi' ? 'नवीन रोल' : 'New Roll'}</th>
+                <th className="py-3 px-3 min-w-[200px] whitespace-nowrap">{language === 'hi' ? 'टिप्पणी (Remarks)' : 'Progression Remarks'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1089,6 +1089,222 @@ export const AdminBulkPromotion: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* The Mobile Responsive Card View (< 768px) with CSS Grid & Flexbox */}
+        <div className="block md:hidden p-3 space-y-3">
+          {filteredRows.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">
+              <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <p className="text-xs font-bold">{language === 'hi' ? 'कोई छात्र रिकॉर्ड नहीं मिला' : 'No students found in this class filter'}</p>
+            </div>
+          ) : (
+            filteredRows.map((row) => {
+              const s = row.student;
+              const isPromoted = row.action === 'PROMOTE';
+              const isRetained = row.action === 'RETAIN';
+              const isTransferred = row.action === 'TRANSFER';
+              const isGraduated = row.action === 'GRADUATE';
+
+              return (
+                <div
+                  key={s.id}
+                  className={`p-4 rounded-2xl border transition-all space-y-3.5 ${
+                    row.selected ? 'ring-2 ring-amber-400/60' : ''
+                  } ${
+                    isRetained 
+                      ? 'bg-rose-50/40 border-rose-200' 
+                      : isTransferred 
+                      ? 'bg-amber-50/40 border-amber-200' 
+                      : isGraduated
+                      ? 'bg-indigo-50/30 border-indigo-200'
+                      : 'bg-white border-slate-200 shadow-xs'
+                  }`}
+                >
+                  {/* Top Row: Checkbox + Student Avatar + Name + Current Roll */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={row.selected}
+                        onChange={() => handleToggleSelectRow(s.id)}
+                        className="w-5 h-5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
+                      />
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
+                        s.gender === 'Female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {s.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-black text-slate-900 text-sm truncate flex items-center gap-1.5">
+                          <span>{s.name}</span>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                            s.gender === 'Female' ? 'bg-pink-50 text-pink-700' : 'bg-blue-50 text-blue-700'
+                          }`}>
+                            {s.gender === 'Female' ? 'F' : 'M'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 truncate">
+                          {language === 'hi' ? 'पिता:' : 'Father:'} {s.fatherName || 'N/A'} • Sec '{s.sectionName}'
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="bg-slate-900 text-white font-mono font-bold text-[11px] px-2 py-0.5 rounded-md">
+                        Roll #{s.rollNumber}
+                      </div>
+                      <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                        {s.admissionNumber}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-Column Evaluation Details Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200/70">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">
+                        {language === 'hi' ? 'वार्षिक मूल्यांकन' : 'Annual Exam'}
+                      </span>
+                      {row.hasExamRecord && row.avgPercentage !== undefined ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+                            row.avgPercentage >= 60 
+                              ? 'bg-emerald-100 text-emerald-800' 
+                              : row.avgPercentage >= 33 
+                              ? 'bg-amber-100 text-amber-800' 
+                              : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {row.avgPercentage}%
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-700">Gr {row.grade}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded">
+                          RTE Direct Pass
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">
+                        {language === 'hi' ? 'नवीन रोल नंबर' : 'New Roll No'}
+                      </span>
+                      {isPromoted || isRetained ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-400 font-mono">#</span>
+                          <input
+                            type="text"
+                            value={row.newRollNumber}
+                            onChange={(e) => handleRowRollChange(s.id, e.target.value)}
+                            className="w-16 px-2 py-1 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 font-mono">-</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Promotion Action Selector (Flexbox pill button group with touch targets) */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                      {language === 'hi' ? 'पदोन्नति निर्णय:' : 'Progression Action:'}
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        onClick={() => handleRowActionChange(s.id, 'PROMOTE')}
+                        className={`min-h-[38px] px-2 py-1.5 rounded-xl text-xs font-black transition-all flex items-center justify-center cursor-pointer ${
+                          isPromoted
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-700 hover:bg-emerald-50'
+                        }`}
+                      >
+                        {language === 'hi' ? 'पदोन्नत' : 'Promote'}
+                      </button>
+
+                      <button
+                        onClick={() => handleRowActionChange(s.id, 'RETAIN')}
+                        className={`min-h-[38px] px-2 py-1.5 rounded-xl text-xs font-black transition-all flex items-center justify-center cursor-pointer ${
+                          isRetained
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-700 hover:bg-rose-50'
+                        }`}
+                      >
+                        {language === 'hi' ? 'रोकें' : 'Retain'}
+                      </button>
+
+                      {sourceClassNumber === 8 ? (
+                        <button
+                          onClick={() => handleRowActionChange(s.id, 'GRADUATE')}
+                          className={`min-h-[38px] px-2 py-1.5 rounded-xl text-xs font-black transition-all flex items-center justify-center cursor-pointer ${
+                            isGraduated
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-indigo-50'
+                          }`}
+                        >
+                          {language === 'hi' ? 'उत्तीर्ण' : 'Graduate'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleRowActionChange(s.id, 'TRANSFER')}
+                          className={`min-h-[38px] px-2 py-1.5 rounded-xl text-xs font-black transition-all flex items-center justify-center cursor-pointer ${
+                            isTransferred
+                              ? 'bg-amber-500 text-slate-950 shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-amber-50'
+                          }`}
+                        >
+                          {language === 'hi' ? 'टीसी' : 'TC'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Target Class / Section & Remarks Input */}
+                  <div className="space-y-2 pt-1 border-t border-slate-100">
+                    {isPromoted && (
+                      <div className="flex items-center justify-between gap-2 bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100">
+                        <span className="text-xs font-bold text-emerald-950">
+                          {language === 'hi' ? 'लक्ष्य कक्षा व वर्ग:' : 'Target Class & Section:'}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-emerald-900 bg-white px-2 py-1 rounded-lg border border-emerald-200">
+                            Class {row.targetClassNumber}
+                          </span>
+                          <select
+                            value={row.targetSectionName}
+                            onChange={(e) => handleRowSectionChange(s.id, e.target.value)}
+                            className="px-2.5 py-1 text-xs font-bold bg-white border border-emerald-300 rounded-lg text-slate-900"
+                          >
+                            {targetSectionsForClass.length > 0 ? (
+                              targetSectionsForClass.map(sec => (
+                                <option key={sec.id} value={sec.sectionName}>
+                                  Section {sec.sectionName}
+                                </option>
+                              ))
+                            ) : (
+                              <>
+                                <option value="A">Section A</option>
+                                <option value="B">Section B</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    <input
+                      type="text"
+                      value={row.remarks}
+                      onChange={(e) => handleRowRemarksChange(s.id, e.target.value)}
+                      placeholder={language === 'hi' ? 'टिप्पणी / रिमार्क दर्ज करें...' : 'Add remarks or progression notes...'}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 focus:bg-white border border-slate-200 rounded-xl focus:ring-1 focus:ring-amber-500"
+                    />
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Bottom Review & Execution Strip */}

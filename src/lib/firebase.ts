@@ -59,8 +59,36 @@ try {
   // ignore
 }
 
-// Initialize Firestore with specific database ID from config
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Helper to recursively strip undefined properties from documents before sending to Firestore
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeForFirestore(item)) as unknown as T;
+  }
+  if (typeof data === 'object' && !(data instanceof Date)) {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        result[key] = sanitizeForFirestore(value);
+      }
+    }
+    return result as T;
+  }
+  return data;
+}
+
+// Initialize Firestore with specific database ID and enable ignoreUndefinedProperties
+export const db = (() => {
+  try {
+    return initializeFirestore(app, {
+      ignoreUndefinedProperties: true
+    }, firebaseConfig.firestoreDatabaseId);
+  } catch (e) {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+})();
 
 // Validate Connection to Firestore on boot
 async function testConnection() {
@@ -73,6 +101,20 @@ async function testConnection() {
   }
 }
 testConnection();
+
+const rawSetDoc = setDoc;
+export const safeSetDoc: typeof setDoc = ((reference: any, data: any, options?: any) => {
+  const sanitized = sanitizeForFirestore(data);
+  return options ? (rawSetDoc as any)(reference, sanitized, options) : (rawSetDoc as any)(reference, sanitized);
+}) as typeof setDoc;
+
+const rawUpdateDoc = updateDoc;
+export const safeUpdateDoc: typeof updateDoc = ((reference: any, ...args: any[]) => {
+  if (typeof args[0] === 'object') {
+    return (rawUpdateDoc as any)(reference, sanitizeForFirestore(args[0]));
+  }
+  return (rawUpdateDoc as any)(reference, ...args);
+}) as typeof updateDoc;
 
 export {
   signInWithEmailAndPassword,
@@ -95,8 +137,8 @@ export {
   getDoc,
   getDocs,
   getDocFromServer,
-  setDoc,
-  updateDoc,
+  safeSetDoc as setDoc,
+  safeUpdateDoc as updateDoc,
   deleteDoc,
   query,
   where,

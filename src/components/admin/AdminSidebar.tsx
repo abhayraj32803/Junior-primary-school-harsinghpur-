@@ -12,6 +12,7 @@ import {
   Search,
   X,
   ChevronRight,
+  ChevronDown,
   LogOut,
   Layers,
   BookOpen,
@@ -69,6 +70,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const { notices, students, teachers, language } = useSchool();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedHubs, setExpandedHubs] = useState<Record<string, boolean>>({
+    academics: true,
+    operations: false,
+    faculty: false,
+    cms: false,
+    governance: false
+  });
 
   // Lock background scroll on mobile when drawer is open, and support ESC to close
   useEffect(() => {
@@ -166,7 +174,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       icon: Sparkles,
       subTabs: [
         { id: 'homepage-mgmt', labelEn: 'Homepage & Banners', labelHi: 'मुख्य पृष्ठ प्रबंधन', icon: Sparkles },
-        { id: 'notice-ticker', labelEn: 'Live Notice Ticker', labelHi: 'लाइव सूचना टिकर', icon: Radio },
         { id: 'educational-videos', labelEn: 'Educational Videos', labelHi: 'कक्षा 1-8 प्रेरक वीडियो', icon: Video },
         { id: 'media-library', labelEn: 'Photo & Video Gallery', labelHi: 'चित्र व वीडियो गैलरी', icon: ImageIcon },
         { id: 'school-profile', labelEn: 'School Profile & UDISE', labelHi: 'विद्यालय विवरण व UDISE', icon: Building2 },
@@ -192,7 +199,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     }
   ], [pendingStudentRequestsCount, pendingTeacherRequestsCount, activeNoticesCount, teachers.length]);
 
-  // Determine active Hub from activeTab
+  // Determine active Hub from activeTab and auto-expand that hub
   const currentHubId = useMemo(() => {
     if (activeTab === 'dashboard') return 'dashboard';
     
@@ -208,6 +215,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
     return 'dashboard';
   }, [activeTab, hubs]);
+
+  useEffect(() => {
+    if (currentHubId && currentHubId !== 'dashboard') {
+      setExpandedHubs(prev => ({ ...prev, [currentHubId]: true }));
+    }
+  }, [currentHubId]);
+
+  const toggleHubExpansion = (hubId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedHubs(prev => ({ ...prev, [hubId]: !prev[hubId] }));
+  };
 
   // Search Results for instant deep jump
   const searchResults = useMemo(() => {
@@ -289,7 +307,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 </div>
                 <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider truncate flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" />
-                  <span>Admin Control Center</span>
+                  <span>Admin ERP Center</span>
                 </div>
               </div>
             </div>
@@ -367,58 +385,109 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               )}
             </div>
           ) : (
-            /* The 6 Clean Primary Hub Cards */
-            <div className="space-y-1">
+            /* Primary Hub Cards with Sub-Accordion Support */
+            <div className="space-y-1.5">
               <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 {language === 'hi' ? 'मुख्य प्रशासनिक मॉड्यूल' : 'Administrative Modules'}
               </div>
 
               {hubs.map((hub) => {
                 const Icon = hub.icon;
-                const isSelected = currentHubId === hub.id;
+                const isHubActive = currentHubId === hub.id;
+                const isExpanded = expandedHubs[hub.id] || false;
+                const hasSubTabs = hub.subTabs.length > 0;
 
                 return (
-                  <button
-                    key={hub.id}
-                    onClick={() => {
-                      onSelectTab(hub.id);
-                      onClose();
-                    }}
-                    className={`w-full min-h-[46px] flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer group relative touch-manipulation active:scale-[0.98] ${
-                      isSelected
-                        ? 'bg-indigo-600 text-white shadow-xs font-semibold'
-                        : 'bg-slate-800/40 hover:bg-slate-800 text-slate-300 border border-transparent hover:border-slate-700/60'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                        isSelected
-                          ? 'bg-indigo-700 text-white'
-                          : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-indigo-300'
-                      }`}>
-                        <Icon className="w-4 h-4" />
+                  <div key={hub.id} className="space-y-1">
+                    <div
+                      className={`w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all cursor-pointer group relative touch-manipulation ${
+                        isHubActive
+                          ? 'bg-indigo-600/90 text-white shadow-xs font-semibold'
+                          : 'bg-slate-800/40 hover:bg-slate-800 text-slate-300 border border-transparent hover:border-slate-700/60'
+                      }`}
+                      onClick={() => {
+                        onSelectTab(hub.id);
+                        onClose();
+                      }}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                          isHubActive
+                            ? 'bg-indigo-700 text-white'
+                            : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-indigo-300'
+                        }`}>
+                          <Icon className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-xs font-bold truncate ${isHubActive ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>
+                            {language === 'hi' ? hub.nameHi : hub.nameEn}
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <div className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>
-                          {language === 'hi' ? hub.nameHi : hub.nameEn}
-                        </div>
-                        <div className={`text-[10px] truncate ${isSelected ? 'text-indigo-100 font-normal' : 'text-slate-400'}`}>
-                          {language === 'hi' ? hub.descHi : hub.descEn}
-                        </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 ml-1.5">
+                        {hub.badge && (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isHubActive ? 'bg-white text-indigo-700' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                          }`}>
+                            {hub.badge}
+                          </span>
+                        )}
+
+                        {hasSubTabs ? (
+                          <button
+                            type="button"
+                            onClick={(e) => toggleHubExpansion(hub.id, e)}
+                            className="p-1 text-slate-400 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+                            aria-label="Toggle sub-modules"
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            ) : (
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        ) : (
+                          <ChevronRight className={`w-3.5 h-3.5 ${isHubActive ? 'text-white' : 'text-slate-500'}`} />
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      {hub.badge && (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isSelected ? 'bg-white text-indigo-700' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                        }`}>
-                          {hub.badge}
-                        </span>
-                      )}
-                      <ChevronRight className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                    </div>
-                  </button>
+                    {/* SubTabs Accordion Dropdown */}
+                    {hasSubTabs && isExpanded && (
+                      <div className="pl-6 pr-1 py-1 space-y-0.5 border-l border-slate-700/60 ml-4">
+                        {hub.subTabs.map((sub) => {
+                          const SubIcon = sub.icon;
+                          const isSubActive = activeTab === sub.id;
+
+                          return (
+                            <button
+                              key={sub.id}
+                              onClick={() => {
+                                onSelectTab(sub.id);
+                                onClose();
+                              }}
+                              className={`w-full min-h-[34px] flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs transition-all cursor-pointer ${
+                                isSubActive
+                                  ? 'bg-indigo-500 text-white font-bold shadow-2xs'
+                                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <SubIcon className="w-3 h-3 shrink-0 opacity-80" />
+                                <span className="truncate">
+                                  {language === 'hi' ? sub.labelHi : sub.labelEn}
+                                </span>
+                              </div>
+                              {isSubActive && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -430,7 +499,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           <div className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>System Active</span>
+              <span>ERP Online</span>
             </span>
             <span className="font-mono text-slate-500">v2.6 Enterprise</span>
           </div>

@@ -614,7 +614,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 name: sData.fullName || sData.name || firebaseUser.displayName || 'Student',
                 fullName: sData.fullName || sData.name || firebaseUser.displayName || 'Student',
                 email: firebaseUser.email || sData.email || '',
-                emailVerified: firebaseUser.emailVerified,
+                emailVerified: Boolean(firebaseUser.emailVerified),
                 phone: sData.mobile || sData.phone || '',
                 photoURL: sData.photoURL || sData.profilePhoto || firebaseUser.photoURL || undefined,
                 profilePhoto: sData.profilePhoto || sData.photoURL || firebaseUser.photoURL || undefined,
@@ -1132,7 +1132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: fbUser.displayName || 'Student User',
             fullName: fbUser.displayName || 'Student User',
             email: fbUser.email || cleanEmail,
-            emailVerified: fbUser.emailVerified,
+            emailVerified: Boolean(fbUser.emailVerified),
             phone: cleanDigits.length >= 7 ? cleanDigits : '',
             role: role === 'student' ? 'student' : (role === 'teacher' ? 'teacher' : 'student'),
             schoolId: SCHOOL_ID,
@@ -1253,7 +1253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearFailedAttempts(cleanId);
     const updatedUser: UserProfile = {
       ...matched,
-      emailVerified: auth.currentUser?.emailVerified ?? matched.emailVerified,
+      emailVerified: Boolean(auth.currentUser?.emailVerified ?? matched.emailVerified),
       lastLoginAt: new Date().toISOString()
     };
 
@@ -1376,7 +1376,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: existingProfile.name || resolvedName,
           fullName: existingProfile.fullName || existingProfile.name || resolvedName,
           email: fbUser.email || existingProfile.email,
-          emailVerified: fbUser.emailVerified,
+          emailVerified: Boolean(fbUser.emailVerified),
           photoURL: userPhoto,
           profilePhoto: userPhoto,
           role: 'student',
@@ -1426,7 +1426,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: resolvedName,
           fullName: resolvedName,
           email: fbUser.email || '',
-          emailVerified: fbUser.emailVerified,
+          emailVerified: Boolean(fbUser.emailVerified),
           phone: userPhone,
           mobile: userPhone,
           photoURL: userPhoto,
@@ -1470,7 +1470,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: finalProfile.name,
         fullName: finalProfile.name,
         email: finalProfile.email,
-        emailVerified: fbUser.emailVerified,
+        emailVerified: Boolean(fbUser.emailVerified),
         profilePhoto: finalProfile.photoURL || '',
         photoURL: finalProfile.photoURL || '',
         classId: `class-${finalProfile.classNumber || classNum}`,
@@ -1811,7 +1811,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true, isVerified: !!userProfile?.emailVerified };
       }
       await auth.currentUser.reload();
-      const verified = auth.currentUser.emailVerified;
+      const verified = Boolean(auth.currentUser.emailVerified);
       if (userProfile) {
         const updated = { ...userProfile, emailVerified: verified, updatedAt: new Date().toISOString() };
         setUserProfile(updated);

@@ -71,7 +71,7 @@ export function resolveCurrentStudent(
       name: studentName,
       fullName: studentName,
       email: userProfile.email || '',
-      emailVerified: userProfile.emailVerified,
+      emailVerified: Boolean(userProfile.emailVerified),
       phone: userProfile.phone || '',
       mobile: userProfile.phone || '',
       classNumber: userProfile.classNumber || 5,

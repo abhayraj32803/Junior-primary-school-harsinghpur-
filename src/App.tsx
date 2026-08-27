@@ -36,6 +36,7 @@ import { AdminOperationsHub } from './components/admin/hubs/AdminOperationsHub';
 import { AdminWebsiteHub } from './components/admin/hubs/AdminWebsiteHub';
 import { AdminGovernanceHub } from './components/admin/hubs/AdminGovernanceHub';
 import { AdminSidebar } from './components/admin/AdminSidebar';
+import { AdminCommandPalette } from './components/admin/AdminCommandPalette';
 import { TeacherSidebar } from './components/teacher/TeacherSidebar';
 import { StudentSidebar } from './components/student/StudentSidebar';
 import { recordPrivatePageView } from './utils/visitorAnalytics';
@@ -68,12 +69,14 @@ import {
   Globe,
   Home,
   ArrowLeft,
-  ChevronRight
+  ChevronRight,
+  Search
 } from 'lucide-react';
 
 const SchoolAppInner: React.FC = () => {
   const { userProfile, isAuthenticated, logout } = useAuth();
   const { settings, language } = useSchool();
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   // Public navigation state with history tracking and session persistence
   const [publicPageHistory, setPublicPageHistory] = useState<string[]>([]);
@@ -97,6 +100,18 @@ const SchoolAppInner: React.FC = () => {
       } catch {}
     }
   }, [isAuthenticated]);
+
+  // Global Ctrl+K / Cmd+K listener for instant Admin Search Command Palette
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -418,8 +433,33 @@ const SchoolAppInner: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Side: Interactive User Profile Dropdown */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Right Side: Quick Global Search, Website Preview & Interactive User Profile Dropdown */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {role === 'admin' && (
+            <button
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-xs font-semibold border border-slate-700 transition-all cursor-pointer shadow-2xs group"
+              title="Search modules, students, teachers (Ctrl + K)"
+              id="btn-header-command-palette"
+            >
+              <Search className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden md:inline text-slate-300 font-normal">{language === 'hi' ? 'खोजें...' : 'Search...'}</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-700 font-mono text-[9px] font-bold">
+                ⌘K
+              </kbd>
+            </button>
+          )}
+
+          <button
+            onClick={() => handleNavigatePage('home')}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-all cursor-pointer"
+            title="Preview Live School Website"
+            id="btn-header-view-website"
+          >
+            <Globe className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden lg:inline">{language === 'hi' ? 'वेबसाइट' : 'View Portal'}</span>
+          </button>
+
           <UserProfileDropdown
             onNavigateProfile={() => handleTabChange('profile')}
             onNavigatePublic={() => handleNavigatePage('home')}
@@ -512,7 +552,12 @@ const SchoolAppInner: React.FC = () => {
             {/* ADMIN ROUTING - 6 CONSOLIDATED STREAMLINED HUBS */}
             {role === 'admin' && (
               <>
-                {activeAdminTab === 'dashboard' && <AdminDashboard onNavigateTab={handleTabChange} />}
+                {activeAdminTab === 'dashboard' && (
+                  <AdminDashboard 
+                    onNavigateTab={handleTabChange} 
+                    onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+                  />
+                )}
 
                 {/* 1. Students & Academics Hub */}
                 {(['academics', 'students', 'classes', 'subjects', 'timetable', 'documents'].includes(activeAdminTab)) && (
@@ -618,6 +663,16 @@ const SchoolAppInner: React.FC = () => {
         }} 
       />
       <ForcePasswordChangeModal />
+
+      {/* Global Admin Command Palette (Ctrl+K) */}
+      {role === 'admin' && (
+        <AdminCommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          onNavigateTab={handleTabChange}
+          onNavigatePublic={handleNavigatePage}
+        />
+      )}
     </div>
   );
 };

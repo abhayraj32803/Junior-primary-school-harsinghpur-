@@ -33,7 +33,7 @@ export const AdminPageHeader: React.FC<AdminPageHeaderProps> = ({
             {badge}
           </span>
         )}
-        <h1 className="text-2xl sm:text-[26px] font-extrabold text-[#172033] tracking-tight truncate">
+        <h1 className="text-xl sm:text-2xl md:text-[26px] font-extrabold text-[#172033] tracking-tight break-words">
           {title}
         </h1>
         {description && (

@@ -469,14 +469,14 @@ export const AdminStudents: React.FC = () => {
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto custom-scrollbar">
         <button
           onClick={() => setActiveMainTab('enrolled')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[42px] ${
             activeMainTab === 'enrolled'
               ? 'bg-slate-900 text-white shadow-md'
               : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
           id="tab-enrolled-students"
         >
-          <GraduationCap className="w-4 h-4 text-amber-400" />
+          <GraduationCap className="w-4 h-4 text-amber-400 shrink-0" />
           <span>{language === 'hi' ? 'नामांकित छात्र पंजिका (कक्षा 1-8)' : 'Enrolled Students Roster'}</span>
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 font-mono font-bold">
             {students.length}
@@ -485,14 +485,14 @@ export const AdminStudents: React.FC = () => {
 
         <button
           onClick={() => setActiveMainTab('requests')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer relative ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[42px] relative ${
             activeMainTab === 'requests'
               ? 'bg-slate-900 text-white shadow-md'
               : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
           id="tab-student-requests"
         >
-          <Clock className="w-4 h-4 text-amber-400" />
+          <Clock className="w-4 h-4 text-amber-400 shrink-0" />
           <span>{language === 'hi' ? 'छात्र पंजीकरण / प्रवेश अनुरोध' : 'Registration & Admission Requests'}</span>
           {pendingStudentRequests.length > 0 && (
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-600 text-white font-mono font-bold animate-pulse">
@@ -503,14 +503,14 @@ export const AdminStudents: React.FC = () => {
 
         <button
           onClick={() => setActiveMainTab('history')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[42px] ${
             activeMainTab === 'history'
               ? 'bg-slate-900 text-white shadow-md'
               : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
           id="tab-requests-history"
         >
-          <FileCheck className="w-4 h-4 text-emerald-400" />
+          <FileCheck className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{language === 'hi' ? 'सत्यापन इतिहास (स्वीकृत/अस्वीकृत)' : 'Verification History'}</span>
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-700 font-mono font-bold">
             {approvedStudentRequests.length}
@@ -519,14 +519,14 @@ export const AdminStudents: React.FC = () => {
 
         <button
           onClick={() => setActiveMainTab('promotion')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[42px] ${
             activeMainTab === 'promotion'
               ? 'bg-slate-900 text-white shadow-md'
               : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-300'
           }`}
           id="tab-bulk-promotion"
         >
-          <Award className="w-4 h-4 text-amber-500" />
+          <Award className="w-4 h-4 text-amber-500 shrink-0" />
           <span>{language === 'hi' ? 'बल्क पदोन्नति एवं सत्र परिवर्तन' : 'Bulk Student Promotion'}</span>
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-slate-950 font-bold">
             New
@@ -672,16 +672,16 @@ export const AdminStudents: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2 sm:gap-2.5">
               <button
                 onClick={() => setSelectedClass('all')}
-                className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                className={`min-h-[64px] p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
                   selectedClass === 'all'
                     ? 'bg-slate-900 text-white border-slate-900 shadow-md font-black'
                     : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                 }`}
               >
-                <span className="text-[11px] font-bold">{language === 'hi' ? 'सभी कक्षाएं' : 'All Classes'}</span>
+                <span className="text-[11px] font-bold whitespace-nowrap">{language === 'hi' ? 'सभी कक्षाएं' : 'All Classes'}</span>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${selectedClass === 'all' ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 text-slate-700'}`}>
                   {students.length}
                 </span>
@@ -697,14 +697,14 @@ export const AdminStudents: React.FC = () => {
                   <button
                     key={cNum}
                     onClick={() => setSelectedClass(cId)}
-                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                    className={`min-h-[64px] p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
                       isSelected
                         ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-md font-black ring-2 ring-amber-400/50'
                         : 'bg-white hover:bg-amber-50/50 text-slate-800 border-slate-200 hover:border-amber-300'
                     }`}
                   >
-                    <span className="text-xs font-black">Class {cNum}</span>
-                    <div className="flex items-center gap-1">
+                    <span className="text-xs font-black whitespace-nowrap">Class {cNum}</span>
+                    <div className="flex items-center gap-1 whitespace-nowrap">
                       <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${isSelected ? 'bg-slate-950 text-amber-300' : 'bg-amber-100 text-amber-900'}`}>
                         {cStudents.length}
                       </span>
@@ -719,7 +719,7 @@ export const AdminStudents: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="p-4 bg-slate-50/70 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-amber-600" />
+                <GraduationCap className="w-4 h-4 text-amber-600 shrink-0" />
                 <span className="font-black text-slate-800 text-xs uppercase tracking-wider">
                   {language === 'hi' ? 'नामांकित छात्र मास्टर रजिस्टर' : 'Enrolled Student Master Register'}
                 </span>
@@ -733,163 +733,309 @@ export const AdminStudents: React.FC = () => {
               </div>
             </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider">
-                  <th className="py-3 px-4">Student & ID</th>
-                  <th className="py-3 px-4">Class & Sec</th>
-                  <th className="py-3 px-4">Roll No</th>
-                  <th className="py-3 px-4">Admission No</th>
-                  <th className="py-3 px-4">Guardian & Mobile</th>
-                  <th className="py-3 px-4 text-center">Attendance</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredStudents.map((student) => {
-                  const att = getStudentAttendanceStats(student.id);
-                  return (
-                    <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Student & ID */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-300 overflow-hidden shrink-0">
-                            {student.photoURL ? (
-                              <img src={student.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            {/* DESKTOP & TABLET STRUCTURED TABLE VIEW (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider">
+                    <th className="py-3.5 px-4 whitespace-nowrap">Student & ID</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Class & Sec</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Roll No</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Admission No</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Guardian & Mobile</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Attendance</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredStudents.map((student) => {
+                    const att = getStudentAttendanceStats(student.id);
+                    return (
+                      <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
+                        {/* Student & ID */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-300 overflow-hidden shrink-0">
+                              {student.photoURL ? (
+                                <img src={student.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 text-xs">
+                                  {student.name.charAt(0)}
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-900 text-xs">{student.name}</div>
+                              <div className="text-[10px] text-slate-400 font-mono">{student.studentId}</div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Class & Sec */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="font-bold text-slate-800">
+                            Class {student.classNumber} - '{student.sectionName}'
+                          </span>
+                        </td>
+
+                        {/* Roll No */}
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 whitespace-nowrap">
+                          #{student.rollNumber}
+                        </td>
+
+                        {/* Admission No */}
+                        <td className="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">
+                          {student.admissionNumber}
+                        </td>
+
+                        {/* Guardian & Mobile */}
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-slate-800 whitespace-nowrap">{student.fatherName}</div>
+                          <div className="text-[10px] text-slate-500 whitespace-nowrap">{student.mobile}</div>
+                        </td>
+
+                        {/* Attendance */}
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center font-bold px-2.5 py-0.5 rounded-full text-[11px] ${
+                            att.percentage >= 85 ? 'bg-emerald-100 text-emerald-800' :
+                            att.percentage >= 70 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {att.percentage}%
+                          </span>
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                            student.status === 'active' 
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                              : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {student.status}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => {
+                                setSelectedStudent(student);
+                                setSelectedPendingRequest(null);
+                                setIsProfileModalOpen(true);
+                              }}
+                              className="px-3.5 py-2 text-slate-900 bg-amber-400 hover:bg-amber-300 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                              title="Open 360° Profile & Document Vault"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>{language === 'hi' ? '360° प्रोफाइल' : '360° Profile'}</span>
+                            </button>
+
+                            <button
+                              onClick={() => setPrintIdCardStudent(student)}
+                              className="p-2 text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
+                              title="Print Official ID Card"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenEdit(student)}
+                              className="p-2 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                              title="Edit Record"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+
+                            {student.status === 'active' ? (
+                              <button
+                                onClick={() => deactivateStudent(student.id)}
+                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                                title="Deactivate Student"
+                              >
+                                <UserX className="w-4 h-4" />
+                              </button>
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 text-xs">
-                                {student.name.charAt(0)}
-                              </div>
+                              <button
+                                onClick={() => activateStudent(student.id)}
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                                title="Activate Student"
+                              >
+                                <UserCheck className="w-4 h-4" />
+                              </button>
                             )}
                           </div>
-                          <div>
-                            <div className="font-bold text-slate-900 text-xs">{student.name}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">{student.studentId}</div>
-                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {filteredStudents.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-400">
+                        <div className="max-w-sm mx-auto space-y-2">
+                          <GraduationCap className="w-8 h-8 text-slate-300 mx-auto" />
+                          <p className="font-bold text-slate-600 text-sm">
+                            {language === 'hi' ? 'कोई छात्र नहीं मिला' : 'No Students Found'}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {language === 'hi' ? 'दिए गए फ़िल्टर या खोज शब्दों के अनुसार कोई रिकॉर्ड उपलब्ध नहीं है।' : 'No records match the current filter or search criteria.'}
+                          </p>
                         </div>
                       </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-                      {/* Class & Sec */}
-                      <td className="py-3 px-4">
-                        <span className="font-bold text-slate-800">
-                          Class {student.classNumber} - '{student.sectionName}'
+            {/* MOBILE RESPONSIVE STUDENT CARD VIEW (< 768px) */}
+            <div className="block md:hidden p-3 space-y-3">
+              {filteredStudents.map((student) => {
+                const att = getStudentAttendanceStats(student.id);
+                return (
+                  <div
+                    key={student.id}
+                    className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs space-y-3 transition-all hover:border-amber-300"
+                  >
+                    {/* Header Row: Photo + Name + Class & Status */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                          {student.photoURL ? (
+                            <img src={student.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center font-black text-amber-700 bg-amber-50 text-base">
+                              {student.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-black text-slate-900 leading-snug truncate">{student.name}</h4>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                              {student.studentId}
+                            </span>
+                            <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">
+                              Class {student.classNumber} - '{student.sectionName}'
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize shrink-0 ${
+                        student.status === 'active' 
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                          : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {student.status}
+                      </span>
+                    </div>
+
+                    {/* Metadata 2-Column Grid */}
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200/70">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Roll / Adm No</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          #{student.rollNumber} • {student.admissionNumber}
                         </span>
-                      </td>
-
-                      {/* Roll No */}
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700">
-                        #{student.rollNumber}
-                      </td>
-
-                      {/* Admission No */}
-                      <td className="py-3 px-4 font-mono text-slate-600">
-                        {student.admissionNumber}
-                      </td>
-
-                      {/* Guardian & Mobile */}
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-800">{student.fatherName}</div>
-                        <div className="text-[10px] text-slate-500">{student.mobile}</div>
-                      </td>
-
-                      {/* Attendance */}
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-flex items-center font-bold px-2.5 py-0.5 rounded-full text-[11px] ${
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Attendance</span>
+                        <span className={`inline-flex items-center font-bold px-2 py-0.5 rounded-md text-[11px] mt-0.5 ${
                           att.percentage >= 85 ? 'bg-emerald-100 text-emerald-800' :
                           att.percentage >= 70 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
                         }`}>
                           {att.percentage}%
                         </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                          student.status === 'active' 
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                            : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          {student.status}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => {
-                              setSelectedStudent(student);
-                              setSelectedPendingRequest(null);
-                              setIsProfileModalOpen(true);
-                            }}
-                            className="px-3 py-1.5 text-slate-900 bg-amber-400 hover:bg-amber-300 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                            title="Open 360° Profile & Document Vault"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>{language === 'hi' ? '360° प्रोफाइल' : '360° Profile'}</span>
-                          </button>
-
-                          <button
-                            onClick={() => setPrintIdCardStudent(student)}
-                            className="p-1.5 text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
-                            title="Print Official ID Card"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={() => handleOpenEdit(student)}
-                            className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Record"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-
-                          {student.status === 'active' ? (
-                            <button
-                              onClick={() => deactivateStudent(student.id)}
-                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                              title="Deactivate Student"
-                            >
-                              <UserX className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => activateStudent(student.id)}
-                              className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                              title="Activate Student"
-                            >
-                              <UserCheck className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {filteredStudents.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
-                      <div className="max-w-sm mx-auto space-y-2">
-                        <GraduationCap className="w-8 h-8 text-slate-300 mx-auto" />
-                        <p className="font-bold text-slate-600 text-sm">
-                          {language === 'hi' ? 'कोई छात्र नहीं मिला' : 'No Students Found'}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {language === 'hi' ? 'दिए गए फ़िल्टर या खोज शब्दों के अनुसार कोई रिकॉर्ड उपलब्ध नहीं है।' : 'No records match the current filter or search criteria.'}
-                        </p>
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      <div className="col-span-2 pt-1 border-t border-slate-200/50 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block">Guardian & Mobile</span>
+                          <span className="font-semibold text-slate-800">{student.fatherName}</span>
+                          <span className="text-slate-500 ml-1.5 text-[11px]">({student.mobile})</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block text-right">Category</span>
+                          <span className="text-slate-700 font-semibold text-right block">{student.category || 'General'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Actions (Mobile-Optimized Touch Targets) */}
+                    <div className="flex items-center gap-2 pt-1">
+                      {/* Prominent 360° Profile Button */}
+                      <button
+                        onClick={() => {
+                          setSelectedStudent(student);
+                          setSelectedPendingRequest(null);
+                          setIsProfileModalOpen(true);
+                        }}
+                        className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                        title="Open 360° Profile & Document Vault"
+                      >
+                        <Eye className="w-4 h-4 shrink-0" />
+                        <span className="whitespace-nowrap">{language === 'hi' ? '360° प्रोफाइल' : '360° Profile'}</span>
+                      </button>
+
+                      {/* Print ID Card Button */}
+                      <button
+                        onClick={() => setPrintIdCardStudent(student)}
+                        className="min-h-[44px] min-w-[44px] p-2.5 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-700 flex items-center justify-center transition-colors cursor-pointer"
+                        title="Print Official ID Card"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+
+                      {/* Edit Record Button */}
+                      <button
+                        onClick={() => handleOpenEdit(student)}
+                        className="min-h-[44px] min-w-[44px] p-2.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 flex items-center justify-center transition-colors cursor-pointer"
+                        title="Edit Record"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+
+                      {/* Deactivate/Activate Button */}
+                      {student.status === 'active' ? (
+                        <button
+                          onClick={() => deactivateStudent(student.id)}
+                          className="min-h-[44px] min-w-[44px] p-2.5 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-700 flex items-center justify-center transition-colors cursor-pointer"
+                          title="Deactivate Student"
+                        >
+                          <UserX className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => activateStudent(student.id)}
+                          className="min-h-[44px] min-w-[44px] p-2.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-500 hover:text-emerald-700 flex items-center justify-center transition-colors cursor-pointer"
+                          title="Activate Student"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredStudents.length === 0 && (
+                <div className="py-12 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">
+                  <div className="max-w-sm mx-auto space-y-2 px-4">
+                    <GraduationCap className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="font-bold text-slate-600 text-sm">
+                      {language === 'hi' ? 'कोई छात्र नहीं मिला' : 'No Students Found'}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {language === 'hi' ? 'दिए गए फ़िल्टर या खोज शब्दों के अनुसार कोई रिकॉर्ड उपलब्ध नहीं है।' : 'No records match the current filter or search criteria.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* ======================================================== */}
