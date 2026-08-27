@@ -76,13 +76,14 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
 
   return (
     <>
-      {/* Mobile Backdrop Overlay - Smooth fade-in/out */}
+      {/* Mobile Backdrop Overlay - Smooth fade-in/out with 4px backdrop blur */}
       <div
         onClick={onClose}
         aria-hidden="true"
-        className={`fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300 ease-out ${
+        className={`fixed inset-0 bg-slate-950/75 backdrop-blur-[4px] z-40 lg:hidden transition-opacity duration-300 ease-out ${
           isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
+        style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
       />
 
       <aside
@@ -100,7 +101,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                 onSelectTab('profile');
                 onClose();
               }}
-              className="flex items-center gap-3 min-w-0 cursor-pointer group flex-1 touch-manipulation active:scale-[0.98] transition-transform"
+              className="flex items-center gap-3 min-w-0 cursor-pointer group flex-1 touch-manipulation active:scale-[0.98] transition-transform min-h-[44px]"
+              id="btn-student-profile-header"
             >
               <div className="relative shrink-0">
                 <UserAvatar
@@ -122,10 +124,11 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
 
             <button
               onClick={onClose}
-              className="lg:hidden min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 active:scale-95 text-slate-400 hover:text-white transition-all flex items-center justify-center cursor-pointer touch-manipulation shrink-0"
+              className="lg:hidden min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 active:scale-95 text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer touch-manipulation shrink-0 border border-slate-700/60"
               aria-label="Close sidebar"
+              id="btn-student-sidebar-close"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
@@ -175,8 +178,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           ))}
         </div>
 
-        {/* Footer */}
-        <div className="p-3.5 border-t border-slate-800 bg-slate-950/95 space-y-2 shrink-0">
+        {/* Footer with Dedicated Safe-Area Bottom Margin */}
+        <div className="p-3.5 pb-[max(1rem,env(safe-area-inset-bottom,16px))] border-t border-slate-800 bg-slate-950/95 space-y-2 shrink-0">
           <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400 truncate flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span className="font-bold text-slate-200 truncate">{settings.schoolName}</span>
@@ -191,6 +194,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
               onClose?.();
             }}
             className="w-full min-h-[44px] flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 active:bg-rose-700 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-bold transition-all cursor-pointer touch-manipulation select-none active:scale-[0.98]"
+            id="btn-student-logout"
           >
             <LogOut className="w-4 h-4" />
             <span>{language === 'hi' ? 'साइन आउट (Logout)' : 'Sign Out / Logout'}</span>

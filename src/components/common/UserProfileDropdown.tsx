@@ -102,8 +102,9 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2.5 p-1.5 sm:px-3 sm:py-1.5 rounded-2xl bg-slate-800/90 hover:bg-slate-800 text-white border border-slate-700 hover:border-amber-400/50 shadow-md transition-all group cursor-pointer"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center gap-2.5 p-1.5 sm:px-3 sm:py-2 rounded-2xl bg-slate-800/90 hover:bg-slate-800 active:bg-slate-700 text-white border border-slate-700 hover:border-amber-400/50 shadow-md transition-all group cursor-pointer touch-manipulation active:scale-95"
           id="btn-user-profile-menu"
+          aria-label="Open user profile menu"
         >
           {/* Avatar with Online Pulse */}
           <UserAvatar 

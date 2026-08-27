@@ -72,23 +72,47 @@
     overflow-wrap: break-word;
   }
 
-  /* Mobile-specific line height and spacing safeguards to completely eliminate text overlapping */
+  /* Mobile-specific line height and spacing safeguards to completely eliminate text overflowing and edge touching */
   @media (max-width: 640px) {
     h1 {
       line-height: 1.35 !important;
       letter-spacing: 0 !important;
+      margin-bottom: 0.75rem;
+      padding-left: 0.125rem;
+      padding-right: 0.125rem;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      text-wrap: balance;
     }
     h2 {
       line-height: 1.4 !important;
       letter-spacing: 0 !important;
+      margin-bottom: 0.5rem;
+      padding-left: 0.125rem;
+      padding-right: 0.125rem;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      text-wrap: balance;
     }
     h3 {
       line-height: 1.45 !important;
       letter-spacing: 0 !important;
+      margin-bottom: 0.375rem;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     p, li, td, th {
-      line-height: 1.6 !important;
+      line-height: 1.65 !important;
       letter-spacing: 0 !important;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    p {
+      margin-bottom: 0.625rem;
+      padding-left: 0.0625rem;
+      padding-right: 0.0625rem;
+      max-width: 100%;
+      text-wrap: pretty;
     }
     .leading-tight {
       line-height: 1.35 !important;
@@ -318,3 +342,34 @@
     transform: none !important;
   }
 }
+
+/* Specific Responsive Spacing & Readability Utilities for Mobile Breakpoints */
+.mobile-text-container {
+  width: 100%;
+  max-width: 100%;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  .mobile-text-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+.mobile-prose-readable {
+  line-height: 1.65;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  text-wrap: pretty;
+  max-width: 70ch;
+}
+
+.mobile-heading-readable {
+  line-height: 1.35;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  text-wrap: balance;
+}
+

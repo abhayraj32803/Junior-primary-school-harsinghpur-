@@ -256,13 +256,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   return (
     <>
-      {/* Mobile Backdrop Overlay - Persistent with smooth opacity fade (eliminates unmount flicker) */}
+      {/* Mobile Backdrop Overlay - Persistent with backdrop blur (4px) & smooth fade */}
       <div
         onClick={onClose}
         aria-hidden="true"
-        className={`fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300 ease-out ${
+        className={`fixed inset-0 bg-slate-950/75 backdrop-blur-[4px] z-40 lg:hidden transition-opacity duration-300 ease-out ${
           isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
+        style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
       />
 
       {/* Sidebar Container with GPU-accelerated smooth slide */}
@@ -281,8 +282,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 onSelectTab('faculty');
                 onClose();
               }}
-              className="flex items-center gap-3 min-w-0 cursor-pointer group flex-1 touch-manipulation active:scale-[0.98] transition-transform"
+              className="flex items-center gap-3 min-w-0 cursor-pointer group flex-1 touch-manipulation active:scale-[0.98] transition-transform min-h-[44px]"
               title="Click to view Directorate Profile"
+              id="btn-admin-profile-header"
             >
               <div className="relative shrink-0">
                 <UserAvatar
@@ -304,13 +306,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               </div>
             </div>
 
-            {/* Mobile Close Button with optimized 42px touch target */}
+            {/* Mobile Close Button with minimum 44px by 44px touch target area */}
             <button
               onClick={onClose}
-              className="lg:hidden min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 active:scale-95 text-slate-400 hover:text-white transition-all flex items-center justify-center cursor-pointer touch-manipulation shrink-0"
+              className="lg:hidden min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 active:scale-95 text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer touch-manipulation shrink-0 border border-slate-700/60"
               aria-label="Close sidebar"
+              id="btn-admin-sidebar-close"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5 text-white" />
             </button>
           </div>
 
@@ -322,15 +325,15 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={language === 'hi' ? 'मॉड्यूल या कार्य खोजें...' : 'Search module (Attendance, Marks)...'}
-              className="w-full pl-9 pr-8 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-hidden focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all touch-manipulation"
+              className="w-full pl-9 pr-10 min-h-[44px] py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-hidden focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all touch-manipulation"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-lg touch-manipulation"
+                className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] text-slate-400 hover:text-white flex items-center justify-center rounded-lg touch-manipulation cursor-pointer"
                 aria-label="Clear search"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -434,8 +437,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           )}
         </div>
 
-        {/* Footer info & Logout */}
-        <div className="p-3 bg-slate-950/80 border-t border-slate-800 space-y-2 shrink-0">
+        {/* Footer info & Logout with Dedicated Safe-Area Bottom Margin for Mobile */}
+        <div className="p-3.5 pb-[max(1rem,env(safe-area-inset-bottom,16px))] bg-slate-950/95 border-t border-slate-800 space-y-2 shrink-0">
           <div className="px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -454,6 +457,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               onClose?.();
             }}
             className="w-full min-h-[44px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/30 text-rose-300 hover:text-rose-200 border border-rose-500/20 text-xs font-bold transition-all cursor-pointer touch-manipulation select-none active:scale-[0.98]"
+            id="btn-admin-logout"
           >
             <LogOut className="w-4 h-4" />
             <span>{language === 'hi' ? 'लॉगआउट करें' : 'Sign Out'}</span>

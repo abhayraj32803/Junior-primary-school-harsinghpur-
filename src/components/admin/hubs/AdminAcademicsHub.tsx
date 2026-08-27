@@ -124,7 +124,7 @@ export const AdminAcademicsHub: React.FC<AdminAcademicsHubProps> = ({
         </div>
 
         {/* Sub Navigation Tabs */}
-        <div className="flex items-center gap-1.5 pt-3 overflow-x-auto custom-scrollbar">
+        <div className="flex items-center gap-2 pt-3 overflow-x-auto custom-scrollbar pb-1">
           {subTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
@@ -132,10 +132,10 @@ export const AdminAcademicsHub: React.FC<AdminAcademicsHubProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveSubTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                className={`min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 touch-manipulation active:scale-[0.98] ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-md'
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/80'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 active:bg-slate-200 hover:text-slate-900 border border-slate-200/80'
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-500'}`} />
