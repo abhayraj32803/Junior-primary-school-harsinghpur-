@@ -405,7 +405,7 @@ export const ResetPasswordActionModal: React.FC<ResetPasswordActionModalProps> =
                       type="text"
                       value={fallbackIdentifier}
                       onChange={(e) => setFallbackIdentifier(e.target.value)}
-                      placeholder={language === 'hi' ? 'उदा. student@school.gov.in या 8090538115' : 'e.g. email or username'}
+                      placeholder={language === 'hi' ? 'अपना पंजीकृत ईमेल या यूज़रनेम दर्ज करें' : 'Enter your registered email or username'}
                       className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-semibold focus:outline-hidden focus:border-amber-500 focus:bg-white"
                       required
                     />

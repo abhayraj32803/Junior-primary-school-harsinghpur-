@@ -125,9 +125,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       return;
     }
 
-    console.log('[AUTH-CLIENT] 🚀 [LOGIN-SUBMIT-TRIGGERED]', {
+    // Safe debug log without sensitive data
+    console.log('[AUTH-CLIENT] [LOGIN-SUBMIT-TRIGGERED]', {
       role: selectedRole,
-      identifier: identifier.trim(),
       timestamp: new Date().toISOString()
     });
 
@@ -138,11 +138,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setLoading(false);
 
     if (res.success) {
-      console.log('[AUTH-CLIENT] 🎉 [LOGIN-SUBMIT-SUCCESS] User authenticated successfully. Redirecting...');
       handleSuccess();
     } else {
-      console.warn('[AUTH-CLIENT] ⚠️ [LOGIN-SUBMIT-ERROR] Login failed:', res.error);
-      setError(res.error || (language === 'hi' ? 'लॉगिन असफल रहा। कृपया सही क्रेडेंशियल दर्ज करें।' : 'Failed to authenticate. Please check your credentials.'));
+      // Safe generic error message that never reveals account existence or internal details
+      setError(language === 'hi' ? 'यूज़रनेम या पासवर्ड गलत है।' : 'Invalid username or password. Please try again.');
     }
   };
 
@@ -370,35 +369,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     );
   }
 
-  // Role details config
+  // Role details config with 100% generic secure placeholders (Zero credential hints)
   const roleConfig = {
     admin: {
-      title: language === 'hi' ? 'प्रधानाध्यापक लॉगिन' : 'Headmaster Login',
+      title: language === 'hi' ? 'प्रधानाध्यापक लॉगिन' : 'Principal / Admin Login',
+      subtitle: language === 'hi' ? 'सुरक्षित प्रशासनिक प्रवेश' : 'Secure Administrative Access',
       badge: language === 'hi' ? 'प्रधानाध्यापक' : 'Headmaster',
-      idLabel: language === 'hi' ? 'यूज़र आईडी / ईमेल' : 'User ID / Email',
-      idPlaceholder: language === 'hi' ? 'उदा. 8090538115 या admin' : 'e.g. 8090538115 or admin',
+      idLabel: language === 'hi' ? 'यूज़रनेम / ईमेल' : 'Username / Email',
+      idPlaceholder: language === 'hi' ? 'अपना यूज़रनेम या ईमेल दर्ज करें' : 'Enter your username or email',
       passLabel: language === 'hi' ? 'पासवर्ड' : 'Password',
-      passPlaceholder: language === 'hi' ? 'पासवर्ड दर्ज करें' : 'Enter password',
+      passPlaceholder: language === 'hi' ? 'अपना पासवर्ड दर्ज करें' : 'Enter your password',
       cta: language === 'hi' ? 'प्रधानाध्यापक लॉगिन करें' : 'Sign In as Headmaster',
       icon: ShieldCheck
     },
     teacher: {
-      title: language === 'hi' ? 'शिक्षक एवं स्टाफ लॉगिन' : 'Teacher & Staff Login',
+      title: language === 'hi' ? 'शिक्षक / स्टाफ लॉगिन' : 'Teacher / Staff Login',
+      subtitle: language === 'hi' ? 'सुरक्षित शैक्षणिक प्रवेश' : 'Secure Faculty Access',
       badge: language === 'hi' ? 'शिक्षक / स्टाफ' : 'Teacher / Staff',
-      idLabel: language === 'hi' ? 'स्टाफ आईडी / ईमेल / मोबाइल' : 'Staff ID / Email / Mobile',
-      idPlaceholder: language === 'hi' ? 'उदा. TCH-2026-001 या 9415000000' : 'e.g. TCH-2026-001 or 9415000000',
+      idLabel: language === 'hi' ? 'यूज़रनेम / ईमेल' : 'Username / Email',
+      idPlaceholder: language === 'hi' ? 'अपना यूज़रनेम या ईमेल दर्ज करें' : 'Enter your username or email',
       passLabel: language === 'hi' ? 'पासवर्ड' : 'Password',
-      passPlaceholder: language === 'hi' ? 'पासवर्ड दर्ज करें' : 'Enter password',
-      cta: language === 'hi' ? 'लॉगिन करें' : 'Sign In as Teacher',
+      passPlaceholder: language === 'hi' ? 'अपना पासवर्ड दर्ज करें' : 'Enter your password',
+      cta: language === 'hi' ? 'शिक्षक / स्टाफ लॉगिन करें' : 'Sign In as Teacher',
       icon: Users
     },
     student: {
-      title: language === 'hi' ? 'छात्र एवं अभिभावक लॉगिन' : 'Student & Parent Login',
+      title: language === 'hi' ? 'छात्र / अभिभावक लॉगिन' : 'Student & Parent Login',
+      subtitle: language === 'hi' ? 'सुरक्षित छात्र पोर्टल प्रवेश' : 'Secure Student Portal Access',
       badge: language === 'hi' ? 'छात्र / अभिभावक' : 'Student / Parent',
-      idLabel: language === 'hi' ? 'छात्र आईडी / प्रवेश संख्या / ईमेल / मोबाइल' : 'Student ID / Admission No / Email / Mobile',
-      idPlaceholder: language === 'hi' ? 'उदा. STU-2026-001 या प्रवेश संख्या' : 'e.g. STU-2026-001 or admission no',
+      idLabel: language === 'hi' ? 'यूज़रनेम / ईमेल' : 'Username / Email',
+      idPlaceholder: language === 'hi' ? 'अपना यूज़रनेम या ईमेल दर्ज करें' : 'Enter your username or email',
       passLabel: language === 'hi' ? 'पासवर्ड' : 'Password',
-      passPlaceholder: language === 'hi' ? 'पासवर्ड दर्ज करें' : 'Enter password',
+      passPlaceholder: language === 'hi' ? 'अपना पासवर्ड दर्ज करें' : 'Enter your password',
       cta: language === 'hi' ? 'छात्र / अभिभावक लॉगिन करें' : 'Sign In as Student / Parent',
       icon: GraduationCap
     }
@@ -562,8 +564,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   <h3 className="text-xs sm:text-sm font-black text-gov-navy-950 leading-tight truncate">
                     {currentRoleConfig.title}
                   </h3>
-                  <span className="text-[9px] sm:text-[10px] text-slate-500 font-semibold block truncate">
-                    {language === 'hi' ? 'सुरक्षित प्रमाणीकरण सत्र' : 'Secure Verification'}
+                  <span className="text-[10px] sm:text-xs text-slate-500 font-semibold block truncate">
+                    {currentRoleConfig.subtitle}
                   </span>
                 </div>
               </div>
@@ -749,7 +751,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     type="text"
                     value={resetInput}
                     onChange={(e) => setResetInput(e.target.value)}
-                    placeholder={language === 'hi' ? 'उदा. student@gmail.com या STU-2026-001' : 'e.g. user@gmail.com or STU-2026-001'}
+                    placeholder={language === 'hi' ? 'अपना यूज़रनेम या पंजीकृत ईमेल दर्ज करें' : 'Enter your registered email or username'}
                     className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-hidden focus:border-amber-500 focus:bg-white touch-manipulation"
                     required
                   />

@@ -26,6 +26,8 @@ import { AdminSchemes } from '../AdminSchemes';
 import { AdminAdmission } from '../AdminAdmission';
 import { AdminContact } from '../AdminContact';
 import { AdminTimingsCalendar } from '../AdminTimingsCalendar';
+import { AdminPageHeader } from '../ui/AdminPageHeader';
+import { AdminTabNav, TabItem } from '../ui/AdminTabNav';
 
 export type WebsiteSubTab = 
   | 'homepage-mgmt' 
@@ -189,220 +191,157 @@ export const AdminWebsiteHub: React.FC<AdminWebsiteHubProps> = ({
 
   const currentTheme = settings.themePalette || 'government_professional';
 
-  const subTabs = [
+  const subTabs: TabItem<WebsiteSubTab>[] = [
     {
-      id: 'homepage-mgmt' as WebsiteSubTab,
-      labelEn: 'Homepage & Banners',
-      labelHi: 'मुख्य पृष्ठ प्रबंधन',
+      id: 'homepage-mgmt',
+      label: language === 'hi' ? 'मुख्य पृष्ठ प्रबंधन' : 'Homepage & Banners',
       icon: Sparkles
     },
     {
-      id: 'notice-ticker' as WebsiteSubTab,
-      labelEn: 'Notice Ticker & Flash Alerts',
-      labelHi: 'लाइव सूचना टिकर',
+      id: 'notice-ticker',
+      label: language === 'hi' ? 'लाइव सूचना टिकर' : 'Notice Ticker & Alerts',
       icon: Radio,
       badge: 'Live'
     },
     {
-      id: 'timings-calendar-mgmt' as WebsiteSubTab,
-      labelEn: 'School Timings & Academic Calendar',
-      labelHi: 'विद्यालय समय व शैक्षिक कैलेंडर',
+      id: 'timings-calendar-mgmt',
+      label: language === 'hi' ? 'विद्यालय समय व कैलेंडर' : 'Timings & Academic Calendar',
       icon: Clock,
-      badge: 'Public Sync'
+      badge: 'Public'
     },
     {
-      id: 'educational-videos' as WebsiteSubTab,
-      labelEn: 'Educational Videos',
-      labelHi: 'कक्षा 1-8 प्रेरक वीडियो',
+      id: 'educational-videos',
+      label: language === 'hi' ? 'कक्षा 1-8 प्रेरक वीडियो' : 'Educational Videos',
       icon: Video,
       badge: 'Class 1-8'
     },
     {
-      id: 'media-library' as WebsiteSubTab,
-      labelEn: 'Photo & Video Gallery',
-      labelHi: 'चित्र व वीडियो गैलरी',
+      id: 'media-library',
+      label: language === 'hi' ? 'चित्र व वीडियो गैलरी' : 'Photo & Video Gallery',
       icon: ImageIcon
     },
     {
-      id: 'school-profile' as WebsiteSubTab,
-      labelEn: 'School Profile & UDISE',
-      labelHi: 'विद्यालय विवरण व UDISE',
+      id: 'school-profile',
+      label: language === 'hi' ? 'विद्यालय विवरण व UDISE' : 'School Profile & UDISE',
       icon: Building2
     },
     {
-      id: 'facilities-mgmt' as WebsiteSubTab,
-      labelEn: 'Campus & Facilities',
-      labelHi: 'भौतिक सुविधाएं',
+      id: 'facilities-mgmt',
+      label: language === 'hi' ? 'भौतिक सुविधाएं' : 'Campus & Facilities',
       icon: Wrench
     },
     {
-      id: 'schemes-mgmt' as WebsiteSubTab,
-      labelEn: 'Govt Schemes & MDM',
-      labelHi: 'योजनाएं व मिड-डे मील',
+      id: 'schemes-mgmt',
+      label: language === 'hi' ? 'योजनाएं व मिड-डे मील' : 'Govt Schemes & MDM',
       icon: Gift
     },
     {
-      id: 'admission-mgmt' as WebsiteSubTab,
-      labelEn: 'Admission Policy',
-      labelHi: 'प्रवेश नियम व नीतियां',
+      id: 'admission-mgmt',
+      label: language === 'hi' ? 'प्रवेश नियम व नीतियां' : 'Admission Policy',
       icon: GraduationCap
     },
     {
-      id: 'contact-mgmt' as WebsiteSubTab,
-      labelEn: 'Contact, Timings & Map',
-      labelHi: 'संपर्क, समय व मैप',
+      id: 'contact-mgmt',
+      label: language === 'hi' ? 'संपर्क, समय व मैप' : 'Contact & Timings',
       icon: Phone
     }
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Hub Master Header Bar */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-4 sm:p-5 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 shadow-xs">
-              <Sparkles className="w-6 h-6" />
+    <div className="space-y-5">
+      {/* Hub Page Header */}
+      <AdminPageHeader
+        badge={language === 'hi' ? 'वेबसाइट सीएमएस' : 'Website CMS'}
+        badgeVariant="blue"
+        title={language === 'hi' ? 'वेबसाइट एवं जनसंचार पोर्टल' : 'Public Website & Media CMS'}
+        description={language === 'hi' ? 'मुख्य पृष्ठ, बैनर, प्रेरक वीडियो, फोटो गैलरी, सुविधाएं एवं शासकीय योजनाएं।' : 'Manage public portal content, hero banners, educational videos, media gallery and government schemes.'}
+      >
+        <div className="flex items-center gap-2">
+          <span className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-semibold shadow-xs flex items-center gap-1.5">
+            <Palette className="w-3.5 h-3.5 text-amber-500" />
+            <span>Theme: {currentTheme === 'government_professional' ? 'Government Professional' : currentTheme === 'tricolor_vibrant' ? 'Tricolor Vibrant' : 'Royal Navy'}</span>
+          </span>
+        </div>
+      </AdminPageHeader>
+
+      {/* ONE-CLICK THEME APPLY HERO BANNER (Clean Enterprise Design) */}
+      <div className="p-4 sm:p-5 rounded-xl bg-[#0F172A] text-white border border-slate-800 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
+                <ShieldCheck className="w-3 h-3 text-amber-400" />
+                {language === 'hi' ? 'मानक शासकीय रंग योजना' : 'Official Government Palette'}
+              </span>
+              <span className="text-xs text-slate-400 font-mono">• 1-Click Apply</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
-                  {language === 'hi' ? 'वेबसाइट सीएमएस' : 'Website CMS Hub'}
-                </span>
-                <span className="text-xs text-slate-400">•</span>
-                <span className="text-xs text-slate-500 font-semibold">
-                  {language === 'hi' ? 'जनसंचार, गैलरी, सुविधाएं एवं शासकीय योजनाएं' : 'Public Portal & Media Archives'}
-                </span>
+            
+            <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+              {language === 'hi' ? 'गवर्नमेंट प्रोफेशनल थीम (Government Professional)' : 'Government Professional Theme'}
+            </h3>
+            
+            <p className="text-xs text-slate-300 leading-relaxed font-normal">
+              {language === 'hi'
+                ? 'अशोक नेवी ब्लू हेडर (#00004d), सूक्ष्म केसरिया/अंबर बटन एक्सेंट (#FF9933) एवं स्वच्छ श्वेत बैकग्राउंड (#FFFFFF) की एकीकृत थीम वेबसाइट पर एक क्लिक में लागू करें।'
+                : 'Apply a cohesive palette across the website: Ashoka Navy Blue for headers, subtle Saffron accents for action buttons, and clean White backgrounds.'}
+            </p>
+
+            {/* Color Swatches */}
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#00004d] border border-white/30" />
+                <span>Navy Blue (#00004d)</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                {language === 'hi' ? 'वेबसाइट एवं जनसंचार पोर्टल' : 'Public Website & Media CMS'}
-              </h2>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FF9933] border border-white/30" />
+                <span>Saffron Accent (#FF9933)</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#138808] border border-white/30" />
+                <span>Green Badge (#138808)</span>
+              </div>
             </div>
           </div>
 
-          {/* Quick Active Theme Indicator */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-slate-900 text-white shadow-xs border border-slate-800">
-              <Palette className="w-4 h-4 text-amber-400" />
-              <div className="text-left">
-                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                  {language === 'hi' ? 'सक्रिय थीम' : 'Active Theme'}
-                </div>
-                <div className="text-xs font-black text-amber-300">
-                  {currentTheme === 'government_professional' && (language === 'hi' ? 'शासकीय प्रोफेशनल (Govt Pro)' : 'Government Professional')}
-                  {currentTheme === 'tricolor_vibrant' && (language === 'hi' ? 'तिरंगा गौरव (Tricolor)' : 'Tricolor Vibrant')}
-                  {currentTheme === 'royal_navy' && (language === 'hi' ? 'रॉयल नेवी टेक (Royal Navy)' : 'Royal Navy Tech')}
-                </div>
-              </div>
-            </div>
+          {/* Action Button */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleApplyThemePalette('government_professional')}
+              disabled={isApplyingTheme}
+              className="w-full sm:w-auto px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              id="btn-apply-gov-theme"
+            >
+              <Zap className="w-3.5 h-3.5 fill-slate-950" />
+              <span>
+                {isApplyingTheme 
+                  ? (language === 'hi' ? 'लागू हो रहा है...' : 'Applying Theme...') 
+                  : (language === 'hi' ? 'शासकीय थीम लागू करें' : 'Apply Government Theme')}
+              </span>
+            </button>
           </div>
         </div>
 
-        {/* ONE-CLICK THEME APPLY HERO BANNER (Government Professional Standard) */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-gov-navy-950 to-slate-950 text-white border border-slate-800 shadow-md relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-full bg-gradient-to-l from-amber-500/10 via-orange-500/5 to-transparent pointer-events-none" />
-          
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
-            <div className="space-y-1.5 max-w-2xl">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase tracking-wider">
-                  <ShieldCheck className="w-3 h-3 text-amber-400" />
-                  {language === 'hi' ? 'मानक शासकीय रंग योजना' : 'Official Government Palette'}
-                </span>
-                <span className="text-xs text-slate-400 font-mono">• 1-Click Apply</span>
-              </div>
-              
-              <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
-                {language === 'hi' ? 'गवर्नमेंट प्रोफेशनल थीम (Government Professional)' : 'Government Professional Theme'}
-              </h3>
-              
-              <p className="text-xs text-slate-300 leading-relaxed font-normal">
-                {language === 'hi'
-                  ? 'अशोक नेवी ब्लू हेडर (#00004d), सूक्ष्म केसरिया/अंबर बटन एक्सेंट (#FF9933) एवं स्वच्छ श्वेत बैकग्राउंड (#FFFFFF) की एकीकृत थीम वेबसाइट पर एक क्लिक में लागू करें।'
-                  : 'Apply a cohesive palette across the website: Ashoka Navy Blue for headers, subtle Saffron accents for action buttons, and clean White backgrounds.'}
-              </p>
-
-              {/* Color Swatches */}
-              <div className="flex items-center gap-2 pt-1 flex-wrap">
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700 text-[10px] font-mono text-slate-200">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#00004d] border border-white/30" />
-                  <span>Navy Blue (#00004d)</span>
-                </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700 text-[10px] font-mono text-slate-200">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FF9933] border border-white/30" />
-                  <span>Saffron Accent (#FF9933)</span>
-                </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700 text-[10px] font-mono text-slate-200">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#138808] border border-white/30" />
-                  <span>Green Badge (#138808)</span>
-                </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700 text-[10px] font-mono text-slate-200">
-                  <span className="w-2.5 h-2.5 rounded-full bg-white border border-slate-300" />
-                  <span>Clean White (#FFFFFF)</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
-              <button
-                type="button"
-                onClick={() => handleApplyThemePalette('government_professional')}
-                disabled={isApplyingTheme}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 hover:shadow-xl transition-all cursor-pointer transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
-                id="btn-apply-gov-theme"
-              >
-                <Zap className="w-4 h-4 fill-slate-950 text-slate-950" />
-                <span>
-                  {isApplyingTheme 
-                    ? (language === 'hi' ? 'लागू हो रहा है...' : 'Applying Theme...') 
-                    : (language === 'hi' ? 'शासकीय थीम 1-क्लिक में लागू करें' : 'Apply Government Professional Theme')}
-                </span>
-              </button>
-            </div>
+        {/* Success Toast */}
+        {themeSuccessMessage && (
+          <div className="mt-3 p-2.5 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 text-xs font-semibold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{themeSuccessMessage}</span>
           </div>
+        )}
+      </div>
 
-          {/* Success Toast */}
-          {themeSuccessMessage && (
-            <div className="mt-3.5 p-3 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 text-xs font-bold flex items-center gap-2 animate-in fade-in duration-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{themeSuccessMessage}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Sub Navigation Tabs */}
-        <div className="flex items-center gap-2 pt-1 overflow-x-auto custom-scrollbar pb-1">
-          {subTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveSubTab(tab.id)}
-                className={`min-h-[44px] flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 touch-manipulation active:scale-[0.98] ${
-                  isActive
-                    ? 'bg-slate-900 text-white shadow-md'
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 active:bg-slate-200 hover:text-slate-900 border border-slate-200/80'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-500'}`} />
-                <span>{language === 'hi' ? tab.labelHi : tab.labelEn}</span>
-                {tab.badge && (
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    isActive ? 'bg-amber-500 text-slate-950' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+      {/* Sub Navigation Tabs */}
+      <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-xs">
+        <AdminTabNav<WebsiteSubTab>
+          tabs={subTabs}
+          activeTab={activeSubTab}
+          onChangeTab={setActiveSubTab}
+        />
       </div>
 
       {/* Active Sub-module Container */}
-      <div className="animate-in fade-in duration-150">
+      <div className="pt-1">
         {activeSubTab === 'homepage-mgmt' && <AdminHomepage />}
         {activeSubTab === 'notice-ticker' && <AdminNoticeTicker />}
         {activeSubTab === 'timings-calendar-mgmt' && <AdminTimingsCalendar />}

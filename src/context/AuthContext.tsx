@@ -1083,10 +1083,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check deprecated admin identifier
     if (upperId === 'HEAD-KIRAN') {
       recordFailedAttempt(cleanId);
-      addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', 'Attempted deprecated username HEAD-KIRAN');
+      addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', 'Attempted deprecated username');
       return { 
         success: false, 
-        error: "The username 'HEAD-KIRAN' is not valid. Please log in using the official Admin username '8090538115'." 
+        error: "यूज़रनेम या पासवर्ड गलत है।" 
       };
     }
 
@@ -1183,7 +1183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       addSecurityLog(cleanId, role, 'FAILED', 'LOGIN', 'No account exists with this Username, Email, or Mobile');
       return { 
         success: false, 
-        error: "इस यूजरनेम, ईमेल या मोबाइल नंबर से कोई खाता नहीं मिला। कृपया अपने सही क्रेडेंशियल दर्ज करें या नया छात्र पंजीकरण करें।" 
+        error: "यूज़रनेम या पासवर्ड गलत है।" 
       };
     }
 

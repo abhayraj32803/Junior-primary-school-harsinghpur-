@@ -42,16 +42,8 @@ import {
   getDownloadURL
 } from 'firebase/storage';
 
-// Read config from firebase-applet-config.json or fallback
-let firebaseConfig = {
-  projectId: "gen-lang-client-0870597145",
-  appId: "1:915090148427:web:fd8f53e9255f79fb7011ce",
-  apiKey: "AIzaSyDr38orHZ3zCyA8-TBDSKKhFVtinnzpESg",
-  authDomain: "gen-lang-client-0870597145.firebaseapp.com",
-  firestoreDatabaseId: "ai-studio-schoolmanagement-e7f18a16-9738-4787-887c-1a8ba88500c0",
-  storageBucket: "gen-lang-client-0870597145.firebasestorage.app",
-  messagingSenderId: "915090148427",
-};
+// Read config from firebase-applet-config.json
+import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -60,31 +52,27 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// Set Firestore log level to silent/error to avoid noisy warnings during initial connection
+// Set Firestore log level to silent to prevent noisy transient backend polling warnings in console
 try {
-  setLogLevel('error');
+  setLogLevel('silent');
 } catch (e) {
   // ignore
 }
 
-// Use custom firestore database ID with forced long polling for maximum reliability in iframe environments
-export const db = (() => {
-  try {
-    const dbId = (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)')
-      ? firebaseConfig.firestoreDatabaseId
-      : undefined;
+// Initialize Firestore with specific database ID from config
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
-    return initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-      ignoreUndefinedProperties: true
-    }, dbId);
-  } catch (e) {
-    // If already initialized or fallback
-    return firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
-      ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-      : getFirestore(app);
+// Validate Connection to Firestore on boot
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.warn("Firestore client running in offline mode.");
+    }
   }
-})();
+}
+testConnection();
 
 export {
   signInWithEmailAndPassword,

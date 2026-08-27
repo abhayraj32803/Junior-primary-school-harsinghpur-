@@ -5,6 +5,7 @@ import { GlobalSearchModal } from '../common/GlobalSearchModal';
 import { QuickFinderModal } from './QuickFinderModal';
 import { 
   School, 
+  Home,
   LogIn, 
   LogOut,
   Menu, 
@@ -128,17 +129,121 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
   const selectedPage = activePage || currentPage || 'home';
   const handleOpenPortal = onOpenPortal || (() => onNavigate('portal'));
 
-  // 9 Requested Header Menu Items
+  // 9 Requested Primary Menu Items with section color identity
   const primaryMenuItems = [
-    { id: 'home', labelEn: 'Home', labelHi: 'Home', icon: Building2 },
-    { id: 'about', labelEn: 'About Us', labelHi: 'About Us', icon: School },
-    { id: 'classes', labelEn: 'Academics', labelHi: 'Academics', icon: BookOpen },
-    { id: 'faculty', labelEn: 'Teachers', labelHi: 'Teachers', icon: Users },
-    { id: 'facilities', labelEn: 'Facilities', labelHi: 'Facilities', icon: Droplets },
-    { id: 'activities', labelEn: 'Activities', labelHi: 'Activities', icon: Sparkles },
-    { id: 'notices', labelEn: 'Notices', labelHi: 'Notices', icon: Bell },
-    { id: 'gallery', labelEn: 'Gallery', labelHi: 'Gallery', icon: ImageIcon },
-    { id: 'contact', labelEn: 'Contact', labelHi: 'Contact', icon: Phone }
+    { id: 'home', labelEn: 'Home', labelHi: 'Home', icon: Home, color: 'indigo' },
+    { id: 'about', labelEn: 'About Us', labelHi: 'About Us', icon: School, color: 'slate' },
+    { id: 'classes', alias: 'academics', labelEn: 'Academics', labelHi: 'Academics', icon: BookOpen, color: 'blue' },
+    { id: 'faculty', labelEn: 'Teachers', labelHi: 'Teachers', icon: Users, color: 'violet' },
+    { id: 'facilities', labelEn: 'Facilities', labelHi: 'Facilities', icon: Building2, color: 'teal' },
+    { id: 'activities', labelEn: 'Activities', labelHi: 'Activities', icon: Sparkles, color: 'orange' },
+    { id: 'notices', labelEn: 'Notices', labelHi: 'Notices', icon: Bell, color: 'emerald' },
+    { id: 'gallery', labelEn: 'Gallery', labelHi: 'Gallery', icon: ImageIcon, color: 'amber' },
+    { id: 'contact', labelEn: 'Contact', labelHi: 'Contact', icon: Phone, color: 'rose' }
+  ];
+
+  // Mobile Drawer Navigation Configuration with section color mapping & subtle active indicator
+  const drawerNavItems = [
+    { 
+      id: 'home', 
+      labelEn: 'Home', 
+      labelHi: 'मुख्य पृष्ठ', 
+      icon: Home,
+      iconColor: 'text-indigo-600',
+      activeBg: 'bg-indigo-50/90',
+      activeBorder: 'border-l-[3.5px] border-indigo-600',
+      activeText: 'text-indigo-950 font-bold',
+      activeArrow: 'text-indigo-600',
+    },
+    { 
+      id: 'about', 
+      labelEn: 'About Us', 
+      labelHi: 'हमारे बारे में', 
+      icon: School,
+      iconColor: 'text-slate-700',
+      activeBg: 'bg-slate-100',
+      activeBorder: 'border-l-[3.5px] border-slate-700',
+      activeText: 'text-slate-900 font-bold',
+      activeArrow: 'text-slate-700',
+    },
+    { 
+      id: 'classes', 
+      alias: 'academics',
+      labelEn: 'Academics', 
+      labelHi: 'शिक्षा व पाठ्यक्रम', 
+      icon: BookOpen,
+      iconColor: 'text-blue-600',
+      activeBg: 'bg-blue-50/90',
+      activeBorder: 'border-l-[3.5px] border-blue-600',
+      activeText: 'text-blue-950 font-bold',
+      activeArrow: 'text-blue-600',
+    },
+    { 
+      id: 'faculty', 
+      labelEn: 'Teachers', 
+      labelHi: 'शिक्षक वृंद', 
+      icon: Users,
+      iconColor: 'text-violet-600',
+      activeBg: 'bg-violet-50/90',
+      activeBorder: 'border-l-[3.5px] border-violet-600',
+      activeText: 'text-violet-950 font-bold',
+      activeArrow: 'text-violet-600',
+    },
+    { 
+      id: 'facilities', 
+      labelEn: 'Facilities', 
+      labelHi: 'विद्यालय सुविधाएं', 
+      icon: Building2,
+      iconColor: 'text-teal-600',
+      activeBg: 'bg-teal-50/90',
+      activeBorder: 'border-l-[3.5px] border-teal-600',
+      activeText: 'text-teal-950 font-bold',
+      activeArrow: 'text-teal-600',
+    },
+    { 
+      id: 'activities', 
+      labelEn: 'Activities', 
+      labelHi: 'गतिविधियां व खेल', 
+      icon: Sparkles,
+      iconColor: 'text-orange-600',
+      activeBg: 'bg-orange-50/90',
+      activeBorder: 'border-l-[3.5px] border-orange-500',
+      activeText: 'text-orange-950 font-bold',
+      activeArrow: 'text-orange-600',
+    },
+    { 
+      id: 'notices', 
+      labelEn: 'Notices', 
+      labelHi: 'सूचनाएं व आदेश', 
+      icon: Bell,
+      iconColor: 'text-emerald-600',
+      activeBg: 'bg-emerald-50/90',
+      activeBorder: 'border-l-[3.5px] border-emerald-600',
+      activeText: 'text-emerald-950 font-bold',
+      activeArrow: 'text-emerald-600',
+    },
+    { 
+      id: 'gallery', 
+      labelEn: 'Gallery', 
+      labelHi: 'चित्र वीथिका (फोटो)', 
+      icon: ImageIcon,
+      iconColor: 'text-amber-600',
+      activeBg: 'bg-amber-50/90',
+      activeBorder: 'border-l-[3.5px] border-amber-500',
+      activeText: 'text-amber-950 font-bold',
+      activeArrow: 'text-amber-600',
+    },
+    { 
+      id: 'contact', 
+      labelEn: 'Contact', 
+      labelHi: 'संपर्क सूत्र', 
+      icon: Phone,
+      iconColor: 'text-rose-600',
+      activeBg: 'bg-rose-50/90',
+      activeBorder: 'border-l-[3.5px] border-rose-500',
+      activeText: 'text-rose-950 font-bold',
+      activeArrow: 'text-rose-600',
+    },
   ];
 
   const handleNavClick = (pageId: string) => {
@@ -509,44 +614,51 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
         <div
           onClick={() => setMobileMenuOpen(false)}
           aria-hidden="true"
-          className={`fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 xl:hidden transition-opacity duration-300 ease-out ${
+          className={`fixed inset-0 bg-slate-950/60 z-50 xl:hidden transition-opacity duration-300 ease-out backdrop-blur-[4px] ${
             mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
+          style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         />
 
         {/* Off-canvas Slide-in Drawer */}
         <div
           className={`
-            fixed inset-y-0 right-0 z-50 w-full sm:w-96 max-w-[88vw] bg-white border-l border-slate-200 shadow-2xl flex flex-col justify-between xl:hidden
+            fixed inset-y-0 right-0 z-50 w-[88vw] sm:w-[380px] max-w-[400px] bg-white border-l border-slate-200/90 shadow-2xl flex flex-col justify-between xl:hidden
             transform-gpu will-change-transform overscroll-contain transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
             ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
           `}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile Navigation Menu"
         >
           {/* Drawer Header */}
-          <div className="p-4 bg-gov-navy-950 text-white flex items-center justify-between border-b border-gov-navy-800 shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-gov-amber-500 text-gov-navy-950 flex items-center justify-center font-black text-sm shrink-0">
-                <School className="w-4 h-4" />
+          <div className="p-4 bg-white text-slate-900 flex items-center justify-between border-b border-slate-200/90 shrink-0">
+            <div className="flex items-center gap-3 min-w-0 pr-2">
+              <div className="w-10 h-10 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center font-black text-sm shrink-0 border border-slate-800 shadow-2xs">
+                <School className="w-5 h-5 text-amber-400" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-black text-white truncate">{settings.schoolName}</div>
-                <div className="text-[10px] text-gov-amber-400 font-bold tracking-wide truncate">
-                  {language === 'hi' ? 'नेविगेशन मेनू' : 'Main Navigation'}
+                <div className="text-xs sm:text-sm font-bold text-slate-900 truncate leading-tight">
+                  {settings.schoolName}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                  {settings.schoolTagline || (language === 'hi' ? 'उत्तर प्रदेश बेसिक शिक्षा विभाग' : 'Basic Education Dept')}
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-gov-navy-900 hover:bg-gov-navy-800 active:bg-gov-navy-700 active:scale-95 text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer touch-manipulation shrink-0"
-              aria-label="Close menu"
+              className="min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center cursor-pointer touch-manipulation shrink-0 border border-slate-200/80 active:scale-95"
+              aria-label="Close navigation drawer"
+              id="btn-drawer-close"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Drawer Scrollable Content */}
-          <div className="px-4 py-3 space-y-3.5 overflow-y-auto overscroll-contain custom-scrollbar flex-1">
+          <div className="px-4 py-3.5 space-y-3.5 overflow-y-auto overscroll-contain custom-scrollbar flex-1">
             {/* Quick Back Button in Mobile Drawer if on subpage */}
             {selectedPage !== 'home' && (
               <button
@@ -555,79 +667,13 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   if (onGoBack) onGoBack();
                   else handleNavClick('home');
                 }}
-                className="w-full min-h-[44px] p-2.5 rounded-xl bg-gov-amber-50 hover:bg-gov-amber-100 active:bg-gov-amber-200 text-gov-navy-950 text-xs font-black flex items-center justify-center gap-2 border border-gov-amber-200 transition-all shadow-xs cursor-pointer touch-manipulation select-none active:scale-[0.98]"
+                className="w-full min-h-[44px] p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-slate-900 text-xs font-bold flex items-center justify-center gap-2 border border-amber-200/80 transition-all shadow-2xs cursor-pointer touch-manipulation select-none active:scale-[0.98]"
+                id="btn-drawer-back"
               >
-                <ArrowLeft className="w-4 h-4 text-gov-amber-700" />
+                <ArrowLeft className="w-4 h-4 text-amber-700" />
                 <span>{language === 'hi' ? '← पिछले पृष्ठ पर वापस जाएं' : '← Back to Previous Screen'}</span>
               </button>
             )}
-
-            {/* Easy Guide Quick Banner in Mobile Drawer for Students & Parents */}
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setIsFinderOpen(true);
-              }}
-              className="w-full min-h-[50px] p-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-slate-950 text-left flex items-center justify-between shadow-md transition-all group cursor-pointer touch-manipulation border-2 border-amber-300 active:scale-[0.98]"
-              id="btn-drawer-quick-guide"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-white text-amber-700 flex items-center justify-center font-black text-sm shadow-xs shrink-0">
-                  🧭
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-black text-slate-950 truncate">
-                    {language === 'hi' ? 'कहाँ क्या मिलेगा? (आसान गाइड)' : 'Where to Find What? (Guide)'}
-                  </div>
-                  <div className="text-[10px] text-amber-950 font-bold truncate">
-                    {language === 'hi' ? 'कक्षा 1-8 खाना, किताबें, रिजल्ट, छुट्टियां' : 'Class 1-8 Books, Food, Results'}
-                  </div>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform shrink-0" />
-            </button>
-
-            {/* Search Bar in Mobile Drawer */}
-            <div 
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setIsSearchOpen(true);
-              }}
-              className="min-h-[44px] p-3 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 border border-slate-200 text-slate-600 text-xs flex items-center justify-between cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-all"
-            >
-              <div className="flex items-center gap-2">
-                <Search className="w-4 h-4 text-slate-400" />
-                <span>{language === 'hi' ? 'सर्च करें (खोजें)...' : 'Search website...'}</span>
-              </div>
-              <span className="text-[10px] px-2 py-0.5 bg-white rounded border border-slate-200 font-bold text-slate-700">Search</span>
-            </div>
-
-            {/* Active Dashboard Card if logged in */}
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                handleNavClick('portal');
-              }}
-              className="w-full min-h-[56px] p-3.5 rounded-2xl bg-gov-amber-500 hover:bg-gov-amber-600 active:bg-gov-amber-600 text-gov-navy-950 text-left flex items-center justify-between shadow-md transition-all group cursor-pointer touch-manipulation select-none active:scale-[0.98]"
-              id="btn-drawer-dashboard"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-gov-navy-950 text-gov-amber-400 flex items-center justify-center font-black shadow-sm shrink-0">
-                  <LayoutDashboard className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-black text-gov-navy-950 leading-tight truncate">
-                    {role 
-                      ? (language === 'hi' ? 'डैशबोर्ड में प्रवेश करें' : 'Go to Dashboard') 
-                      : (language === 'hi' ? 'पोर्टल लॉगिन (ERP)' : 'School Portal / ERP Login')}
-                  </div>
-                  <div className="text-[11px] text-gov-navy-900 font-semibold mt-0.5 truncate">
-                    {role ? 'Active Session' : 'Student, Teacher & Headmaster Portals'}
-                  </div>
-                </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gov-navy-950 group-hover:translate-x-1 transition-transform shrink-0" />
-            </button>
 
             {/* Quick 1-Click Role Logins in Drawer when not logged in */}
             {!role && (
@@ -637,43 +683,125 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                     setMobileMenuOpen(false);
                     handleNavClick('login-student');
                   }}
-                  className="min-h-[58px] p-2.5 rounded-xl bg-slate-100 hover:bg-amber-100 active:bg-amber-200 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold border border-slate-200 cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-transform"
+                  className="min-h-[58px] p-2 rounded-xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200/80 border border-slate-200/90 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold cursor-pointer touch-manipulation active:scale-[0.98] transition-all shadow-2xs"
+                  id="btn-drawer-quick-student"
                 >
-                  <GraduationCap className="w-4 h-4 text-gov-amber-600" />
-                  <span>{language === 'hi' ? 'छात्र लॉगिन' : 'Student'}</span>
+                  <GraduationCap className="w-5 h-5 text-amber-600 shrink-0" />
+                  <span className="truncate w-full text-center leading-tight">
+                    {language === 'hi' ? 'छात्र लॉगिन' : 'Student'}
+                  </span>
                 </button>
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
                     handleNavClick('login-teacher');
                   }}
-                  className="min-h-[58px] p-2.5 rounded-xl bg-slate-100 hover:bg-amber-100 active:bg-amber-200 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold border border-slate-200 cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-transform"
+                  className="min-h-[58px] p-2 rounded-xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200/80 border border-slate-200/90 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold cursor-pointer touch-manipulation active:scale-[0.98] transition-all shadow-2xs"
+                  id="btn-drawer-quick-teacher"
                 >
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <span>{language === 'hi' ? 'शिक्षक लॉगिन' : 'Teacher'}</span>
+                  <Users className="w-5 h-5 text-blue-600 shrink-0" />
+                  <span className="truncate w-full text-center leading-tight">
+                    {language === 'hi' ? 'शिक्षक लॉगिन' : 'Teacher'}
+                  </span>
                 </button>
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
                     handleNavClick('login-admin');
                   }}
-                  className="min-h-[58px] p-2.5 rounded-xl bg-slate-100 hover:bg-amber-100 active:bg-amber-200 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold border border-slate-200 cursor-pointer touch-manipulation select-none active:scale-[0.98] transition-transform"
+                  className="min-h-[58px] p-2 rounded-xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200/80 border border-slate-200/90 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold cursor-pointer touch-manipulation active:scale-[0.98] transition-all shadow-2xs"
+                  id="btn-drawer-quick-admin"
                 >
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>{language === 'hi' ? 'प्रधानाध्यापक' : 'Admin'}</span>
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span className="truncate w-full text-center leading-tight">
+                    {language === 'hi' ? 'प्रधानाध्यापक' : 'Admin'}
+                  </span>
                 </button>
               </div>
             )}
 
-            {/* 10 Direct Menu Items in Mobile Drawer */}
-            <div className="space-y-1 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
-              <div className="px-2 py-1 text-[11px] font-black uppercase tracking-wider text-gov-amber-800">
-                {language === 'hi' ? 'मुख्य पृष्ठ अनुभाग' : 'Main Menu Sections'}
+            {/* Primary ERP Portal Login Card */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleNavClick('portal');
+              }}
+              className="w-full min-h-[58px] px-3.5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-850 active:bg-slate-950 text-white text-left flex items-center justify-between shadow-sm border border-slate-800 transition-all group cursor-pointer touch-manipulation select-none active:scale-[0.98]"
+              id="btn-drawer-erp-portal"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-slate-800 text-amber-400 flex items-center justify-center font-bold shadow-2xs shrink-0 border border-slate-700">
+                  <LayoutDashboard className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white leading-tight truncate">
+                    {role 
+                      ? (language === 'hi' ? 'डैशबोर्ड में प्रवेश करें' : 'Go to Dashboard') 
+                      : (language === 'hi' ? 'पोर्टल लॉगिन (ERP)' : 'Portal Login (ERP)')}
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-medium mt-0.5 truncate">
+                    {role 
+                      ? (userProfile?.name ? `${userProfile.name} • Active` : 'Active Session') 
+                      : (language === 'hi' ? 'छात्र, शिक्षक एवं प्रधानाध्यापक' : 'Student, Teacher & Headmaster Portals')}
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-1 gap-1">
-                {primaryMenuItems.map((item) => {
+              <ChevronRight className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </button>
+
+            {/* Search Input / Trigger */}
+            <div 
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setIsSearchOpen(true);
+              }}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100/90 active:bg-slate-100 border border-slate-200/90 text-slate-600 text-xs flex items-center justify-between cursor-pointer touch-manipulation transition-all select-none"
+              id="btn-drawer-search"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                <span className="truncate text-slate-500 font-normal">
+                  {language === 'hi' ? 'सर्च करें (खोजें)...' : 'Search website...'}
+                </span>
+              </div>
+              <span className="px-2 py-0.5 bg-white text-slate-600 border border-slate-200 rounded-md text-[10px] font-bold shadow-2xs shrink-0">
+                {language === 'hi' ? 'खोजें' : 'Search'}
+              </span>
+            </div>
+
+            {/* Easy Guide Quick Finder for Students & Parents */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setIsFinderOpen(true);
+              }}
+              className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100/80 hover:to-orange-100/80 active:from-amber-100 active:to-orange-100 border border-amber-200/80 text-amber-950 text-left flex items-center justify-between transition-all group cursor-pointer touch-manipulation active:scale-[0.98]"
+              id="btn-drawer-quick-guide"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-6 h-6 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center text-xs shadow-2xs shrink-0 font-bold">
+                  🧭
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-amber-950 truncate">
+                    {language === 'hi' ? 'कहाँ क्या मिलेगा? आसान गाइड' : 'Quick Guide for Parents & Students'}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </button>
+
+            {/* Main Navigation Section */}
+            <div className="space-y-1 pt-0.5">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 pb-1">
+                {language === 'hi' ? 'मुख्य पृष्ठ अनुभाग' : 'Main Navigation'}
+              </div>
+
+              <div className="space-y-1">
+                {drawerNavItems.map((item) => {
                   const Icon = item.icon;
-                  const isItemActive = selectedPage === item.id || (item.id === 'classes' && selectedPage === 'academics');
+                  const isItemActive = selectedPage === item.id || (item.alias && selectedPage === item.alias);
+
                   return (
                     <button
                       key={item.id}
@@ -681,65 +809,90 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                         setMobileMenuOpen(false);
                         handleNavClick(item.id);
                       }}
-                      className={`w-full min-h-[44px] text-left p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all touch-manipulation select-none active:scale-[0.98] ${
+                      className={`w-full min-h-[46px] text-left px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between transition-all touch-manipulation select-none active:scale-[0.99] cursor-pointer ${
                         isItemActive
-                          ? 'bg-gov-navy-900 text-gov-amber-400 font-extrabold shadow-xs'
-                          : 'text-slate-700 hover:bg-white bg-slate-50/50'
+                          ? `${item.activeBg} ${item.activeBorder} ${item.activeText} rounded-l-xs shadow-2xs`
+                          : 'text-slate-700 hover:bg-slate-50 border-l-[3.5px] border-transparent font-medium'
                       }`}
+                      id={`btn-drawer-nav-${item.id}`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon className={`w-4 h-4 shrink-0 ${isItemActive ? 'text-gov-amber-400' : 'text-gov-amber-700'}`} />
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Icon className={`w-5 h-5 shrink-0 transition-colors ${isItemActive ? item.iconColor : 'text-slate-500'}`} />
                         <span className="truncate">{language === 'hi' ? item.labelHi : item.labelEn}</span>
                       </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <ChevronRight className={`w-4 h-4 shrink-0 transition-colors ${isItemActive ? item.activeArrow : 'text-slate-300'}`} />
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Additional Official Portals & Schemes */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleNavClick('schemes');
-                }}
-                className="min-h-[44px] p-2.5 rounded-xl bg-white active:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 text-center hover:bg-slate-50 transition-colors flex items-center justify-center cursor-pointer touch-manipulation active:scale-[0.98]"
-              >
-                {language === 'hi' ? 'शासकीय योजनाएं' : 'Govt Schemes'}
-              </button>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleNavClick('sources');
-                }}
-                className="min-h-[44px] p-2.5 rounded-xl bg-white active:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 text-center hover:bg-slate-50 transition-colors flex items-center justify-center cursor-pointer touch-manipulation active:scale-[0.98]"
-              >
-                {language === 'hi' ? 'शिक्षा पोर्टल (UDISE)' : 'UP Portals'}
-              </button>
+            {/* Secondary Links (Schemes & Official Sources) */}
+            <div className="pt-1 space-y-1.5">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">
+                {language === 'hi' ? 'शासकीय एवं UDISE पोर्टल' : 'Official Portals'}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleNavClick('schemes');
+                  }}
+                  className={`min-h-[44px] px-3 py-2 rounded-xl border text-xs font-bold text-center flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation active:scale-[0.98] transition-all ${
+                    selectedPage === 'schemes'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                      : 'bg-white hover:bg-slate-50 active:bg-slate-100 border-slate-200 text-slate-700'
+                  }`}
+                  id="btn-drawer-schemes"
+                >
+                  <Gift className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="truncate">{language === 'hi' ? 'सरकारी योजनाएँ' : 'Govt Schemes'}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleNavClick('sources');
+                  }}
+                  className={`min-h-[44px] px-3 py-2 rounded-xl border text-xs font-bold text-center flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation active:scale-[0.98] transition-all ${
+                    selectedPage === 'sources'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                      : 'bg-white hover:bg-slate-50 active:bg-slate-100 border-slate-200 text-slate-700'
+                  }`}
+                  id="btn-drawer-sources"
+                >
+                  <Globe className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span className="truncate">{language === 'hi' ? 'शिक्षा पोर्टल (UDISE)' : 'UP Portals'}</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Mobile Language Switcher & Accessibility Footer */}
-          <div className="p-3.5 border-t border-slate-200 bg-slate-50 shrink-0 flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600">
-              {language === 'hi' ? 'भाषा (Language):' : 'Language:'}
-            </span>
+          {/* Mobile Language Selector Footer */}
+          <div className="p-3.5 pb-[max(1rem,env(safe-area-inset-bottom,16px))] border-t border-slate-200/90 bg-slate-50 shrink-0 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+              <Languages className="w-4 h-4 text-slate-500" />
+              <span>{language === 'hi' ? 'भाषा (Language):' : 'Language:'}</span>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setLanguage('hi')}
-                className={`min-h-[44px] px-4 py-2 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer flex items-center justify-center active:scale-95 ${
-                  language === 'hi' ? 'bg-gov-amber-500 text-gov-navy-950 font-black shadow-xs' : 'bg-white text-slate-700 border border-slate-300'
+                className={`min-h-[44px] min-w-[76px] px-3.5 py-2 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer flex items-center justify-center active:scale-95 ${
+                  language === 'hi' 
+                    ? 'bg-slate-900 text-white font-black shadow-xs' 
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                 }`}
+                id="btn-drawer-lang-hi"
               >
                 हिन्दी
               </button>
               <button
                 onClick={() => setLanguage('en')}
-                className={`min-h-[44px] px-4 py-2 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer flex items-center justify-center active:scale-95 ${
-                  language === 'en' ? 'bg-gov-amber-500 text-gov-navy-950 font-black shadow-xs' : 'bg-white text-slate-700 border border-slate-300'
+                className={`min-h-[44px] min-w-[76px] px-3.5 py-2 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer flex items-center justify-center active:scale-95 ${
+                  language === 'en' 
+                    ? 'bg-slate-900 text-white font-black shadow-xs' 
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                 }`}
+                id="btn-drawer-lang-en"
               >
                 English
               </button>
