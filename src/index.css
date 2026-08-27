@@ -373,3 +373,30 @@
   text-wrap: balance;
 }
 
+/* Shimmer Skeleton Loading Animations */
+@keyframes skeletonWave {
+  0% {
+    transform: translateX(-100%);
+  }
+  50%, 100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  will-change: transform;
+}
+
+.skeleton-shimmer-wave {
+  animation: skeletonWave 1.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer-wave {
+    animation: none !important;
+  }
+}
+

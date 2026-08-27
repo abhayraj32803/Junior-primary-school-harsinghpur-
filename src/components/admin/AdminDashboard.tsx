@@ -32,18 +32,25 @@ import {
 import { UserAvatar } from '../common/UserAvatar';
 import { AdminMetricCard } from './ui/AdminMetricCard';
 import { AdminSectionHeader } from './ui/AdminSectionHeader';
+import { DashboardSkeleton } from '../common/SkeletonLoading';
 
 interface AdminDashboardProps {
   onNavigateTab: (tab: string) => void;
   onOpenCommandPalette?: () => void;
+  isLoading?: boolean;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   onNavigateTab, 
-  onOpenCommandPalette 
+  onOpenCommandPalette,
+  isLoading = false
 }) => {
   const { userProfile, registrationRequests } = useAuth();
-  const { students, teachers, classes, sections, attendance, notices, auditLogs, settings, language } = useSchool();
+  const { students, teachers, classes, sections, attendance, notices, auditLogs, settings, language, loading } = useSchool();
+
+  if (loading || isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayAttendance = attendance.filter(a => a.date === todayStr);

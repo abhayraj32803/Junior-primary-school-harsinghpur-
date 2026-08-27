@@ -14,19 +14,22 @@ import { AdminNotices } from '../AdminNotices';
 import { AdminNoticeTicker } from '../AdminNoticeTicker';
 import { AdminPageHeader } from '../ui/AdminPageHeader';
 import { AdminTabNav, TabItem } from '../ui/AdminTabNav';
+import { HubViewSkeleton } from '../../common/SkeletonLoading';
 
 export type OperationsSubTab = 'attendance' | 'examinations' | 'homework' | 'notices' | 'notice-ticker';
 
 interface AdminOperationsHubProps {
   initialSubTab?: OperationsSubTab;
   onNavigateTab?: (tabId: string) => void;
+  isLoading?: boolean;
 }
 
 export const AdminOperationsHub: React.FC<AdminOperationsHubProps> = ({
   initialSubTab = 'attendance',
-  onNavigateTab
+  onNavigateTab,
+  isLoading = false
 }) => {
-  const { language, notices, homeworkList, examinations } = useSchool();
+  const { language, notices, homeworkList, examinations, loading } = useSchool();
   const [activeSubTab, setActiveSubTab] = useState<OperationsSubTab>(initialSubTab);
 
   useEffect(() => {
@@ -34,6 +37,10 @@ export const AdminOperationsHub: React.FC<AdminOperationsHubProps> = ({
       setActiveSubTab(initialSubTab);
     }
   }, [initialSubTab]);
+
+  if (loading || isLoading) {
+    return <HubViewSkeleton subTabCount={5} type="table" />;
+  }
 
   const activeNoticesCount = notices.filter(n => n.status === 'active').length;
 

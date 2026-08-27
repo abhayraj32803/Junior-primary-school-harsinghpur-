@@ -28,6 +28,7 @@ import { AdminContact } from '../AdminContact';
 import { AdminTimingsCalendar } from '../AdminTimingsCalendar';
 import { AdminPageHeader } from '../ui/AdminPageHeader';
 import { AdminTabNav, TabItem } from '../ui/AdminTabNav';
+import { HubViewSkeleton } from '../../common/SkeletonLoading';
 
 export type WebsiteSubTab = 
   | 'homepage-mgmt' 
@@ -44,13 +45,15 @@ export type WebsiteSubTab =
 interface AdminWebsiteHubProps {
   initialSubTab?: WebsiteSubTab;
   onNavigateTab?: (tabId: string) => void;
+  isLoading?: boolean;
 }
 
 export const AdminWebsiteHub: React.FC<AdminWebsiteHubProps> = ({
   initialSubTab = 'homepage-mgmt',
-  onNavigateTab
+  onNavigateTab,
+  isLoading = false
 }) => {
-  const { language, settings, updateSchoolSettingsWithAudit, userProfile } = useSchool();
+  const { language, settings, updateSchoolSettingsWithAudit, userProfile, loading } = useSchool();
   const [activeSubTab, setActiveSubTab] = useState<WebsiteSubTab>(initialSubTab);
   const [isApplyingTheme, setIsApplyingTheme] = useState(false);
   const [themeSuccessMessage, setThemeSuccessMessage] = useState<string | null>(null);
@@ -60,6 +63,10 @@ export const AdminWebsiteHub: React.FC<AdminWebsiteHubProps> = ({
       setActiveSubTab(initialSubTab);
     }
   }, [initialSubTab]);
+
+  if (loading || isLoading) {
+    return <HubViewSkeleton subTabCount={8} type="cards" />;
+  }
 
   const handleApplyThemePalette = async (paletteType: 'government_professional' | 'tricolor_vibrant' | 'royal_navy' = 'government_professional') => {
     setIsApplyingTheme(true);

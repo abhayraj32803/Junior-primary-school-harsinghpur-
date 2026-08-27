@@ -11,19 +11,22 @@ import { AdminTeacherAssignments } from '../AdminTeacherAssignments';
 import { AdminProfile } from '../AdminProfile';
 import { AdminPageHeader } from '../ui/AdminPageHeader';
 import { AdminTabNav, TabItem } from '../ui/AdminTabNav';
+import { HubViewSkeleton } from '../../common/SkeletonLoading';
 
 export type FacultySubTab = 'teachers' | 'assignments' | 'profile';
 
 interface AdminFacultyHubProps {
   initialSubTab?: FacultySubTab;
   onNavigateTab?: (tabId: string) => void;
+  isLoading?: boolean;
 }
 
 export const AdminFacultyHub: React.FC<AdminFacultyHubProps> = ({
   initialSubTab = 'teachers',
-  onNavigateTab
+  onNavigateTab,
+  isLoading = false
 }) => {
-  const { language, teachers } = useSchool();
+  const { language, teachers, loading } = useSchool();
   const { registrationRequests } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<FacultySubTab>(initialSubTab);
 
@@ -36,6 +39,10 @@ export const AdminFacultyHub: React.FC<AdminFacultyHubProps> = ({
       setActiveSubTab(initialSubTab);
     }
   }, [initialSubTab]);
+
+  if (loading || isLoading) {
+    return <HubViewSkeleton subTabCount={3} type="table" />;
+  }
 
   const subTabs: TabItem<FacultySubTab>[] = [
     {

@@ -659,7 +659,7 @@ export const Student360Modal: React.FC<Student360ModalProps> = ({
                             type="text"
                             required
                             placeholder="e.g. UIDAI Aadhaar Verification Record"
-                            value={uploadFormData.title}
+                            value={uploadFormData.title ?? ''}
                             onChange={(e) => setUploadFormData({ ...uploadFormData, title: e.target.value })}
                             className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
                           />
@@ -670,7 +670,7 @@ export const Student360Modal: React.FC<Student360ModalProps> = ({
                           <input
                             type="text"
                             placeholder="e.g. UIDAI-UP-8921-4589"
-                            value={uploadFormData.documentNumber}
+                            value={uploadFormData.documentNumber ?? ''}
                             onChange={(e) => setUploadFormData({ ...uploadFormData, documentNumber: e.target.value })}
                             className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-amber-400"
                           />
@@ -709,7 +709,7 @@ export const Student360Modal: React.FC<Student360ModalProps> = ({
                         <input
                           type="text"
                           placeholder="e.g. Original physical copy verified with Tehsil / UIDAI portal"
-                          value={uploadFormData.notes}
+                          value={uploadFormData.notes ?? ''}
                           onChange={(e) => setUploadFormData({ ...uploadFormData, notes: e.target.value })}
                           className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
                         />
@@ -742,7 +742,7 @@ export const Student360Modal: React.FC<Student360ModalProps> = ({
                     <input
                       type="text"
                       placeholder="Search student documents by title or serial number..."
-                      value={docSearch}
+                      value={docSearch ?? ''}
                       onChange={(e) => setDocSearch(e.target.value)}
                       className="w-full bg-transparent border-0 text-xs text-white placeholder-slate-500 focus:outline-none"
                     />

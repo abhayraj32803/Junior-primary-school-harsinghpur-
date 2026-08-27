@@ -1347,7 +1347,7 @@ export const AdminStudents: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Section *</label>
               <select
-                value={formData.sectionName}
+                value={formData.sectionName ?? 'A'}
                 onChange={(e) => setFormData({ ...formData, sectionName: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               >
@@ -1363,7 +1363,7 @@ export const AdminStudents: React.FC = () => {
                 type="text"
                 required
                 placeholder="01"
-                value={formData.rollNumber}
+                value={formData.rollNumber ?? ''}
                 onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white font-mono"
               />
@@ -1376,7 +1376,7 @@ export const AdminStudents: React.FC = () => {
               <input
                 type="date"
                 required
-                value={formData.dateOfBirth}
+                value={formData.dateOfBirth ?? '2015-01-01'}
                 onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               />
@@ -1385,7 +1385,7 @@ export const AdminStudents: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Gender *</label>
               <select
-                value={formData.gender}
+                value={formData.gender ?? 'Male'}
                 onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               >
@@ -1398,7 +1398,7 @@ export const AdminStudents: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Social Category</label>
               <select
-                value={formData.category}
+                value={formData.category ?? 'General'}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               >
@@ -1418,7 +1418,7 @@ export const AdminStudents: React.FC = () => {
                 type="text"
                 required
                 placeholder="Father's full name"
-                value={formData.fatherName}
+                value={formData.fatherName ?? ''}
                 onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               />
@@ -1429,7 +1429,7 @@ export const AdminStudents: React.FC = () => {
                 type="text"
                 required
                 placeholder="Mother's full name"
-                value={formData.motherName}
+                value={formData.motherName ?? ''}
                 onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               />
@@ -1443,7 +1443,7 @@ export const AdminStudents: React.FC = () => {
                 type="tel"
                 required
                 placeholder="+91 98765 43210"
-                value={formData.mobile}
+                value={formData.mobile ?? ''}
                 onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               />
@@ -1451,7 +1451,7 @@ export const AdminStudents: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Blood Group</label>
               <select
-                value={formData.bloodGroup}
+                value={formData.bloodGroup ?? 'O+'}
                 onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               >
@@ -1473,7 +1473,7 @@ export const AdminStudents: React.FC = () => {
               type="text"
               required
               placeholder="House No, Village/Street, Post Office, District"
-              value={formData.address}
+              value={formData.address ?? ''}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
             />
@@ -1511,7 +1511,7 @@ export const AdminStudents: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.name}
+                value={formData.name ?? ''}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               />
@@ -1521,7 +1521,7 @@ export const AdminStudents: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.admissionNumber}
+                value={formData.admissionNumber ?? ''}
                 onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono"
               />
@@ -1532,7 +1532,7 @@ export const AdminStudents: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Class *</label>
               <select
-                value={formData.classNumber}
+                value={formData.classNumber ?? 1}
                 onChange={(e) => setFormData({ ...formData, classNumber: Number(e.target.value) })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               >
@@ -1544,7 +1544,7 @@ export const AdminStudents: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Section *</label>
               <select
-                value={formData.sectionName}
+                value={formData.sectionName ?? 'A'}
                 onChange={(e) => setFormData({ ...formData, sectionName: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               >
@@ -1558,7 +1558,7 @@ export const AdminStudents: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.rollNumber}
+                value={formData.rollNumber ?? ''}
                 onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono"
               />
@@ -1571,7 +1571,7 @@ export const AdminStudents: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.fatherName}
+                value={formData.fatherName ?? ''}
                 onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -1581,7 +1581,7 @@ export const AdminStudents: React.FC = () => {
               <input
                 type="tel"
                 required
-                value={formData.mobile}
+                value={formData.mobile ?? ''}
                 onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -1593,7 +1593,7 @@ export const AdminStudents: React.FC = () => {
             <input
               type="text"
               required
-              value={formData.address}
+              value={formData.address ?? ''}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
             />

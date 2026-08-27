@@ -224,7 +224,7 @@ export const AdminClassesSections: React.FC = () => {
               required
               maxLength={2}
               placeholder="e.g. C or D"
-              value={formData.sectionName}
+              value={formData.sectionName ?? ''}
               onChange={(e) => setFormData({ ...formData, sectionName: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs uppercase font-bold"
             />
@@ -233,7 +233,7 @@ export const AdminClassesSections: React.FC = () => {
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Class Teacher *</label>
             <select
-              value={formData.classTeacherId}
+              value={formData.classTeacherId ?? ''}
               onChange={(e) => setFormData({ ...formData, classTeacherId: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
             >
@@ -249,7 +249,7 @@ export const AdminClassesSections: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.roomNumber}
+                value={formData.roomNumber ?? ''}
                 onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -261,7 +261,7 @@ export const AdminClassesSections: React.FC = () => {
                 required
                 min={10}
                 max={80}
-                value={formData.capacity}
+                value={formData.capacity ?? 40}
                 onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -300,7 +300,7 @@ export const AdminClassesSections: React.FC = () => {
               type="text"
               required
               maxLength={2}
-              value={formData.sectionName}
+              value={formData.sectionName ?? ''}
               onChange={(e) => setFormData({ ...formData, sectionName: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs uppercase font-bold"
             />
@@ -309,7 +309,7 @@ export const AdminClassesSections: React.FC = () => {
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Class Teacher</label>
             <select
-              value={formData.classTeacherId}
+              value={formData.classTeacherId ?? ''}
               onChange={(e) => setFormData({ ...formData, classTeacherId: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
             >
@@ -325,7 +325,7 @@ export const AdminClassesSections: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.roomNumber}
+                value={formData.roomNumber ?? ''}
                 onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -337,7 +337,7 @@ export const AdminClassesSections: React.FC = () => {
                 required
                 min={10}
                 max={80}
-                value={formData.capacity}
+                value={formData.capacity ?? 40}
                 onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />

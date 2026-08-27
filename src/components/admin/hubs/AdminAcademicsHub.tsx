@@ -17,19 +17,22 @@ import { AdminDocuments } from '../AdminDocuments';
 import { AdminBulkPromotion } from '../AdminBulkPromotion';
 import { AdminPageHeader } from '../ui/AdminPageHeader';
 import { AdminTabNav, TabItem } from '../ui/AdminTabNav';
+import { HubViewSkeleton } from '../../common/SkeletonLoading';
 
 export type AcademicsSubTab = 'students' | 'promotion' | 'classes' | 'subjects' | 'timetable' | 'documents';
 
 interface AdminAcademicsHubProps {
   initialSubTab?: AcademicsSubTab;
   onNavigateTab?: (tabId: string) => void;
+  isLoading?: boolean;
 }
 
 export const AdminAcademicsHub: React.FC<AdminAcademicsHubProps> = ({
   initialSubTab = 'students',
-  onNavigateTab
+  onNavigateTab,
+  isLoading = false
 }) => {
-  const { language, students, classes, subjects } = useSchool();
+  const { language, students, classes, subjects, loading } = useSchool();
   const { registrationRequests } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<AcademicsSubTab>(initialSubTab);
 
@@ -38,6 +41,10 @@ export const AdminAcademicsHub: React.FC<AdminAcademicsHubProps> = ({
       setActiveSubTab(initialSubTab);
     }
   }, [initialSubTab]);
+
+  if (loading || isLoading) {
+    return <HubViewSkeleton subTabCount={6} type="table" />;
+  }
 
   const pendingStudentRequestsCount = registrationRequests.filter(
     r => r.requestedRole === 'student' && r.status === 'PENDING'

@@ -686,7 +686,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={timings.officeHours.startTime}
+                  value={timings.officeHours?.startTime ?? ''}
                   onChange={(e) => setTimings({
                     ...timings,
                     officeHours: { ...timings.officeHours, startTime: e.target.value }
@@ -701,7 +701,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={timings.officeHours.endTime}
+                  value={timings.officeHours?.endTime ?? ''}
                   onChange={(e) => setTimings({
                     ...timings,
                     officeHours: { ...timings.officeHours, endTime: e.target.value }
@@ -716,7 +716,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={timings.officeHours.workingDaysSummaryHi}
+                  value={timings.officeHours?.workingDaysSummaryHi ?? ''}
                   onChange={(e) => setTimings({
                     ...timings,
                     officeHours: { ...timings.officeHours, workingDaysSummaryHi: e.target.value }
@@ -731,7 +731,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={timings.officeHours.workingDaysSummaryEn}
+                  value={timings.officeHours?.workingDaysSummaryEn ?? ''}
                   onChange={(e) => setTimings({
                     ...timings,
                     officeHours: { ...timings.officeHours, workingDaysSummaryEn: e.target.value }
@@ -746,7 +746,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={timings.officeHours.visitorGuidelineHi}
+                  value={timings.officeHours?.visitorGuidelineHi ?? ''}
                   onChange={(e) => setTimings({
                     ...timings,
                     officeHours: { ...timings.officeHours, visitorGuidelineHi: e.target.value }
@@ -925,7 +925,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={calendar.academicYear}
+                  value={calendar.academicYear ?? ''}
                   onChange={(e) => setCalendar({ ...calendar, academicYear: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 focus:bg-white focus:outline-hidden"
                   placeholder="2025-2026"
@@ -938,7 +938,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="date"
-                  value={calendar.sessionStart}
+                  value={calendar.sessionStart ?? ''}
                   onChange={(e) => setCalendar({ ...calendar, sessionStart: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:bg-white focus:outline-hidden"
                 />
@@ -950,7 +950,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="date"
-                  value={calendar.sessionEnd}
+                  value={calendar.sessionEnd ?? ''}
                   onChange={(e) => setCalendar({ ...calendar, sessionEnd: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:bg-white focus:outline-hidden"
                 />
@@ -962,7 +962,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="number"
-                  value={calendar.totalWorkingDaysTarget}
+                  value={calendar.totalWorkingDaysTarget ?? 240}
                   onChange={(e) => setCalendar({ ...calendar, totalWorkingDaysTarget: Number(e.target.value) || 240 })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 focus:bg-white focus:outline-hidden"
                 />
@@ -974,7 +974,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={calendar.halfYearlyExamPeriod}
+                  value={calendar.halfYearlyExamPeriod ?? ''}
                   onChange={(e) => setCalendar({ ...calendar, halfYearlyExamPeriod: e.target.value })}
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden"
                   placeholder="October / November"
@@ -987,7 +987,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={calendar.annualExamPeriod}
+                  value={calendar.annualExamPeriod ?? ''}
                   onChange={(e) => setCalendar({ ...calendar, annualExamPeriod: e.target.value })}
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden"
                   placeholder="March"
@@ -1000,7 +1000,7 @@ export const AdminTimingsCalendar: React.FC = () => {
                 </label>
                 <input
                   type="date"
-                  value={calendar.resultsDeclarationDate}
+                  value={calendar.resultsDeclarationDate ?? ''}
                   onChange={(e) => setCalendar({ ...calendar, resultsDeclarationDate: e.target.value })}
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-hidden"
                 />

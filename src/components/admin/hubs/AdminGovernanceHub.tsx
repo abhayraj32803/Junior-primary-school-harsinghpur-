@@ -12,19 +12,22 @@ import { AdminReports } from '../AdminReports';
 import { AdminAuditLogs } from '../AdminAuditLogs';
 import { AdminPageHeader } from '../ui/AdminPageHeader';
 import { AdminTabNav, TabItem } from '../ui/AdminTabNav';
+import { HubViewSkeleton } from '../../common/SkeletonLoading';
 
 export type GovernanceSubTab = 'settings' | 'users' | 'reports' | 'audit';
 
 interface AdminGovernanceHubProps {
   initialSubTab?: GovernanceSubTab;
   onNavigateTab?: (tabId: string) => void;
+  isLoading?: boolean;
 }
 
 export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
   initialSubTab = 'settings',
-  onNavigateTab
+  onNavigateTab,
+  isLoading = false
 }) => {
-  const { language, auditLogs } = useSchool();
+  const { language, auditLogs, loading } = useSchool();
   const [activeSubTab, setActiveSubTab] = useState<GovernanceSubTab>(initialSubTab);
 
   useEffect(() => {
@@ -32,6 +35,10 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
       setActiveSubTab(initialSubTab);
     }
   }, [initialSubTab]);
+
+  if (loading || isLoading) {
+    return <HubViewSkeleton subTabCount={4} type="table" />;
+  }
 
   const subTabs: TabItem<GovernanceSubTab>[] = [
     {

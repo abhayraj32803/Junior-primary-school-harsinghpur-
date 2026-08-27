@@ -134,7 +134,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
               </label>
               <input
                 type="text"
-                value={fullName}
+                value={fullName ?? ''}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder={language === 'hi' ? 'उदा. रोहन वर्मा / Rohan Verma' : 'e.g. Rohan Verma'}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
@@ -149,7 +149,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
               </label>
               <input
                 type="date"
-                value={dateOfBirth}
+                value={dateOfBirth ?? ''}
                 onChange={(e) => setDateOfBirth(e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
                 required
@@ -162,7 +162,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
                 {language === 'hi' ? 'लिंग (Gender) *' : 'Gender *'}
               </label>
               <select
-                value={gender}
+                value={gender ?? 'Male'}
                 onChange={(e) => setGender(e.target.value as any)}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
               >
@@ -178,7 +178,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
                 {language === 'hi' ? 'सामाजिक श्रेणी (Category)' : 'Category'}
               </label>
               <select
-                value={category}
+                value={category ?? 'OBC'}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
               >
@@ -207,7 +207,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
               </label>
               <input
                 type="text"
-                value={fatherName}
+                value={fatherName ?? ''}
                 onChange={(e) => setFatherName(e.target.value)}
                 placeholder="e.g. Shri Ramakant Shakya"
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
@@ -222,7 +222,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
               </label>
               <input
                 type="text"
-                value={motherName}
+                value={motherName ?? ''}
                 onChange={(e) => setMotherName(e.target.value)}
                 placeholder="e.g. Smt. Sunita Devi"
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
@@ -236,7 +236,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
               </label>
               <input
                 type="tel"
-                value={phone}
+                value={phone ?? ''}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="e.g. 9876543210"
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden font-mono"
@@ -259,7 +259,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
                 {language === 'hi' ? 'कक्षा (Class) *' : 'Class *'}
               </label>
               <select
-                value={classNumber}
+                value={classNumber ?? 5}
                 onChange={(e) => setClassNumber(Number(e.target.value))}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
                 required
@@ -281,7 +281,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
                 {language === 'hi' ? 'वर्ग (Section) *' : 'Section *'}
               </label>
               <select
-                value={sectionName}
+                value={sectionName ?? 'A'}
                 onChange={(e) => setSectionName(e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"
                 required
@@ -299,7 +299,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
               </label>
               <input
                 type="text"
-                value={rollNumber}
+                value={rollNumber ?? ''}
                 onChange={(e) => setRollNumber(e.target.value)}
                 placeholder="e.g. 12"
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden font-mono"
@@ -314,7 +314,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
               </label>
               <input
                 type="text"
-                value={admissionNumber}
+                value={admissionNumber ?? ''}
                 onChange={(e) => setAdmissionNumber(e.target.value)}
                 placeholder="e.g. ADM-2026-045"
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden font-mono"
@@ -329,7 +329,7 @@ export const GoogleAuthRoleModal: React.FC<GoogleAuthRoleModalProps> = ({
             </label>
             <input
               type="text"
-              value={address}
+              value={address ?? ''}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="e.g. Gram Harsinghpur Gova, Post Shamsabad, Farrukhabad"
               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-amber-500 focus:outline-hidden"

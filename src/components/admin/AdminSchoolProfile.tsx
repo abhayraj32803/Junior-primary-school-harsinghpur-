@@ -26,6 +26,12 @@ export const AdminSchoolProfile: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  React.useEffect(() => {
+    if (settings) {
+      setFormData(prev => ({ ...prev, ...settings }));
+    }
+  }, [settings]);
+
   const handleChange = (field: keyof SchoolSettings, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -142,7 +148,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.schoolName}
+                  value={formData.schoolName ?? ''}
                   onChange={(e) => handleChange('schoolName', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   required
@@ -155,7 +161,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.schoolNameHi}
+                  value={formData.schoolNameHi ?? ''}
                   onChange={(e) => handleChange('schoolNameHi', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   required
@@ -168,7 +174,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.schoolCode}
+                  value={formData.schoolCode ?? ''}
                   onChange={(e) => handleChange('schoolCode', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   required
@@ -182,7 +188,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.schoolLevel}
+                  value={formData.schoolLevel ?? ''}
                   onChange={(e) => handleChange('schoolLevel', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   placeholder="Primary with Upper Primary (Class 1 to 8)"
@@ -195,7 +201,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.management}
+                  value={formData.management ?? ''}
                   onChange={(e) => handleChange('management', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   placeholder="Department of Basic Education, Govt. of Uttar Pradesh"
@@ -208,7 +214,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.schoolType}
+                  value={formData.schoolType ?? ''}
                   onChange={(e) => handleChange('schoolType', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   placeholder="Co-educational (सह-शिक्षा)"
@@ -221,7 +227,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.medium}
+                  value={formData.medium ?? ''}
                   onChange={(e) => handleChange('medium', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   placeholder="Hindi (हिंदी माध्यम)"
@@ -233,7 +239,7 @@ export const AdminSchoolProfile: React.FC = () => {
                   {language === 'hi' ? 'क्षेत्र प्रकार' : 'Area Type'}
                 </label>
                 <select
-                  value={formData.areaType}
+                  value={formData.areaType ?? 'Rural'}
                   onChange={(e) => handleChange('areaType', e.target.value as 'Rural' | 'Urban')}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 >
@@ -259,7 +265,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.village}
+                  value={formData.village ?? ''}
                   onChange={(e) => handleChange('village', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
@@ -271,7 +277,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.post}
+                  value={formData.post ?? ''}
                   onChange={(e) => handleChange('post', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
@@ -283,7 +289,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.pincode}
+                  value={formData.pincode ?? ''}
                   onChange={(e) => handleChange('pincode', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
@@ -295,7 +301,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.block}
+                  value={formData.block ?? ''}
                   onChange={(e) => handleChange('block', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
@@ -307,7 +313,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.district}
+                  value={formData.district ?? ''}
                   onChange={(e) => handleChange('district', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
@@ -319,7 +325,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.state}
+                  value={formData.state ?? ''}
                   onChange={(e) => handleChange('state', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
@@ -342,7 +348,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.academicYear}
+                  value={formData.academicYear ?? ''}
                   onChange={(e) => handleChange('academicYear', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   placeholder="2025-2026"
@@ -357,7 +363,7 @@ export const AdminSchoolProfile: React.FC = () => {
                   type="number"
                   min="4"
                   max="10"
-                  value={formData.periodsPerDay}
+                  value={formData.periodsPerDay ?? 8}
                   onChange={(e) => handleChange('periodsPerDay', parseInt(e.target.value) || 8)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
@@ -369,7 +375,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.headTeacherName}
+                  value={formData.headTeacherName ?? ''}
                   onChange={(e) => handleChange('headTeacherName', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
@@ -381,7 +387,7 @@ export const AdminSchoolProfile: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.headTeacherDesignation}
+                  value={formData.headTeacherDesignation ?? ''}
                   onChange={(e) => handleChange('headTeacherDesignation', e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />

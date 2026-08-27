@@ -21,6 +21,12 @@ export const AdminSettings: React.FC = () => {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
+  React.useEffect(() => {
+    if (settings) {
+      setFormData(prev => ({ ...prev, ...settings }));
+    }
+  }, [settings]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await updateSettings(formData);
@@ -77,7 +83,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.schoolName}
+                value={formData.schoolName ?? ''}
                 onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
               />
@@ -88,7 +94,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.schoolCode}
+                value={formData.schoolCode ?? ''}
                 onChange={(e) => setFormData({ ...formData, schoolCode: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono"
               />
@@ -101,7 +107,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.affiliationNumber}
+                value={formData.affiliationNumber ?? ''}
                 onChange={(e) => setFormData({ ...formData, affiliationNumber: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono"
               />
@@ -112,7 +118,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.academicYear}
+                value={formData.academicYear ?? ''}
                 onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -123,7 +129,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.headTeacherName}
+                value={formData.headTeacherName ?? ''}
                 onChange={(e) => setFormData({ ...formData, headTeacherName: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -136,7 +142,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.phone}
+                value={formData.phone ?? ''}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -147,7 +153,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="email"
                 required
-                value={formData.email}
+                value={formData.email ?? ''}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -160,7 +166,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.address}
+                value={formData.address ?? ''}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -171,7 +177,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.district}
+                value={formData.district ?? ''}
                 onChange={(e) => setFormData({ ...formData, district: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               />
@@ -182,7 +188,7 @@ export const AdminSettings: React.FC = () => {
               <input
                 type="text"
                 required
-                value={formData.pincode}
+                value={formData.pincode ?? ''}
                 onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono"
               />
@@ -238,7 +244,7 @@ export const AdminSettings: React.FC = () => {
                   type="number"
                   min={1}
                   max={60}
-                  value={formData.teacherVideoMaxDurationMinutes || 15}
+                  value={formData.teacherVideoMaxDurationMinutes ?? 15}
                   onChange={(e) => setFormData({ ...formData, teacherVideoMaxDurationMinutes: Number(e.target.value) })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
                 />

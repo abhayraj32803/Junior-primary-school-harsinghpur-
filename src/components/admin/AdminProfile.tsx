@@ -198,7 +198,7 @@ export const AdminProfile: React.FC<AdminProfileProps> = ({ onNavigateTab }) => 
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Full Name</label>
                   <input
                     type="text"
-                    value={editName}
+                    value={editName ?? ''}
                     onChange={(e) => setEditName(e.target.value)}
                     className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:outline-hidden focus:border-amber-400"
                   />
@@ -207,7 +207,7 @@ export const AdminProfile: React.FC<AdminProfileProps> = ({ onNavigateTab }) => 
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Designation</label>
                   <input
                     type="text"
-                    value={editDesignation}
+                    value={editDesignation ?? ''}
                     onChange={(e) => setEditDesignation(e.target.value)}
                     className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:outline-hidden focus:border-amber-400"
                   />
@@ -296,7 +296,7 @@ export const AdminProfile: React.FC<AdminProfileProps> = ({ onNavigateTab }) => 
                   {isEditing ? (
                     <input
                       type="tel"
-                      value={editPhone}
+                      value={editPhone ?? ''}
                       onChange={(e) => setEditPhone(e.target.value)}
                       className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold font-mono"
                     />
@@ -310,7 +310,7 @@ export const AdminProfile: React.FC<AdminProfileProps> = ({ onNavigateTab }) => 
                   {isEditing ? (
                     <input
                       type="email"
-                      value={editEmail}
+                      value={editEmail ?? ''}
                       onChange={(e) => setEditEmail(e.target.value)}
                       className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold font-mono"
                     />
