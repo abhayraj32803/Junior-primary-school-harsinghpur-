@@ -201,24 +201,24 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
       }`}>
         
         {/* 1. TOP INSTITUTIONAL UTILITY & ACCESSIBILITY BAR (IIT DELHI PATTERN) */}
-        <div className="bg-gov-navy-950 text-slate-200 text-[11px] font-medium border-b border-gov-navy-900">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between min-h-8 sm:min-h-9 py-1 gap-2">
+        <div className="bg-gov-navy-950 text-slate-200 text-[11px] font-medium border-b border-gov-navy-900 w-full overflow-hidden">
+          <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between min-h-9 sm:min-h-10 py-1 gap-2">
               
               {/* Left: Skip to Main Content & Quick Audience Portals */}
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <a 
                   href="#main-content" 
-                  className="sr-only focus:not-sr-only focus:px-2 focus:py-1 focus:bg-gov-amber-500 focus:text-gov-navy-950 focus:rounded font-bold"
+                  className="sr-only focus:not-sr-only focus:px-3 focus:py-2 focus:bg-gov-amber-500 focus:text-gov-navy-950 focus:rounded-lg font-bold z-50 text-xs"
                 >
                   {language === 'hi' ? 'मुख्य सामग्री पर जाएं' : 'Skip to main content'}
                 </a>
 
-                {/* Audience Quick Links (Visible on desktop/large screens to avoid crowding on tablets) */}
+                {/* Audience Quick Links (Visible on desktop/large screens) */}
                 <div className="hidden xl:flex items-center gap-3 text-slate-300 font-semibold shrink-0">
                   <button 
                     onClick={() => handleNavClick('login-student')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer flex items-center gap-1"
+                    className="hover:text-gov-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
                   >
                     <GraduationCap className="w-3.5 h-3.5 text-gov-amber-400" />
                     <span>{language === 'hi' ? 'विद्यार्थी (Student Login)' : 'Students Login'}</span>
@@ -226,14 +226,14 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   <span className="text-slate-600">|</span>
                   <button 
                     onClick={() => handleNavClick('faculty')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer"
+                    className="hover:text-gov-amber-400 transition-colors cursor-pointer py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
                   >
                     {language === 'hi' ? 'शिक्षक एवं स्टाफ' : 'Faculty & Staff'}
                   </button>
                   <span className="text-slate-600">|</span>
                   <button 
                     onClick={() => handleNavClick('login-teacher')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer flex items-center gap-1"
+                    className="hover:text-gov-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
                   >
                     <Users className="w-3.5 h-3.5 text-blue-400" />
                     <span>{language === 'hi' ? 'शिक्षक लॉगिन' : 'Teacher Login'}</span>
@@ -241,24 +241,24 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   <span className="text-slate-600">|</span>
                   <button 
                     onClick={() => handleNavClick('schemes')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer"
+                    className="hover:text-gov-amber-400 transition-colors cursor-pointer py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
                   >
                     {language === 'hi' ? 'अभिभावक व योजनाएं' : 'Parents & Schemes'}
                   </button>
                   <span className="text-slate-600">|</span>
                   <button 
                     onClick={() => handleNavClick('sources')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer flex items-center gap-1"
+                    className="hover:text-gov-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
                   >
                     <span>RTE / UDISE</span>
-                    <span className="px-1 py-0.2 bg-gov-navy-800 text-gov-amber-400 rounded text-[10px] font-mono">09290205902</span>
+                    <span className="px-1.5 py-0.5 bg-gov-navy-800 text-gov-amber-400 rounded text-[10px] font-mono">09290205902</span>
                   </button>
                 </div>
 
                 {/* Mobile / Tablet Short Audience Badge */}
-                <div className="flex xl:hidden items-center gap-1 text-[10px] text-slate-300 font-mono">
-                  <span className="text-gov-amber-400 font-bold">UDISE:</span>
-                  <span>{settings.schoolCode}</span>
+                <div className="flex xl:hidden items-center gap-1.5 text-[11px] text-slate-300 font-mono">
+                  <span className="text-gov-amber-400 font-black">UDISE:</span>
+                  <span className="bg-gov-navy-900 px-1.5 py-0.5 rounded border border-gov-navy-800 font-bold">{settings.schoolCode}</span>
                 </div>
               </div>
 
@@ -266,11 +266,11 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               <div className="flex items-center gap-1.5 sm:gap-2 text-xs shrink-0">
                 
                 {/* Font Sizer (A- / A / A+) - visible on tablets & desktop */}
-                <div className="hidden md:flex items-center gap-1 bg-gov-navy-900 px-1.5 py-0.5 rounded border border-gov-navy-800 text-[10px]">
+                <div className="hidden md:flex items-center gap-1 bg-gov-navy-900 p-0.5 rounded-lg border border-gov-navy-800 text-[11px]">
                   <button
                     onClick={() => handleFontSizeChange('normal')}
-                    className={`px-1 rounded font-bold cursor-pointer transition-colors ${
-                      fontSizeScale === 'normal' ? 'bg-gov-amber-500 text-gov-navy-950' : 'text-slate-400 hover:text-white'
+                    className={`min-w-[28px] min-h-[28px] px-1.5 rounded font-bold cursor-pointer transition-colors flex items-center justify-center touch-manipulation ${
+                      fontSizeScale === 'normal' ? 'bg-gov-amber-500 text-gov-navy-950 font-black' : 'text-slate-400 hover:text-white'
                     }`}
                     title="Default Font Size"
                   >
@@ -278,8 +278,8 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   </button>
                   <button
                     onClick={() => handleFontSizeChange('large')}
-                    className={`px-1 rounded font-bold cursor-pointer transition-colors ${
-                      fontSizeScale === 'large' ? 'bg-gov-amber-500 text-gov-navy-950' : 'text-slate-400 hover:text-white'
+                    className={`min-w-[28px] min-h-[28px] px-1.5 rounded font-bold cursor-pointer transition-colors flex items-center justify-center touch-manipulation ${
+                      fontSizeScale === 'large' ? 'bg-gov-amber-500 text-gov-navy-950 font-black' : 'text-slate-400 hover:text-white'
                     }`}
                     title="Large Font Size"
                   >
@@ -287,8 +287,8 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   </button>
                   <button
                     onClick={() => handleFontSizeChange('larger')}
-                    className={`px-1 rounded font-bold cursor-pointer transition-colors ${
-                      fontSizeScale === 'larger' ? 'bg-gov-amber-500 text-gov-navy-950' : 'text-slate-400 hover:text-white'
+                    className={`min-w-[28px] min-h-[28px] px-1.5 rounded font-bold cursor-pointer transition-colors flex items-center justify-center touch-manipulation ${
+                      fontSizeScale === 'larger' ? 'bg-gov-amber-500 text-gov-navy-950 font-black' : 'text-slate-400 hover:text-white'
                     }`}
                     title="Extra Large Font Size"
                   >
@@ -299,21 +299,21 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 {/* High Contrast / Screen Mode Toggle - visible on desktop */}
                 <button
                   onClick={toggleHighContrast}
-                  className="hidden lg:flex items-center gap-1 px-1.5 py-0.5 bg-gov-navy-900 hover:bg-gov-navy-800 text-slate-300 hover:text-white rounded border border-gov-navy-800 text-[10px] cursor-pointer transition-colors"
+                  className="hidden lg:flex items-center gap-1.5 min-h-[30px] px-2 bg-gov-navy-900 hover:bg-gov-navy-800 text-slate-300 hover:text-white rounded-lg border border-gov-navy-800 text-[11px] cursor-pointer transition-colors touch-manipulation"
                   title="High Contrast Toggle"
                 >
-                  <Eye className="w-3 h-3 text-gov-amber-400" />
+                  <Eye className="w-3.5 h-3.5 text-gov-amber-400" />
                   <span>{highContrast ? 'Standard' : 'Contrast'}</span>
                 </button>
 
-                {/* Language Switcher */}
-                <div className="flex items-center bg-gov-navy-900 rounded p-0.5 border border-gov-navy-800">
+                {/* Language Switcher with Touch-Friendly Targets */}
+                <div className="flex items-center bg-gov-navy-900 rounded-lg p-0.5 border border-gov-navy-800">
                   <button
                     onClick={() => setLanguage('hi')}
-                    className={`px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`min-h-[32px] px-2.5 sm:px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer touch-manipulation flex items-center justify-center ${
                       language === 'hi' 
-                        ? 'bg-gov-amber-500 text-gov-navy-950 font-black' 
-                        : 'text-slate-400 hover:text-white'
+                        ? 'bg-gov-amber-500 text-gov-navy-950 font-black shadow-xs' 
+                        : 'text-slate-300 hover:text-white'
                     }`}
                     title="हिंदी भाषा"
                   >
@@ -321,10 +321,10 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   </button>
                   <button
                     onClick={() => setLanguage('en')}
-                    className={`px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`min-h-[32px] px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer touch-manipulation flex items-center justify-center ${
                       language === 'en' 
                         ? 'bg-gov-amber-500 text-gov-navy-950 font-black' 
-                        : 'text-slate-400 hover:text-white'
+                        : 'text-slate-300 hover:text-white'
                     }`}
                     title="English"
                   >
@@ -335,11 +335,11 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 {/* ERP / Portal Login Shortcut in Top Bar */}
                 <button
                   onClick={() => handleNavClick('portal')}
-                  className="flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded bg-gov-amber-500 hover:bg-gov-amber-400 text-gov-navy-950 font-black text-[10px] sm:text-[11px] cursor-pointer transition-all shadow-xs shrink-0"
+                  className="flex items-center gap-1.5 min-h-[32px] px-2.5 sm:px-3 py-1 rounded-lg bg-gov-amber-500 hover:bg-gov-amber-400 active:bg-gov-amber-300 text-gov-navy-950 font-black text-[11px] cursor-pointer transition-all shadow-xs shrink-0 touch-manipulation"
                   id="btn-top-portal-login"
                 >
-                  <LogIn className="w-3 h-3" />
-                  <span>{role ? (language === 'hi' ? 'डैशबोर्ड' : 'Dashboard') : (language === 'hi' ? 'लॉगिन / ERP' : 'Portal Login')}</span>
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>{role ? (language === 'hi' ? 'डैशबोर्ड' : 'Dashboard') : (language === 'hi' ? 'लॉगिन' : 'Login')}</span>
                 </button>
               </div>
 
@@ -350,9 +350,9 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
         {/* National Tricolor Government Accent Line */}
         <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-white to-emerald-600 shadow-xs" />
 
-        {/* 2. MAIN INSTITUTIONAL MASTHEAD / BRANDING (IIT DELHI FORMAT - FULLY RESPONSIVE AUTO-HEIGHT) */}
-        <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between min-h-14 sm:min-h-20 py-2 sm:py-3.5 gap-1.5 sm:gap-4 h-auto">
+        {/* 2. MAIN INSTITUTIONAL MASTHEAD / BRANDING (RESPONSIVE WRAPPER & TOUCH TARGETS) */}
+        <div className="w-full max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between min-h-16 sm:min-h-20 py-2 sm:py-3.5 gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
             
             {/* Left: School Crest + Official Bilingual Titles */}
             <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 flex-1">
@@ -364,28 +364,28 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                     if (onGoBack) onGoBack();
                     else handleNavClick('home');
                   }}
-                  className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-gov-amber-100 hover:text-gov-navy-950 text-slate-800 text-[10px] sm:text-xs font-black border border-slate-300 hover:border-gov-amber-400 transition-all shadow-2xs cursor-pointer group shrink-0"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] p-2 rounded-xl bg-slate-100 hover:bg-gov-amber-100 hover:text-gov-navy-950 text-slate-800 text-xs font-black border border-slate-300 hover:border-gov-amber-400 transition-all shadow-2xs cursor-pointer group shrink-0 touch-manipulation active:scale-95"
                   title={language === 'hi' ? 'पिछले पृष्ठ पर वापस जाएं' : 'Back to previous page'}
                   id="btn-public-back"
                 >
-                  <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gov-amber-700 group-hover:-translate-x-0.5 transition-transform" />
-                  <span className="hidden xs:inline">{language === 'hi' ? 'वापस' : 'Back'}</span>
+                  <ArrowLeft className="w-4 h-4 text-gov-amber-700 group-hover:-translate-x-0.5 transition-transform" />
+                  <span className="hidden xs:inline ml-1">{language === 'hi' ? 'वापस' : 'Back'}</span>
                 </button>
               )}
 
               <button 
                 onClick={() => handleNavClick('home')}
-                className="flex items-center gap-2 sm:gap-3.5 text-left focus:outline-hidden group min-w-0 flex-1 cursor-pointer"
+                className="flex items-center gap-2 sm:gap-3.5 text-left focus:outline-hidden group min-w-0 flex-1 cursor-pointer touch-manipulation py-1"
               >
                 {/* Government School Emblem with Glowing Golden Ring */}
-                <div className="w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 p-0.5 shadow-md group-hover:scale-105 transition-transform shrink-0 ring-1 sm:ring-2 ring-amber-400/40">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 p-0.5 shadow-md group-hover:scale-105 transition-transform shrink-0 ring-1 sm:ring-2 ring-amber-400/40">
                   <div className="w-full h-full bg-gov-navy-950 rounded-[10px] sm:rounded-[14px] flex items-center justify-center text-gov-amber-400">
                     <School className="w-5 h-5 sm:w-7 sm:h-7 md:w-8 md:h-8 text-gov-amber-400" />
                   </div>
                 </div>
 
                 <div className="min-w-0 flex-1 py-0.5">
-                  <div className="text-[8.5px] sm:text-[10px] md:text-[11px] font-black tracking-wide text-amber-800 uppercase flex items-center gap-1 truncate leading-tight">
+                  <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black tracking-wide text-amber-800 uppercase flex items-center gap-1 truncate leading-tight">
                     <span>{language === 'hi' ? 'बेसिक शिक्षा परिषद, उत्तर प्रदेश' : 'Basic Education Dept, UP'}</span>
                     <span className="hidden sm:inline">•</span>
                     <span className="hidden sm:inline text-emerald-700 font-black">RTE 2009 Free</span>
@@ -393,7 +393,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   <div className="text-xs sm:text-base md:text-xl lg:text-2xl font-black text-gov-navy-950 leading-snug sm:leading-tight group-hover:text-amber-700 transition-colors line-clamp-1 sm:line-clamp-none my-0.5">
                     {language === 'hi' ? (settings.schoolNameHi || settings.schoolName) : settings.schoolName}
                   </div>
-                  <div className="text-[9px] sm:text-xs text-slate-600 font-semibold flex items-center gap-1 sm:gap-2 leading-tight flex-wrap">
+                  <div className="text-[9.5px] sm:text-xs text-slate-600 font-semibold flex items-center gap-1 sm:gap-2 leading-tight flex-wrap">
                     <span className="truncate">{language === 'hi' ? 'विकास खंड: शमसाबाद' : 'Block: Shamsabad'}</span>
                     <span>•</span>
                     <span className="truncate">{language === 'hi' ? 'जनपद: फर्रुखाबाद' : 'District: Farrukhabad'}</span>
@@ -404,51 +404,51 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               </button>
             </div>
 
-            {/* Right: Easy Guide + Quick Search + Free Admission CTA + Hamburger */}
+            {/* Right: Easy Guide + Quick Search + Free Admission CTA + Hamburger with >=44px Touch Targets */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
               
               {/* Easy Student & Parent Guide (कहाँ क्या मिलेगा?) */}
               <button
                 onClick={() => setIsFinderOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-[11px] sm:text-xs shadow-md shadow-amber-500/20 hover:shadow-amber-500/40 transition-all cursor-pointer shrink-0 border border-amber-300 transform hover:-translate-y-0.5 active:scale-95"
+                className="flex items-center justify-center gap-1.5 min-h-[44px] px-2.5 sm:px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-[11px] sm:text-xs shadow-md shadow-amber-500/20 hover:shadow-amber-500/40 transition-all cursor-pointer shrink-0 border border-amber-300 transform active:scale-95 touch-manipulation"
                 title={language === 'hi' ? 'कक्षा 1 से 8 विद्यार्थी व अभिभावक आसान गाइड' : 'Class 1-8 Easy Navigation Guide'}
                 id="btn-nav-guide"
               >
-                <HelpCircle className="w-3.5 h-3.5 text-slate-950 shrink-0" />
+                <HelpCircle className="w-4 h-4 text-slate-950 shrink-0" />
                 <span>{language === 'hi' ? 'कहाँ क्या मिलेगा?' : 'Easy Guide'}</span>
               </button>
 
               {/* Universal Search (IIT Delhi Search Icon / Ctrl+K) */}
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer text-xs font-bold shrink-0"
+                className="hidden md:flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer text-xs font-bold shrink-0 touch-manipulation"
                 title="Search website (Ctrl+K)"
                 id="btn-nav-search"
               >
-                <Search className="w-3.5 h-3.5 text-amber-600" />
+                <Search className="w-4 h-4 text-amber-600" />
                 <span className="text-xs hidden lg:inline">{language === 'hi' ? 'खोजें...' : 'Search...'}</span>
-                <kbd className="hidden lg:inline-block px-1.5 py-0.2 bg-white border border-slate-300 rounded text-[9px] text-slate-500 font-mono">⌘K</kbd>
+                <kbd className="hidden lg:inline-block px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[9px] text-slate-500 font-mono">⌘K</kbd>
               </button>
 
-              {/* Free Admission CTA Button - Compact on small mobile, Full on sm+ */}
+              {/* Free Admission CTA Button - Min 44px Touch Target */}
               <button
                 onClick={() => handleNavClick('admission')}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all cursor-pointer shadow-md shadow-emerald-600/30 hover:shadow-lg hover:shadow-emerald-600/40 hover:-translate-y-0.5 shrink-0 whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 min-h-[44px] px-3 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:bg-emerald-700 text-white transition-all cursor-pointer shadow-md shadow-emerald-600/30 hover:shadow-lg hover:shadow-emerald-600/40 shrink-0 whitespace-nowrap touch-manipulation active:scale-95"
                 title="RTE 2009 Free Admissions"
                 id="btn-nav-admissions"
               >
-                <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-200 shrink-0" />
+                <GraduationCap className="w-4 h-4 text-emerald-200 shrink-0" />
                 <span>{language === 'hi' ? 'नि:शुल्क प्रवेश' : 'Admissions'}</span>
               </button>
 
-              {/* Mobile / Tablet Hamburger Menu Toggle */}
+              {/* Mobile / Tablet Hamburger Menu Toggle with >= 44px Touch Area */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="xl:hidden p-1.5 sm:p-2 rounded-xl text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer shrink-0"
+                className="xl:hidden flex items-center justify-center min-h-[44px] min-w-[44px] p-2 rounded-xl text-slate-800 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 border border-slate-300 transition-all cursor-pointer shrink-0 touch-manipulation active:scale-95"
                 aria-label="Toggle Navigation Menu"
                 id="btn-nav-mobile-toggle"
               >
-                {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
+                {mobileMenuOpen ? <X className="w-6 h-6 text-slate-900" /> : <Menu className="w-6 h-6 text-slate-900" />}
               </button>
             </div>
 
@@ -705,7 +705,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   setMobileMenuOpen(false);
                   handleNavClick('schemes');
                 }}
-                className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 text-center hover:bg-slate-50 transition-colors"
+                className="min-h-[44px] p-2.5 rounded-xl bg-white active:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 text-center hover:bg-slate-50 transition-colors flex items-center justify-center cursor-pointer touch-manipulation active:scale-[0.98]"
               >
                 {language === 'hi' ? 'शासकीय योजनाएं' : 'Govt Schemes'}
               </button>
@@ -714,7 +714,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   setMobileMenuOpen(false);
                   handleNavClick('sources');
                 }}
-                className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 text-center hover:bg-slate-50 transition-colors"
+                className="min-h-[44px] p-2.5 rounded-xl bg-white active:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 text-center hover:bg-slate-50 transition-colors flex items-center justify-center cursor-pointer touch-manipulation active:scale-[0.98]"
               >
                 {language === 'hi' ? 'शिक्षा पोर्टल (UDISE)' : 'UP Portals'}
               </button>
@@ -729,16 +729,16 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setLanguage('hi')}
-                className={`min-h-[38px] px-3.5 py-1.5 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer active:scale-95 ${
-                  language === 'hi' ? 'bg-gov-amber-500 text-gov-navy-950 font-extrabold shadow-xs' : 'bg-white text-slate-600 border border-slate-200'
+                className={`min-h-[44px] px-4 py-2 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer flex items-center justify-center active:scale-95 ${
+                  language === 'hi' ? 'bg-gov-amber-500 text-gov-navy-950 font-black shadow-xs' : 'bg-white text-slate-700 border border-slate-300'
                 }`}
               >
                 हिन्दी
               </button>
               <button
                 onClick={() => setLanguage('en')}
-                className={`min-h-[38px] px-3.5 py-1.5 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer active:scale-95 ${
-                  language === 'en' ? 'bg-gov-amber-500 text-gov-navy-950 font-extrabold shadow-xs' : 'bg-white text-slate-600 border border-slate-200'
+                className={`min-h-[44px] px-4 py-2 text-xs rounded-xl font-bold transition-all touch-manipulation cursor-pointer flex items-center justify-center active:scale-95 ${
+                  language === 'en' ? 'bg-gov-amber-500 text-gov-navy-950 font-black shadow-xs' : 'bg-white text-slate-700 border border-slate-300'
                 }`}
               >
                 English

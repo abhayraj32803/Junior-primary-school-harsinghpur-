@@ -338,9 +338,10 @@ export const TeacherAttendance: React.FC = () => {
         const matchesName = student.name.toLowerCase().includes(query);
         const matchesRoll = (student.rollNumber || '').toLowerCase().includes(query);
         const matchesAdm = (student.admissionNumber || '').toLowerCase().includes(query);
+        const matchesId = (student.id || '').toLowerCase().includes(query);
         const matchesFather = (student.fatherName || '').toLowerCase().includes(query);
         const matchesGuardian = (student.guardianName || '').toLowerCase().includes(query);
-        if (!matchesName && !matchesRoll && !matchesAdm && !matchesFather && !matchesGuardian) {
+        if (!matchesName && !matchesRoll && !matchesAdm && !matchesId && !matchesFather && !matchesGuardian) {
           return false;
         }
       }

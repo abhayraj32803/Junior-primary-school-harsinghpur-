@@ -27,7 +27,11 @@ import {
   Info
 } from 'lucide-react';
 
-export const AboutPage: React.FC = () => {
+interface AboutPageProps {
+  onNavigate?: (page: string) => void;
+}
+
+export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
   const { settings, language } = useSchool();
   const [holidayCategoryFilter, setHolidayCategoryFilter] = useState<string>('all');
 
@@ -128,45 +132,87 @@ export const AboutPage: React.FC = () => {
   ];
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-10 sm:space-y-12 overflow-x-hidden">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-8 sm:space-y-12 overflow-x-hidden">
       {/* Intro Header */}
       <div className="text-center max-w-3xl mx-auto space-y-3">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+        <span className="inline-block text-[11px] sm:text-xs font-bold uppercase tracking-widest text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
           {language === 'hi' ? 'शासकीय विद्यालय परिचय एवं सांख्यिकी' : 'Institutional Heritage & Profile'}
         </span>
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
           {language === 'hi' ? settings.schoolNameHi : settings.schoolName}
         </h1>
-        <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+        <p className="text-xs sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">
           {language === 'hi' 
             ? 'उत्तर प्रदेश बेसिक शिक्षा परिषद के अधीन संचालित यह विद्यालय कक्षा 1 से 8 तक के छात्र-छात्राओं को समावेशी, निःशुल्क एवं गुणवत्तापूर्ण शिक्षा प्रदान करने हेतु पूर्णतः समर्पित है।'
             : 'Established under the Department of Basic Education, Government of Uttar Pradesh, providing free, compulsory, and foundational education for classes 1 through 8.'}
         </p>
+
+        {/* Quick Portal Login Action Banner if onNavigate is present */}
+        {onNavigate && (
+          <div className="pt-2 flex items-center justify-center gap-2">
+            <button
+              onClick={() => onNavigate('login')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-gov-navy-950 via-slate-900 to-gov-navy-950 hover:from-slate-900 hover:to-slate-800 text-amber-400 text-xs sm:text-sm font-black shadow-md border border-amber-400/40 transition-all cursor-pointer touch-manipulation active:scale-95"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>{language === 'hi' ? 'विद्यालय प्रबंधन पोर्टल (लॉगिन करें)' : 'School Portal Login (ERP)'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Official Master Profile Table with Verification Badges */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="bg-slate-900 text-white p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      {/* Official Master Profile with Verification Badges */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-slate-900 text-white p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-amber-400" />
-              <h2 className="text-base sm:text-lg font-black text-white">
+              <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
+              <h2 className="text-sm sm:text-lg font-black text-white leading-tight">
                 {language === 'hi' ? 'विद्यालय आधिकारिक मास्टर विवरण (UDISE Master Profile)' : 'Official Institutional Master Profile'}
               </h2>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-[11px] sm:text-xs text-slate-400 mt-1">
               {language === 'hi'
                 ? 'यह तालिका केवल सरकारी प्रमाणित रिकॉर्ड्स पर आधारित है। किसी भी काल्पनिक विवरण का पूर्णतः निषेध है।'
                 : 'This directory strictly presents government-verified attributes. No synthetic assumptions are used.'}
             </p>
           </div>
-          <span className="px-3 py-1 rounded-full bg-amber-500 text-slate-950 text-xs font-black">
+          <span className="px-2.5 py-1 rounded-full bg-amber-500 text-slate-950 text-[11px] sm:text-xs font-black shrink-0">
             UDISE: {settings.schoolCode}
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        {/* Mobile-Friendly Stacked Cards View (Under sm breakpoint) */}
+        <div className="block sm:hidden divide-y divide-slate-100 p-3 space-y-3">
+          {officialProfile.map((row, idx) => (
+            <div key={idx} className="pt-3 first:pt-0 space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  {row.labelHi}
+                </span>
+                {row.status === 'Verified' ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] shrink-0">
+                    <CheckCircle className="w-3 h-3" /> {language === 'hi' ? 'सत्यापित' : 'Verified'}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px] shrink-0">
+                    <HelpCircle className="w-3 h-3" /> {language === 'hi' ? 'सत्यापन अपेक्षित' : 'Pending'}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs font-black text-slate-900 leading-snug break-words">
+                {language === 'hi' ? row.valueHi : row.valueEn}
+              </div>
+              <div className="text-[10px] text-slate-500 font-medium">
+                {language === 'hi' ? 'स्रोत: ' : 'Source: '}{row.source}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tablet & Desktop Table View (sm and above) */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse min-w-[640px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
                 <th className="py-3 px-4 w-1/4">{language === 'hi' ? 'विवरण (Field)' : 'Attribute'}</th>
@@ -202,133 +248,133 @@ export const AboutPage: React.FC = () => {
       </div>
 
       {/* SECTION: SCHOOL OPERATING HOURS & TIMINGS */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 space-y-5 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
               <Clock className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">
+              <h2 className="text-base sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
                 {language === 'hi' ? 'विद्यालय संचालन समय सारिणी (School Timings)' : 'School Operating Hours & Timings'}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
                 {language === 'hi' 
                   ? 'उत्तर प्रदेश बेसिक शिक्षा परिषद के शासनादेशों के अनुसार ग्रीष्मकालीन एवं शीतकालीन संचालन समय।'
                   : 'Seasonal daily timings, morning assembly, mid-day meal recess, and public office hours.'}
               </p>
             </div>
           </div>
-          <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold font-mono">
+          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] sm:text-xs font-bold font-mono shrink-0">
             Govt. Regulated
           </span>
         </div>
 
         {/* Timings Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Summer Timing Card */}
-          <div className="p-6 rounded-3xl bg-amber-50/60 border border-amber-200/80 space-y-4 relative overflow-hidden">
-            <div className="flex items-center justify-between">
+          <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-amber-50/60 border border-amber-200/80 space-y-3 sm:space-y-4 relative overflow-hidden">
+            <div className="flex items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs shrink-0">
                   <Sun className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 text-sm sm:text-base">
-                    {language === 'hi' ? 'ग्रीष्मकालीन समय (Summer Timing)' : 'Summer Schedule'}
+                  <h3 className="font-black text-slate-900 text-xs sm:text-base leading-tight">
+                    {language === 'hi' ? 'ग्रीष्मकालीन समय (Summer)' : 'Summer Schedule'}
                   </h3>
-                  <span className="text-[11px] text-amber-800 font-bold">
+                  <span className="text-[10px] sm:text-[11px] text-amber-800 font-bold block">
                     {timings?.summerTiming.effectivePeriodHi || '1 अप्रैल से 30 सितम्बर'}
                   </span>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 text-[10px] font-bold shrink-0 whitespace-nowrap">
                 08:00 AM – 02:00 PM
               </span>
             </div>
 
-            <div className="space-y-2.5 text-xs text-slate-700 font-medium">
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/80 border border-amber-100">
-                <span className="text-slate-500">{language === 'hi' ? 'दैनिक समय:' : 'Daily Hours:'}</span>
-                <span className="font-bold text-slate-900 font-mono">{timings?.summerTiming.openingTime || '08:00 AM'} — {timings?.summerTiming.closingTime || '02:00 PM'}</span>
+            <div className="space-y-2 text-xs text-slate-700 font-medium">
+              <div className="flex flex-col xs:flex-row xs:items-center justify-between p-2.5 rounded-xl bg-white/80 border border-amber-100 gap-1">
+                <span className="text-slate-500 text-[11px] sm:text-xs">{language === 'hi' ? 'दैनिक समय:' : 'Daily Hours:'}</span>
+                <span className="font-bold text-slate-900 font-mono text-[11px] sm:text-xs">{timings?.summerTiming.openingTime || '08:00 AM'} — {timings?.summerTiming.closingTime || '02:00 PM'}</span>
               </div>
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/80 border border-amber-100">
-                <span className="text-slate-500">{language === 'hi' ? 'प्रातः प्रार्थना सभा:' : 'Prayer Assembly:'}</span>
-                <span className="font-bold text-slate-900">{timings?.summerTiming.assemblyTime || '08:00 AM – 08:20 AM'}</span>
+              <div className="flex flex-col xs:flex-row xs:items-center justify-between p-2.5 rounded-xl bg-white/80 border border-amber-100 gap-1">
+                <span className="text-slate-500 text-[11px] sm:text-xs">{language === 'hi' ? 'प्रातः प्रार्थना सभा:' : 'Prayer Assembly:'}</span>
+                <span className="font-bold text-slate-900 text-[11px] sm:text-xs">{timings?.summerTiming.assemblyTime || '08:00 AM – 08:20 AM'}</span>
               </div>
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/80 border border-amber-100">
-                <span className="text-slate-500">{language === 'hi' ? 'मध्याह्न भोजन (MDM):' : 'MDM Lunch Recess:'}</span>
-                <span className="font-bold text-slate-900">{timings?.summerTiming.recessTime || '10:30 AM – 11:00 AM'}</span>
+              <div className="flex flex-col xs:flex-row xs:items-center justify-between p-2.5 rounded-xl bg-white/80 border border-amber-100 gap-1">
+                <span className="text-slate-500 text-[11px] sm:text-xs">{language === 'hi' ? 'मध्याह्न भोजन (MDM):' : 'MDM Lunch Recess:'}</span>
+                <span className="font-bold text-slate-900 text-[11px] sm:text-xs">{timings?.summerTiming.recessTime || '10:30 AM – 11:00 AM'}</span>
               </div>
             </div>
           </div>
 
           {/* Winter Timing Card */}
-          <div className="p-6 rounded-3xl bg-sky-50/60 border border-sky-200/80 space-y-4 relative overflow-hidden">
-            <div className="flex items-center justify-between">
+          <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-sky-50/60 border border-sky-200/80 space-y-3 sm:space-y-4 relative overflow-hidden">
+            <div className="flex items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs">
+                <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs shrink-0">
                   <Snowflake className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 text-sm sm:text-base">
-                    {language === 'hi' ? 'शीतकालीन समय (Winter Timing)' : 'Winter Schedule'}
+                  <h3 className="font-black text-slate-900 text-xs sm:text-base leading-tight">
+                    {language === 'hi' ? 'शीतकालीन समय (Winter)' : 'Winter Schedule'}
                   </h3>
-                  <span className="text-[11px] text-sky-800 font-bold">
+                  <span className="text-[10px] sm:text-[11px] text-sky-800 font-bold block">
                     {timings?.winterTiming.effectivePeriodHi || '1 अक्टूबर से 31 मार्च'}
                   </span>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded-full bg-sky-200/80 text-sky-900 text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-sky-200/80 text-sky-900 text-[10px] font-bold shrink-0 whitespace-nowrap">
                 09:00 AM – 03:00 PM
               </span>
             </div>
 
-            <div className="space-y-2.5 text-xs text-slate-700 font-medium">
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/80 border border-sky-100">
-                <span className="text-slate-500">{language === 'hi' ? 'दैनिक समय:' : 'Daily Hours:'}</span>
-                <span className="font-bold text-slate-900 font-mono">{timings?.winterTiming.openingTime || '09:00 AM'} — {timings?.winterTiming.closingTime || '03:00 PM'}</span>
+            <div className="space-y-2 text-xs text-slate-700 font-medium">
+              <div className="flex flex-col xs:flex-row xs:items-center justify-between p-2.5 rounded-xl bg-white/80 border border-sky-100 gap-1">
+                <span className="text-slate-500 text-[11px] sm:text-xs">{language === 'hi' ? 'दैनिक समय:' : 'Daily Hours:'}</span>
+                <span className="font-bold text-slate-900 font-mono text-[11px] sm:text-xs">{timings?.winterTiming.openingTime || '09:00 AM'} — {timings?.winterTiming.closingTime || '03:00 PM'}</span>
               </div>
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/80 border border-sky-100">
-                <span className="text-slate-500">{language === 'hi' ? 'प्रातः प्रार्थना सभा:' : 'Prayer Assembly:'}</span>
-                <span className="font-bold text-slate-900">{timings?.winterTiming.assemblyTime || '09:00 AM – 09:20 AM'}</span>
+              <div className="flex flex-col xs:flex-row xs:items-center justify-between p-2.5 rounded-xl bg-white/80 border border-sky-100 gap-1">
+                <span className="text-slate-500 text-[11px] sm:text-xs">{language === 'hi' ? 'प्रातः प्रार्थना सभा:' : 'Prayer Assembly:'}</span>
+                <span className="font-bold text-slate-900 text-[11px] sm:text-xs">{timings?.winterTiming.assemblyTime || '09:00 AM – 09:20 AM'}</span>
               </div>
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/80 border border-sky-100">
-                <span className="text-slate-500">{language === 'hi' ? 'मध्याह्न भोजन (MDM):' : 'MDM Lunch Recess:'}</span>
-                <span className="font-bold text-slate-900">{timings?.winterTiming.recessTime || '11:30 AM – 12:00 PM'}</span>
+              <div className="flex flex-col xs:flex-row xs:items-center justify-between p-2.5 rounded-xl bg-white/80 border border-sky-100 gap-1">
+                <span className="text-slate-500 text-[11px] sm:text-xs">{language === 'hi' ? 'मध्याह्न भोजन (MDM):' : 'MDM Lunch Recess:'}</span>
+                <span className="font-bold text-slate-900 text-[11px] sm:text-xs">{timings?.winterTiming.recessTime || '11:30 AM – 12:00 PM'}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Office Visiting Hours Note */}
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3">
           <div>
-            <span className="font-bold text-slate-900 block sm:inline mr-2">
-              {language === 'hi' ? 'कार्यालय एवं अभिभावक भेंट समय:' : 'Office & Public Interaction Hours:'}
+            <span className="font-bold text-slate-900 block sm:inline mr-1">
+              {language === 'hi' ? 'कार्यालय एवं अभिभावक भेंट समय:' : 'Office & Public Hours:'}
             </span>
             <span>
               {timings?.officeHours.startTime || '08:30 AM'} — {timings?.officeHours.endTime || '01:30 PM'} ({language === 'hi' ? (timings?.officeHours.workingDaysSummaryHi || 'सोमवार से शनिवार') : (timings?.officeHours.workingDaysSummaryEn || 'Mon-Sat')})
             </span>
           </div>
-          <span className="text-[11px] text-slate-500 italic">
+          <span className="text-[10px] sm:text-[11px] text-slate-500 italic shrink-0">
             {language === 'hi' ? 'साप्ताहिक अवकाश: रविवार' : 'Weekly Off: Sunday'}
           </span>
         </div>
       </div>
 
       {/* SECTION: ACADEMIC CALENDAR & OFFICIAL HOLIDAY DATES */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 space-y-5 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
               <CalendarDays className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">
+              <h2 className="text-base sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
                 {language === 'hi' ? `वार्षिक शैक्षिक कैलेंडर एवं शासकीय अवकाश सूची (सत्र ${calendar?.academicYear || '2025-26'})` : `Academic Calendar & Holiday Schedule (Session ${calendar?.academicYear || '2025-26'})`}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
                 {language === 'hi'
                   ? 'उत्तर प्रदेश बेसिक शिक्षा परिषद द्वारा निर्गत आधिकारिक अवकाश तालिका एवं सत्र गतिविधियां।'
                   : 'Official holiday schedule and session milestones as notified by the UP Basic Shiksha Parishad.'}
@@ -336,18 +382,18 @@ export const AboutPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-            <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-100">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600 shrink-0">
+            <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-100 text-[11px]">
               {calendar?.totalWorkingDaysTarget || 240} {language === 'hi' ? 'कार्य दिवस लक्ष्य' : 'Working Days Target'}
             </span>
           </div>
         </div>
 
         {/* Category Filters */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
           <button
             onClick={() => setHolidayCategoryFilter('all')}
-            className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all text-[11px] sm:text-xs touch-manipulation ${
               holidayCategoryFilter === 'all' ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -355,34 +401,71 @@ export const AboutPage: React.FC = () => {
           </button>
           <button
             onClick={() => setHolidayCategoryFilter('Gazetted')}
-            className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all text-[11px] sm:text-xs touch-manipulation ${
               holidayCategoryFilter === 'Gazetted' ? 'bg-amber-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            {language === 'hi' ? 'राजपत्रित अवकाश (Gazetted)' : 'Gazetted'}
+            {language === 'hi' ? 'राजपत्रित अवकाश' : 'Gazetted'}
           </button>
           <button
             onClick={() => setHolidayCategoryFilter('National Holiday')}
-            className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all text-[11px] sm:text-xs touch-manipulation ${
               holidayCategoryFilter === 'National Holiday' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            {language === 'hi' ? 'राष्ट्रीय पर्व (National)' : 'National Holidays'}
+            {language === 'hi' ? 'राष्ट्रीय पर्व' : 'National'}
           </button>
           <button
             onClick={() => setHolidayCategoryFilter('Vacation')}
-            className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all text-[11px] sm:text-xs touch-manipulation ${
               holidayCategoryFilter === 'Vacation' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            {language === 'hi' ? 'दीर्घकालीन अवकाश (Vacations)' : 'Vacations'}
+            {language === 'hi' ? 'दीर्घकालीन अवकाश' : 'Vacations'}
           </button>
         </div>
 
-        {/* Holidays Table */}
-        <div className="rounded-2xl border border-slate-200 overflow-hidden">
+        {/* Mobile Holidays Cards View (Under sm) */}
+        <div className="block sm:hidden space-y-2.5">
+          {filteredHolidays.length === 0 ? (
+            <div className="py-6 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-slate-200">
+              {language === 'hi' ? 'इस श्रेणी में कोई अवकाश नहीं है।' : 'No holidays found in this category.'}
+            </div>
+          ) : (
+            filteredHolidays.map((hol, idx) => (
+              <div key={hol.id} className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="font-mono text-xs font-black text-slate-900">
+                    {hol.startDate} {hol.endDate && <span className="text-slate-500 font-normal text-[10px]">to {hol.endDate}</span>}
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 ${
+                    hol.type === 'National Holiday'
+                      ? 'bg-blue-100 text-blue-800'
+                      : hol.type === 'Vacation'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : hol.type === 'Gazetted'
+                      ? 'bg-amber-100 text-amber-900'
+                      : 'bg-purple-100 text-purple-800'
+                  }`}>
+                    {hol.type}
+                  </span>
+                </div>
+                <div className="font-bold text-slate-900 text-xs leading-snug">
+                  {language === 'hi' ? hol.titleHi : hol.titleEn}
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-200/60">
+                  <span>{hol.daysCount} {language === 'hi' ? 'दिन' : 'Days'}</span>
+                  <span>{language === 'hi' ? (hol.descriptionHi || hol.descriptionEn) : (hol.descriptionEn || hol.descriptionHi)}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Tablet & Desktop Holidays Table (sm and above) */}
+        <div className="hidden sm:block rounded-2xl border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left text-xs border-collapse min-w-[650px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
                   <th className="py-3 px-4 w-12 text-center">#</th>
