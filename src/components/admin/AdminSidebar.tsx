@@ -39,7 +39,8 @@ import {
   Activity,
   SlidersHorizontal,
   LayoutTemplate,
-  Contact2
+  Contact2,
+  CreditCard
 } from 'lucide-react';
 
 export interface AdminSidebarProps {
@@ -155,7 +156,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onLogout
 }) => {
   const { userProfile, logout, registrationRequests } = useAuth();
-  const { notices, teachers, language } = useSchool();
+  const { notices, teachers, language, donations } = useSchool();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({
@@ -316,12 +317,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       theme: MODULE_THEMES.GOVERNANCE,
       subTabs: [
         { id: 'settings', labelEn: 'School ERP Settings', labelHi: 'विद्यालय सिस्टम सेटिंग्स', icon: SlidersHorizontal },
+        { id: 'donations', labelEn: 'Razorpay & Donations', labelHi: 'दान व रेज़रपे गेटवे', icon: CreditCard, badge: donations.length > 0 ? `${donations.length}` : undefined },
         { id: 'users', labelEn: 'User Logins & Access', labelHi: 'उपयोगकर्ता व सुरक्षा', icon: UserCog },
         { id: 'reports', labelEn: 'MIS Analytics & Reports', labelHi: 'प्रशासनिक विश्लेषण व रिपोर्ट', icon: TrendingUp },
         { id: 'audit', labelEn: 'Security Audit Logs', labelHi: 'सुरक्षा ऑडिट लॉग', icon: History }
       ]
     }
-  ], [pendingStudentRequestsCount, pendingTeacherRequestsCount, activeNoticesCount, teachers.length]);
+  ], [pendingStudentRequestsCount, pendingTeacherRequestsCount, activeNoticesCount, teachers.length, donations.length]);
 
   // Determine active Module from activeTab and auto-expand that module
   const currentModuleId = useMemo(() => {

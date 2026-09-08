@@ -25,6 +25,7 @@ import { PublicNoticesPage } from './components/public/PublicNoticesPage';
 import { ContactPage } from './components/public/ContactPage';
 import { ActivitiesPage } from './components/public/ActivitiesPage';
 import { StudentsPage } from './components/public/StudentsPage';
+import { DonationPage } from './components/public/DonationPage';
 import { LoginPage } from './components/public/LoginPage';
 import { RegisterPage } from './components/public/RegisterPage';
 
@@ -296,6 +297,7 @@ const SchoolAppInner: React.FC = () => {
                 {activePublicView === 'gallery' && <GalleryPage onNavigate={handleNavigatePage} />}
                 {activePublicView === 'notices' && <PublicNoticesPage />}
                 {activePublicView === 'contact' && <ContactPage />}
+                {(activePublicView === 'donate' || activePublicView === 'donation') && <DonationPage onNavigate={handleNavigatePage} />}
               </div>
             )}
           </div>
@@ -347,6 +349,7 @@ const SchoolAppInner: React.FC = () => {
         'documents': { pillar: 'Students & Academics', titleEn: 'Student Certificates & TC Vault', titleHi: 'प्रमाणपत्र व टीसी लॉकर' },
         'reports': { pillar: 'Governance & Security', titleEn: 'Governance Analytics & MIS', titleHi: 'प्रशासनिक विश्लेषण व रिपोर्ट' },
         'users': { pillar: 'Governance & Security', titleEn: 'User Logins & Permissions', titleHi: 'उपयोगकर्ता एवं अनुमतियां' },
+        'donations': { pillar: 'Governance & Security', titleEn: 'Razorpay & College Donations', titleHi: 'रेज़रपे व कॉलेज दान प्रबंधन' },
         'audit': { pillar: 'Governance & Security', titleEn: 'Security Audit Trail Logs', titleHi: 'सुरक्षा ऑडिट लॉग' },
         'settings': { pillar: 'Governance & Security', titleEn: 'Institutional System Settings', titleHi: 'विद्यालय सिस्टम सेटिंग्स' },
       };
@@ -613,9 +616,10 @@ const SchoolAppInner: React.FC = () => {
                 )}
 
                 {/* 5. Governance, MIS & Security Hub */}
-                {(['governance', 'settings', 'users', 'reports', 'audit'].includes(activeAdminTab)) && (
+                {(['governance', 'settings', 'donations', 'users', 'reports', 'audit'].includes(activeAdminTab)) && (
                   <AdminGovernanceHub
                     initialSubTab={
+                      activeAdminTab === 'donations' ? 'donations' :
                       activeAdminTab === 'users' ? 'users' :
                       activeAdminTab === 'reports' ? 'reports' :
                       activeAdminTab === 'audit' ? 'audit' : 'settings'

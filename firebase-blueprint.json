@@ -239,12 +239,46 @@
         "verifiedAt": { "type": "string" }
       },
       "required": ["id", "email", "code", "createdAt", "expiresAt", "verified"]
+    },
+    "DonationRecord": {
+      "title": "DonationRecord",
+      "description": "College and school development donations, receipts, and Razorpay transaction records.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "receiptNumber": { "type": "string", "maxLength": 50 },
+        "donorName": { "type": "string", "maxLength": 150 },
+        "donorEmail": { "type": "string", "maxLength": 150 },
+        "donorPhone": { "type": "string", "maxLength": 25 },
+        "amount": { "type": "number" },
+        "currency": { "type": "string", "maxLength": 10 },
+        "reasonId": { "type": "string", "maxLength": 50 },
+        "reasonLabelEn": { "type": "string", "maxLength": 150 },
+        "reasonLabelHi": { "type": "string", "maxLength": 150 },
+        "customReason": { "type": "string", "maxLength": 300 },
+        "panNumber": { "type": "string", "maxLength": 20 },
+        "donorAddress": { "type": "string", "maxLength": 300 },
+        "isAnonymous": { "type": "boolean" },
+        "paymentGateway": { "type": "string", "maxLength": 50 },
+        "razorpayPaymentId": { "type": "string", "maxLength": 100 },
+        "razorpayOrderId": { "type": "string", "maxLength": 100 },
+        "razorpaySignature": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["SUCCESS", "PENDING", "FAILED", "REFUNDED"] },
+        "createdAt": { "type": "string" },
+        "is80GClaimed": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "receiptNumber", "donorName", "amount", "status", "createdAt"]
     }
   },
   "firestore": {
     "/emailVerifications/{verificationId}": {
       "schema": "EmailVerification",
       "description": "Student email verification OTP codes with expiration and attempt limits."
+    },
+    "/donations/{donationId}": {
+      "schema": "DonationRecord",
+      "description": "College donation receipts and verified transactions with 80G tax certificate details."
     },
     "/users/{userId}": {
       "schema": "UserProfile",

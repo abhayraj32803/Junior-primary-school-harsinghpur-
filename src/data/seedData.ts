@@ -23,7 +23,9 @@ import {
   SchoolAggregateOverview,
   OfficialSource,
   FAQItem,
-  VerificationLog
+  VerificationLog,
+  RazorpayPaymentConfig,
+  DonationRecord
 } from '../types';
 
 export const initialSettings: SchoolSettings = {
@@ -641,8 +643,167 @@ export const initialSettings: SchoolSettings = {
       }
     ],
     lastUpdated: '2025-04-01'
+  },
+  paymentConfig: {
+    enabled: true,
+    isLiveMode: false,
+    keyId: '', // Default empty, admin can enter Razorpay Key ID (rzp_test_... or rzp_live_...) anytime in Admin panel
+    keySecret: '', // Admin can configure Razorpay Secret anytime in Admin panel
+    merchantName: 'Composite JHS Harsinghpur Gova',
+    merchantNameHi: 'कंपोजिट जू.हा. स्कूल हरसिंहपुर गोवा - कॉलेज विकास कोष',
+    currency: 'INR',
+    minAmount: 10,
+    presetAmounts: [500, 1100, 2100, 5100, 11000],
+    enableTaxExemption80G: true,
+    taxExemptionNoteEn: 'Donations made to the School Development Fund are eligible for 50% tax exemption under Section 80G of the Income Tax Act.',
+    taxExemptionNoteHi: 'विद्यालय विकास कोष में किया गया दान आयकर अधिनियम की धारा 80G के अंतर्गत 50% कर छूट हेतु मान्य है।',
+    panNumber: 'AAATC1234F',
+    collegeRegistrationNo: 'UP-EDU-FAR-2025-092902',
+    allowCustomReason: true,
+    upiId: 'school.smc@sbi',
+    lastUpdated: '2026-04-01',
+    reasons: [
+      {
+        id: 'rsn-lib',
+        labelEn: 'Library & Digital Books Fund',
+        labelHi: 'पुस्तकालय एवं ज्ञान संवर्धन कोष',
+        descriptionEn: 'Support procurement of Hindi/English literature, reference encyclopedias, and digital readers.',
+        descriptionHi: 'छात्रों के लिए संदर्भ पुस्तकें, बाल साहित्य, शब्दकोश व डिजिटल लाइब्रेरी सामग्री।',
+        iconName: 'BookOpen',
+        isPopular: true
+      },
+      {
+        id: 'rsn-smart-class',
+        labelEn: 'Smart Classroom & Computer Lab',
+        labelHi: 'स्मार्ट क्लासरूम एवं कंप्यूटर लैब',
+        descriptionEn: 'Interactive flat panels, computers, UPS power backup, and projector setup for students.',
+        descriptionHi: 'इंटरएक्टिव स्मार्ट बोर्ड, कंप्यूटर, यूपीएस पावर बैकअप और डिजिटल शिक्षण संसाधन।',
+        iconName: 'Laptop',
+        isPopular: true
+      },
+      {
+        id: 'rsn-sports',
+        labelEn: 'Sports & Student Wellness',
+        labelHi: 'खेलकूद सामग्री एवं शारीरिक विकास',
+        descriptionEn: 'Cricket kits, footballs, badminton sets, track gear, and yoga mats for rural youth.',
+        descriptionHi: 'क्रिकेट किट, फुटबॉल, बैडमिंटन, ट्रैक सामग्री एवं योग मैट सहयोग।',
+        iconName: 'Trophy',
+        isPopular: false
+      },
+      {
+        id: 'rsn-scholarship',
+        labelEn: 'Student Merit & Educational Aid',
+        labelHi: 'मेधावी छात्र प्रोत्साहन व छात्रवृत्ति',
+        descriptionEn: 'Direct support for meritorious and economically weaker students for uniforms and learning stationery.',
+        descriptionHi: 'आर्थिक रूप से कमजोर व मेधावी छात्र-छात्राओं हेतु यूनिफॉर्म, बस्ता व पाठ्य सामग्री सहायता।',
+        iconName: 'Award',
+        isPopular: true
+      },
+      {
+        id: 'rsn-infra',
+        labelEn: 'Campus Infrastructure & Clean Water',
+        labelHi: 'परिसर विकास एवं शुद्ध पेयजल व्यवस्था',
+        descriptionEn: 'Clean RO drinking water stations, eco-friendly green campus, and solar electrification.',
+        descriptionHi: 'शुद्ध पेयजल आरओ प्लांट, हरियाली, विद्यालय रंगाई-पुताई व सौर ऊर्जा व्यवस्था।',
+        iconName: 'Building2',
+        isPopular: false
+      },
+      {
+        id: 'rsn-nutrition',
+        labelEn: 'Mid-Day Meal Special Nutrition',
+        labelHi: 'मध्याह्न भोजन अतिरिक्त पोषण संवर्धन',
+        descriptionEn: 'Seasonal fruits, milk supplements, and hygienic dining tables for primary children.',
+        descriptionHi: 'बच्चों हेतु मौसमी फल, दूध, पौष्टिक आहार एवं स्वच्छ डाइनिंग शेड व्यवस्था।',
+        iconName: 'Utensils',
+        isPopular: false
+      },
+      {
+        id: 'rsn-general',
+        labelEn: 'General College Development Fund',
+        labelHi: 'सामान्य विद्यालय/कॉलेज विकास सहयोग कोष',
+        descriptionEn: 'Discretionary development fund utilized for urgent institutional priorities and student welfare.',
+        descriptionHi: 'विद्यालय के तात्कालिक विकास, रख-रखाव एवं समग्र कल्याण कार्यों हेतु स्वेच्छा दान।',
+        iconName: 'HeartHandshake',
+        isPopular: true
+      }
+    ]
   }
 };
+
+export const initialDonations: DonationRecord[] = [
+  {
+    id: 'don-001',
+    receiptNumber: 'DON-2026-0001',
+    donorName: 'Rajeshwar Pratap Singh',
+    donorEmail: 'rajeshwar.singh@alumni.org',
+    donorPhone: '+91 98391 22334',
+    amount: 11000,
+    currency: 'INR',
+    reasonId: 'rsn-smart-class',
+    reasonLabelEn: 'Smart Classroom & Computer Lab',
+    reasonLabelHi: 'स्मार्ट क्लासरूम एवं कंप्यूटर लैब',
+    customReason: '',
+    panNumber: 'ABCPS8765K',
+    donorAddress: 'Civil Lines, Farrukhabad, Uttar Pradesh',
+    isAnonymous: false,
+    paymentGateway: 'razorpay',
+    razorpayPaymentId: 'pay_P19xK9a2bC7dEf',
+    razorpayOrderId: 'order_P19xJ8y1aB2cDe',
+    razorpaySignature: 'sig_verified_sample_01',
+    status: 'SUCCESS',
+    createdAt: '2026-03-15T11:30:00Z',
+    is80GClaimed: true,
+    notes: 'Alumni contribution for rural digital literacy'
+  },
+  {
+    id: 'don-002',
+    receiptNumber: 'DON-2026-0002',
+    donorName: 'Dr. Sunita Verma',
+    donorEmail: 'sunita.verma@healthcare.in',
+    donorPhone: '+91 94150 77889',
+    amount: 5100,
+    currency: 'INR',
+    reasonId: 'rsn-lib',
+    reasonLabelEn: 'Library & Digital Books Fund',
+    reasonLabelHi: 'पुस्तकालय एवं ज्ञान संवर्धन कोष',
+    customReason: '',
+    panNumber: 'BKLPV4321M',
+    donorAddress: 'Fatehgarh, Farrukhabad, UP',
+    isAnonymous: false,
+    paymentGateway: 'razorpay',
+    razorpayPaymentId: 'pay_P28yM4k7jL9qWe',
+    razorpayOrderId: 'order_P28yL3j6hK8pQe',
+    razorpaySignature: 'sig_verified_sample_02',
+    status: 'SUCCESS',
+    createdAt: '2026-04-02T14:45:00Z',
+    is80GClaimed: true,
+    notes: 'Books and stationery aid'
+  },
+  {
+    id: 'don-003',
+    receiptNumber: 'DON-2026-0003',
+    donorName: 'Alumni Welfare Association 1998',
+    donorEmail: 'alumni.jhsharsinghpur@gmail.com',
+    donorPhone: '+91 97920 11223',
+    amount: 21000,
+    currency: 'INR',
+    reasonId: 'rsn-infra',
+    reasonLabelEn: 'Campus Infrastructure & Clean Water',
+    reasonLabelHi: 'परिसर विकास एवं शुद्ध पेयजल व्यवस्था',
+    customReason: '',
+    panNumber: 'AAATA9988C',
+    donorAddress: 'Shamsabad, Farrukhabad, UP',
+    isAnonymous: false,
+    paymentGateway: 'razorpay',
+    razorpayPaymentId: 'pay_P39zQ1v8wR2tYu',
+    razorpayOrderId: 'order_P39zP0u7vQ1sXt',
+    razorpaySignature: 'sig_verified_sample_03',
+    status: 'SUCCESS',
+    createdAt: '2026-04-18T09:15:00Z',
+    is80GClaimed: true,
+    notes: 'Solar light & RO water plant initiative'
+  }
+];
 
 // Historical Records explicitly isolated from current data
 export const initialHistoricalRecords: HistoricalRecordItem[] = [

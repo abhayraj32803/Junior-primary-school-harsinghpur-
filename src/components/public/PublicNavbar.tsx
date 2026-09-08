@@ -42,7 +42,8 @@ import {
   Eye,
   Type,
   Utensils,
-  ExternalLink
+  ExternalLink,
+  HeartHandshake
 } from 'lucide-react';
 
 interface PublicNavbarProps {
@@ -139,6 +140,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
     { id: 'activities', labelEn: 'Activities', labelHi: 'Activities', icon: Sparkles, color: 'orange' },
     { id: 'notices', labelEn: 'Notices', labelHi: 'Notices', icon: Bell, color: 'emerald' },
     { id: 'gallery', labelEn: 'Gallery', labelHi: 'Gallery', icon: ImageIcon, color: 'amber' },
+    { id: 'donate', labelEn: 'Donate', labelHi: 'सहयोग / दान', icon: HeartHandshake, color: 'emerald' },
     { id: 'contact', labelEn: 'Contact', labelHi: 'Contact', icon: Phone, color: 'rose' }
   ];
 
@@ -232,6 +234,17 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
       activeBorder: 'border-l-[3.5px] border-amber-500',
       activeText: 'text-amber-950 font-bold',
       activeArrow: 'text-amber-600',
+    },
+    { 
+      id: 'donate', 
+      labelEn: 'College Donation', 
+      labelHi: 'कॉलेज दान व सहयोग', 
+      icon: HeartHandshake,
+      iconColor: 'text-emerald-600',
+      activeBg: 'bg-emerald-50/90',
+      activeBorder: 'border-l-[3.5px] border-emerald-600',
+      activeText: 'text-emerald-950 font-bold',
+      activeArrow: 'text-emerald-600',
     },
     { 
       id: 'contact', 

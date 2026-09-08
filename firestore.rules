@@ -314,5 +314,16 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isValidId(docId) && isAdmin();
     }
+
+    // 17. College Donations & Receipts (/donations/{donationId})
+    // Public visitors can create donation entries when making a donation, or verify receipt by ID.
+    // Reading individual donation receipts by ID is public (for tax receipt verification & transparency).
+    // Listing full ledger or updating/deleting donation records is restricted to Admins.
+    match /donations/{donationId} {
+      allow get: if isValidId(donationId);
+      allow list: if isAdmin();
+      allow create: if isValidId(donationId);
+      allow update, delete: if isValidId(donationId) && isAdmin();
+    }
   }
 }

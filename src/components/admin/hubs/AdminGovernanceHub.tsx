@@ -4,17 +4,19 @@ import {
   Settings, 
   ShieldCheck, 
   TrendingUp, 
-  History 
+  History,
+  CreditCard
 } from 'lucide-react';
 import { AdminSettings } from '../AdminSettings';
 import { AdminUsers } from '../AdminUsers';
 import { AdminReports } from '../AdminReports';
 import { AdminAuditLogs } from '../AdminAuditLogs';
+import { AdminDonations } from '../AdminDonations';
 import { AdminPageHeader } from '../ui/AdminPageHeader';
 import { AdminTabNav, TabItem } from '../ui/AdminTabNav';
 import { HubViewSkeleton } from '../../common/SkeletonLoading';
 
-export type GovernanceSubTab = 'settings' | 'users' | 'reports' | 'audit';
+export type GovernanceSubTab = 'settings' | 'donations' | 'users' | 'reports' | 'audit';
 
 interface AdminGovernanceHubProps {
   initialSubTab?: GovernanceSubTab;
@@ -27,7 +29,7 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
   onNavigateTab,
   isLoading = false
 }) => {
-  const { language, auditLogs, loading } = useSchool();
+  const { language, auditLogs, donations, loading } = useSchool();
   const [activeSubTab, setActiveSubTab] = useState<GovernanceSubTab>(initialSubTab);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
   }, [initialSubTab]);
 
   if (loading || isLoading) {
-    return <HubViewSkeleton subTabCount={4} type="table" />;
+    return <HubViewSkeleton subTabCount={5} type="table" />;
   }
 
   const subTabs: TabItem<GovernanceSubTab>[] = [
@@ -45,6 +47,12 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
       id: 'settings',
       label: language === 'hi' ? 'विद्यालय सिस्टम सेटिंग्स' : 'School ERP Settings',
       icon: Settings
+    },
+    {
+      id: 'donations',
+      label: language === 'hi' ? 'दान व रेज़रपे गेटवे' : 'Razorpay & Donations',
+      icon: CreditCard,
+      badge: donations.length > 0 ? `${donations.length}` : undefined
     },
     {
       id: 'users',
@@ -70,8 +78,8 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
       <AdminPageHeader
         badge={language === 'hi' ? 'प्रशासन व सुरक्षा' : 'Governance & Security'}
         badgeVariant="rose"
-        title={language === 'hi' ? 'प्रशासन, रिपोर्ट्स व सेटिंग्स' : 'Governance, MIS & System Settings'}
-        description={language === 'hi' ? 'विद्यालय संस्थागत सेटिंग्स, शिक्षक/छात्र लॉगिन नियंत्रण, एमआईएस विश्लेषण एवं पूर्ण ऑडिट ट्रेल लॉग।' : 'Configure school metadata, manage user login credentials & access, view MIS analytics and inspect the security audit trail.'}
+        title={language === 'hi' ? 'प्रशासन, दान प्रबंधन व सेटिंग्स' : 'Governance, Donations & System Settings'}
+        description={language === 'hi' ? 'विद्यालय संस्थागत सेटिंग्स, रेज़रपे गेटवे एपीआई, कॉलेज दान उद्देश्य, शिक्षक/छात्र लॉगिन नियंत्रण एवं पूर्ण ऑडिट ट्रेल लॉग।' : 'Configure school metadata, manage Razorpay API keys & donation causes, control user access, and inspect the security audit trail.'}
       />
 
       {/* Sub Navigation Tabs */}
@@ -86,6 +94,7 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
       {/* Sub Tab Content */}
       <div className="pt-1">
         {activeSubTab === 'settings' && <AdminSettings />}
+        {activeSubTab === 'donations' && <AdminDonations />}
         {activeSubTab === 'users' && <AdminUsers />}
         {activeSubTab === 'reports' && <AdminReports />}
         {activeSubTab === 'audit' && <AdminAuditLogs />}

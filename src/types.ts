@@ -764,6 +764,8 @@ export interface SchoolSettings {
   // School Timings & Academic Calendar Configuration (Reflected on Contact, About & Public Pages)
   schoolTimings?: SchoolTimingsConfig;
   academicCalendar?: AcademicCalendarConfig;
+  // College & School Donations (Razorpay Gateway Configuration)
+  paymentConfig?: RazorpayPaymentConfig;
 }
 
 export interface SchoolHolidayItem {
@@ -882,6 +884,87 @@ export interface NoticeTickerConfig {
   customAlerts: NoticeTickerAlert[];
   headerLabelEn?: string; // default: "Flash Update"
   headerLabelHi?: string; // default: "नवीनतम सूचना"
+}
+
+// -------------------------------------------------------------
+// College Donation & Razorpay Payment Gateway Interfaces
+// -------------------------------------------------------------
+
+export interface DonationReasonItem {
+  id: string;
+  labelEn: string;
+  labelHi: string;
+  descriptionEn?: string;
+  descriptionHi?: string;
+  iconName?: string; // Lucide icon identifier e.g. 'BookOpen', 'Laptop', 'Trophy', 'Award', 'Building2', 'Utensils', 'HeartHandshake'
+  icon?: string;
+  isPopular?: boolean;
+  targetAmount?: number;
+  collectedAmount?: number;
+  isActive?: boolean;
+}
+
+export type DonationReasonConfig = DonationReasonItem;
+
+export interface RazorpayPaymentConfig {
+  enabled: boolean;
+  isEnabled?: boolean;
+  isLiveMode?: boolean; // true = Live Mode (rzp_live_...), false = Test Mode (rzp_test_...)
+  keyId: string; // Razorpay Key ID, e.g. rzp_test_xxxxx or rzp_live_xxxxx
+  keySecret?: string; // Stored securely on server/admin settings
+  merchantName: string;
+  merchantNameHi?: string;
+  currency: string; // 'INR'
+  minAmount?: number; // e.g. 10
+  presetAmounts?: number[]; // e.g. [500, 1100, 2100, 5100, 11000]
+  enableTaxExemption80G?: boolean;
+  taxExemptionNumber?: string;
+  taxExemptionNoteEn?: string;
+  taxExemptionNoteHi?: string;
+  panNumber?: string;
+  collegeRegistrationNo?: string;
+  reasons?: DonationReasonItem[];
+  donationReasons?: DonationReasonItem[];
+  allowCustomReason?: boolean;
+  upiId?: string; // optional fallback UPI VPA e.g. college.fund@sbi
+  upiQrCodeUrl?: string; // optional fallback UPI QR image
+  lastUpdated?: string;
+  updatedBy?: string;
+}
+
+export interface DonationRecord {
+  id: string;
+  receiptNumber: string; // Official format: DON-2026-0001
+  donorName: string;
+  donorEmail: string;
+  donorPhone: string;
+  amount: number;
+  currency: string; // default 'INR'
+  reasonId: string;
+  reasonLabelEn: string;
+  reasonLabelHi: string;
+  customReason?: string;
+  panNumber?: string;
+  donorAddress?: string;
+  isAnonymous?: boolean;
+  paymentGateway: 'razorpay' | 'upi_manual' | 'offline_cash' | 'cheque_dd';
+  razorpayPaymentId?: string;
+  razorpayOrderId?: string;
+  razorpaySignature?: string;
+  status: 'SUCCESS' | 'PENDING' | 'FAILED';
+  createdAt: string;
+  is80GClaimed?: boolean;
+  notes?: string;
+  recordedBy?: string; // 'public_gateway' or admin username
+}
+
+export interface DonationSummaryKPIs {
+  totalAmount: number;
+  totalDonors: number;
+  avgDonation: number;
+  thisMonthAmount: number;
+  popularCauseEn: string;
+  popularCauseHi: string;
 }
 
 

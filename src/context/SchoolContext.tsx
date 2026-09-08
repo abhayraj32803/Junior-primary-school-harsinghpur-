@@ -28,7 +28,9 @@ import {
   VerificationLog,
   DataVerificationStatus,
   PromotionDecision,
-  PromotionBatchSummary
+  PromotionBatchSummary,
+  DonationRecord,
+  RazorpayPaymentConfig
 } from '../types';
 import { 
   initialClasses, 
@@ -55,7 +57,8 @@ import {
   initialAggregateOverview,
   initialOfficialSources,
   initialFAQ,
-  initialVerificationLogs
+  initialVerificationLogs,
+  initialDonations
 } from '../data/seedData';
 import { 
   db, 
@@ -99,6 +102,7 @@ interface SchoolContextType {
   officialSources: OfficialSource[];
   faqList: FAQItem[];
   verificationLogs: VerificationLog[];
+  donations: DonationRecord[];
   loading: boolean;
 
   // Verification & Logs Actions
@@ -210,6 +214,11 @@ interface SchoolContextType {
   addAuditLog: (action: string, entity: string, entityId?: string, details?: string) => Promise<void>;
   updateSettings: (newSettings: Partial<SchoolSettings>) => Promise<void>;
   resetToDefaultSeedData: () => Promise<void>;
+
+  // College Donations & Razorpay Actions
+  addDonationRecord: (record: Omit<DonationRecord, 'id' | 'createdAt'>) => Promise<DonationRecord>;
+  updateDonationRecord: (id: string, updates: Partial<DonationRecord>) => Promise<void>;
+  updatePaymentConfig: (newConfig: Partial<RazorpayPaymentConfig>) => Promise<void>;
 }
 
 const SchoolContext = createContext<SchoolContextType | undefined>(undefined);
@@ -249,6 +258,13 @@ function loadSettingsOrInitial(): SchoolSettings {
       addressHi: (parsed.addressHi && parsed.addressHi !== 'undefined') ? parsed.addressHi : initialSettings.addressHi,
       pincode: (parsed.pincode && parsed.pincode !== 'undefined') ? parsed.pincode : initialSettings.pincode,
       pinCode: (parsed.pinCode && parsed.pinCode !== 'undefined') ? parsed.pinCode : initialSettings.pinCode,
+      paymentConfig: {
+        ...(initialSettings.paymentConfig || {}),
+        ...(parsed.paymentConfig || {}),
+        reasons: (parsed.paymentConfig?.reasons && parsed.paymentConfig.reasons.length > 0)
+          ? parsed.paymentConfig.reasons
+          : (initialSettings.paymentConfig?.reasons || [])
+      }
     };
   } catch (e) {
     return initialSettings;
@@ -369,6 +385,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [officialSources, setOfficialSources] = useState<OfficialSource[]>(() => loadOrInitial('officialSources', initialOfficialSources));
   const [faqList, setFaqList] = useState<FAQItem[]>(() => loadOrInitial('faqList', initialFAQ));
   const [verificationLogs, setVerificationLogs] = useState<VerificationLog[]>(() => loadOrInitial('verificationLogs', initialVerificationLogs));
+  const [donations, setDonations] = useState<DonationRecord[]>(() => loadOrInitial('donations', initialDonations));
   const [loading, setLoading] = useState<boolean>(false);
 
   // Sync to localStorage on state changes
@@ -398,6 +415,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { saveLocal('officialSources', officialSources); }, [officialSources]);
   useEffect(() => { saveLocal('faqList', faqList); }, [faqList]);
   useEffect(() => { saveLocal('verificationLogs', verificationLogs); }, [verificationLogs]);
+  useEffect(() => { saveLocal('donations', donations); }, [donations]);
 
   // Initial Firestore Data Hydration
   useEffect(() => {
@@ -471,6 +489,24 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       } catch (e) {
         // Student fetch fallback for guest/unauthorized state
+      }
+
+      // Fetch donations from Firestore (public receipts / admin ledger)
+      try {
+        const donSnap = await getDocs(collection(db, 'donations'));
+        if (!donSnap.empty && isMounted) {
+          const remoteDon: DonationRecord[] = [];
+          donSnap.forEach(d => remoteDon.push(d.data() as DonationRecord));
+          if (remoteDon.length > 0) {
+            setDonations(prev => {
+              const map = new Map<string, DonationRecord>(prev.map(d => [d.id, d]));
+              remoteDon.forEach(d => map.set(d.id, d));
+              return Array.from(map.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            });
+          }
+        }
+      } catch (e) {
+        // Donation fetch fallback
       }
 
       if (isMounted) setLoading(false);
@@ -1525,7 +1561,86 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await addAuditLog('UPDATE_SETTINGS', 'Settings', 'school_config', 'Updated institutional metadata or grading scales');
     try {
       await setDoc(doc(db, 'settings', 'config'), updated);
+      await setDoc(doc(db, 'settings', 'school_config'), updated);
     } catch (e) {}
+  };
+
+  // College Donations & Razorpay Payment Gateway Actions
+  const addDonationRecord = async (data: Omit<DonationRecord, 'id' | 'createdAt'>): Promise<DonationRecord> => {
+    const newId = `don-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const currentYear = new Date().getFullYear();
+    const count = donations.length + 1;
+    const receiptNumber = data.receiptNumber || `DON-${currentYear}-${String(count).padStart(4, '0')}`;
+
+    const newRecord: DonationRecord = {
+      ...data,
+      id: newId,
+      receiptNumber,
+      createdAt: new Date().toISOString()
+    };
+
+    setDonations(prev => [newRecord, ...prev]);
+
+    try {
+      if (db) {
+        await setDoc(doc(db, 'donations', newId), newRecord);
+      }
+    } catch (e) {
+      console.warn("Firestore donation record setDoc fallback:", e);
+    }
+
+    await addAuditLog(
+      'DONATION_RECORDED',
+      'Donations',
+      newId,
+      `Recorded donation of ₹${newRecord.amount} from ${newRecord.donorName} for ${newRecord.reasonLabelEn} (Receipt: ${receiptNumber})`
+    );
+
+    return newRecord;
+  };
+
+  const updateDonationRecord = async (id: string, updates: Partial<DonationRecord>): Promise<void> => {
+    setDonations(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    try {
+      if (db) {
+        await setDoc(doc(db, 'donations', id), updates, { merge: true });
+      }
+    } catch (e) {
+      console.warn("Firestore donation update fallback:", e);
+    }
+  };
+
+  const updatePaymentConfig = async (newConfig: Partial<RazorpayPaymentConfig>): Promise<void> => {
+    const currentConfig: RazorpayPaymentConfig = settings.paymentConfig || initialSettings.paymentConfig!;
+    const mergedConfig: RazorpayPaymentConfig = {
+      ...currentConfig,
+      ...newConfig,
+      lastUpdated: new Date().toISOString(),
+      updatedBy: userProfile?.name || 'Admin'
+    };
+
+    setSettings(prev => ({
+      ...prev,
+      paymentConfig: mergedConfig
+    }));
+
+    await addAuditLog(
+      'UPDATE_PAYMENT_CONFIG',
+      'PaymentGateway',
+      'razorpay',
+      `Updated Razorpay configuration: Key ID ${mergedConfig.keyId ? `(...${mergedConfig.keyId.slice(-6)})` : 'empty'}, Mode: ${mergedConfig.isLiveMode ? 'LIVE' : 'TEST'}, Enabled: ${mergedConfig.enabled}`
+    );
+
+    try {
+      if (db) {
+        await setDoc(doc(db, 'settings', 'school_config'), {
+          ...settings,
+          paymentConfig: mergedConfig
+        }, { merge: true });
+      }
+    } catch (e) {
+      console.warn("Firestore paymentConfig update fallback:", e);
+    }
   };
 
   // Facility Methods
@@ -1709,6 +1824,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         officialSources,
         faqList,
         verificationLogs,
+        donations,
         loading,
 
         addVerificationLog,
@@ -1778,7 +1894,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         addAuditLog,
         updateSettings,
-        resetToDefaultSeedData
+        resetToDefaultSeedData,
+
+        addDonationRecord,
+        updateDonationRecord,
+        updatePaymentConfig
       }}
     >
       {children}
