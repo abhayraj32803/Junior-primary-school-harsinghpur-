@@ -5,18 +5,20 @@ import {
   ShieldCheck, 
   TrendingUp, 
   History,
-  CreditCard
+  CreditCard,
+  Key
 } from 'lucide-react';
 import { AdminSettings } from '../AdminSettings';
 import { AdminUsers } from '../AdminUsers';
 import { AdminReports } from '../AdminReports';
 import { AdminAuditLogs } from '../AdminAuditLogs';
 import { AdminDonations } from '../AdminDonations';
+import { AdminRazorpaySecureSettings } from '../settings/AdminRazorpaySecureSettings';
 import { AdminPageHeader } from '../ui/AdminPageHeader';
 import { AdminTabNav, TabItem } from '../ui/AdminTabNav';
 import { HubViewSkeleton } from '../../common/SkeletonLoading';
 
-export type GovernanceSubTab = 'settings' | 'donations' | 'users' | 'reports' | 'audit';
+export type GovernanceSubTab = 'settings' | 'razorpay-vault' | 'donations' | 'users' | 'reports' | 'audit';
 
 interface AdminGovernanceHubProps {
   initialSubTab?: GovernanceSubTab;
@@ -39,7 +41,7 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
   }, [initialSubTab]);
 
   if (loading || isLoading) {
-    return <HubViewSkeleton subTabCount={5} type="table" />;
+    return <HubViewSkeleton subTabCount={6} type="table" />;
   }
 
   const subTabs: TabItem<GovernanceSubTab>[] = [
@@ -49,8 +51,13 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
       icon: Settings
     },
     {
+      id: 'razorpay-vault',
+      label: language === 'hi' ? 'रेज़रपे सिक्योर वॉल्ट' : 'Razorpay Secure Vault',
+      icon: Key
+    },
+    {
       id: 'donations',
-      label: language === 'hi' ? 'दान व रेज़रपे गेटवे' : 'Razorpay & Donations',
+      label: language === 'hi' ? 'दान व उद्देश्य प्रबंधन' : 'Donations & Causes',
       icon: CreditCard,
       badge: donations.length > 0 ? `${donations.length}` : undefined
     },
@@ -94,7 +101,8 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
       {/* Sub Tab Content */}
       <div className="pt-1">
         {activeSubTab === 'settings' && <AdminSettings />}
-        {activeSubTab === 'donations' && <AdminDonations />}
+        {activeSubTab === 'razorpay-vault' && <AdminRazorpaySecureSettings />}
+        {activeSubTab === 'donations' && <AdminDonations onNavigateToVault={() => setActiveSubTab('razorpay-vault')} />}
         {activeSubTab === 'users' && <AdminUsers />}
         {activeSubTab === 'reports' && <AdminReports />}
         {activeSubTab === 'audit' && <AdminAuditLogs />}

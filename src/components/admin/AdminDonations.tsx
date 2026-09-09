@@ -3,6 +3,7 @@ import { useSchool } from '../../context/SchoolContext';
 import { DonationRecord, DonationReasonConfig, RazorpayPaymentConfig } from '../../types';
 import { testRazorpayApiKeys } from '../../utils/razorpay';
 import { DonationReceiptModal } from '../public/DonationReceiptModal';
+import { AdminRazorpaySecureSettings } from './settings/AdminRazorpaySecureSettings';
 import { 
   CreditCard, 
   Key, 
@@ -18,8 +19,6 @@ import {
   Receipt, 
   Building2, 
   ShieldCheck, 
-  Eye, 
-  EyeOff, 
   TrendingUp, 
   IndianRupee,
   RefreshCw,
@@ -28,7 +27,11 @@ import {
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
-export const AdminDonations: React.FC = () => {
+interface AdminDonationsProps {
+  onNavigateToVault?: () => void;
+}
+
+export const AdminDonations: React.FC<AdminDonationsProps> = ({ onNavigateToVault }) => {
   const { settings, donations, updatePaymentConfig, language } = useSchool();
 
   // Active Razorpay config state
@@ -43,16 +46,7 @@ export const AdminDonations: React.FC = () => {
   };
 
   const [keyId, setKeyId] = useState(currentConfig.keyId || '');
-  const [keySecret, setKeySecret] = useState(currentConfig.keySecret || '');
-  const [merchantName, setMerchantName] = useState(currentConfig.merchantName || settings.schoolName || '');
-  const [taxExemptionNumber, setTaxExemptionNumber] = useState(currentConfig.taxExemptionNumber || '');
   const [isEnabled, setIsEnabled] = useState(currentConfig.isEnabled !== false);
-  const [showSecret, setShowSecret] = useState(false);
-
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [isTestingKeys, setIsTestingKeys] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null);
 
   // Reasons management state
   const [reasons, setReasons] = useState<DonationReasonConfig[]>(() => {
@@ -141,54 +135,12 @@ export const AdminDonations: React.FC = () => {
   React.useEffect(() => {
     if (settings.paymentConfig) {
       setKeyId(settings.paymentConfig.keyId || '');
-      setKeySecret(settings.paymentConfig.keySecret || '');
-      setMerchantName(settings.paymentConfig.merchantName || settings.schoolName || '');
-      setTaxExemptionNumber(settings.paymentConfig.taxExemptionNumber || '');
       setIsEnabled(settings.paymentConfig.isEnabled !== false);
       if (settings.paymentConfig.donationReasons && settings.paymentConfig.donationReasons.length > 0) {
         setReasons(settings.paymentConfig.donationReasons);
       }
     }
-  }, [settings.paymentConfig, settings.schoolName]);
-
-  // Test API credentials with backend
-  const handleTestKeys = async () => {
-    setIsTestingKeys(true);
-    setTestResult(null);
-
-    const res = await testRazorpayApiKeys({
-      keyId: keyId.trim(),
-      keySecret: keySecret.trim()
-    });
-
-    setIsTestingKeys(false);
-    setTestResult(res);
-  };
-
-  // Save updated config
-  const handleSaveConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setSaveSuccess(false);
-
-    const updatedConfig: RazorpayPaymentConfig = {
-      ...currentConfig,
-      enabled: isEnabled,
-      isEnabled,
-      keyId: keyId.trim(),
-      keySecret: keySecret.trim(),
-      merchantName: merchantName.trim() || settings.schoolName,
-      currency: 'INR',
-      taxExemptionNumber: taxExemptionNumber.trim(),
-      reasons: reasons,
-      donationReasons: reasons
-    };
-
-    await updatePaymentConfig(updatedConfig);
-    setIsSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 4000);
-  };
+  }, [settings.paymentConfig]);
 
   // Reason Modal actions
   const handleOpenAddReason = () => {
@@ -337,155 +289,8 @@ export const AdminDonations: React.FC = () => {
         </div>
       </div>
 
-      {saveSuccess && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 flex items-center gap-2.5 animate-in fade-in">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-          <div>
-            <span className="font-bold">Razorpay configuration and donation causes saved successfully!</span>
-            <p className="text-[11px] text-emerald-700 mt-0.5">
-              Changes take effect immediately across the public donation page and payment order generator.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* 1. Razorpay Gateway API Configuration Section */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div className="space-y-1">
-            <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-              <Key className="w-5 h-5 text-amber-600" />
-              <span>{language === 'hi' ? 'Razorpay API Key एवं क्रेडेंशियल सेटिंग' : 'Razorpay API Keys & Gateway Credentials'}</span>
-            </h3>
-            <p className="text-xs text-slate-500">
-              {language === 'hi'
-                ? 'अपने Razorpay Dashboard (Dashboard -> Settings -> API Keys) से Key ID व Secret कॉपी करके यहाँ दर्ज करें। आप जब चाहें इसे बदल सकते हैं।'
-                : 'Enter your live or test Razorpay API Key ID and Key Secret from your Razorpay Dashboard. You can modify these anytime.'}
-            </p>
-          </div>
-
-          <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 select-none">
-            <input
-              type="checkbox"
-              checked={isEnabled}
-              onChange={(e) => setIsEnabled(e.target.checked)}
-              className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
-            />
-            <span>Enable Public Donation Portal</span>
-          </label>
-        </div>
-
-        <form onSubmit={handleSaveConfig} className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Razorpay Key ID *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="rzp_test_... or rzp_live_..."
-                value={keyId}
-                onChange={(e) => setKeyId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Starts with <code className="text-slate-600 font-bold">rzp_test_</code> for test sandbox or <code className="text-slate-600 font-bold">rzp_live_</code> for real payments.
-              </span>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700">
-                  Razorpay Key Secret *
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowSecret(!showSecret)}
-                  className="text-[11px] text-slate-500 hover:text-slate-700 flex items-center gap-1 cursor-pointer"
-                >
-                  {showSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  <span>{showSecret ? 'Hide Secret' : 'Show Secret'}</span>
-                </button>
-              </div>
-              <input
-                type={showSecret ? 'text' : 'password'}
-                required
-                placeholder="Enter Razorpay Key Secret"
-                value={keySecret}
-                onChange={(e) => setKeySecret(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Strictly secured server-side for cryptographic order creation & signature verification.
-              </span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                College Merchant Name (Shown on Checkout Popup)
-              </label>
-              <input
-                type="text"
-                value={merchantName}
-                onChange={(e) => setMerchantName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Section 80G Tax Exemption Registration No.
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. 80G-AAACT1234F-2025"
-                value={taxExemptionNumber}
-                onChange={(e) => setTaxExemptionNumber(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono uppercase text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500"
-              />
-            </div>
-          </div>
-
-          {/* Key test results */}
-          {testResult && (
-            <div className={`p-3.5 rounded-xl text-xs font-medium flex items-center gap-2.5 ${
-              testResult.success 
-                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
-                : 'bg-red-50 text-red-800 border border-red-200'
-            }`}>
-              {testResult.success ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-              )}
-              <div>{testResult.message || testResult.error}</div>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              disabled={isTestingKeys || !keyId.trim() || !keySecret.trim()}
-              onClick={handleTestKeys}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isTestingKeys ? 'animate-spin' : ''}`} />
-              <span>{isTestingKeys ? 'Testing with Razorpay...' : 'Test Razorpay Credentials'}</span>
-            </button>
-
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 text-xs font-black shadow-md transition-colors cursor-pointer disabled:opacity-50"
-              id="btn-save-razorpay-config"
-            >
-              <Save className="w-4 h-4" />
-              <span>{isSaving ? 'Saving Changes...' : 'Save Razorpay Credentials'}</span>
-            </button>
-          </div>
-        </form>
-      </div>
+      {/* 1. Secure Razorpay Gateway API Configuration Section */}
+      <AdminRazorpaySecureSettings />
 
       {/* 2. Donation Causes & Reasons Management Section */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">

@@ -68,7 +68,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ onNavigate }) => {
               className="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-black transition-all cursor-pointer shadow-md flex items-center justify-center gap-2 touch-manipulation active:scale-[0.98]"
             >
               <GraduationCap className="w-4 h-4 text-emerald-200" />
-              <span>{language === 'hi' ? 'नि:शुल्क प्रवेश 2024-25' : 'Free Admissions 2024-25'}</span>
+              <span>{language === 'hi' ? 'नि:शुल्क प्रवेश (सत्र 2025-26)' : 'Free Admissions (Session 2025-26)'}</span>
             </button>
           </div>
         </div>
@@ -206,19 +206,11 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ onNavigate }) => {
               </button>
 
               <button 
-                onClick={() => onNavigate('login-student')} 
-                className="min-h-[44px] px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 text-amber-300 font-bold transition-all cursor-pointer text-left flex items-center gap-2 touch-manipulation border border-amber-500/30 active:scale-[0.99]"
+                onClick={() => onNavigate('portal')} 
+                className="min-h-[44px] col-span-1 sm:col-span-2 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 text-amber-300 font-bold transition-all cursor-pointer text-left flex items-center gap-2 touch-manipulation border border-amber-500/30 active:scale-[0.99]"
               >
-                <GraduationCap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>{language === 'hi' ? 'छात्र लॉगिन' : 'Student Login'}</span>
-              </button>
-
-              <button 
-                onClick={() => onNavigate('login-teacher')} 
-                className="min-h-[44px] px-3 py-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 active:bg-blue-500/30 text-blue-300 font-bold transition-all cursor-pointer text-left flex items-center gap-2 touch-manipulation border border-blue-500/30 active:scale-[0.99]"
-              >
-                <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span>{language === 'hi' ? 'शिक्षक लॉगिन' : 'Teacher Login'}</span>
+                <LogIn className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>{language === 'hi' ? 'स्कूल पोर्टल लॉगिन (ERP)' : 'School Portal Login (ERP)'}</span>
               </button>
             </div>
           </div>

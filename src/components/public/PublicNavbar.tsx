@@ -130,21 +130,22 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
   const selectedPage = activePage || currentPage || 'home';
   const handleOpenPortal = onOpenPortal || (() => onNavigate('portal'));
 
-  // 9 Requested Primary Menu Items with section color identity
+  // Primary Menu Items with unified color identity
   const primaryMenuItems = [
-    { id: 'home', labelEn: 'Home', labelHi: 'Home', icon: Home, color: 'indigo' },
-    { id: 'about', labelEn: 'About Us', labelHi: 'About Us', icon: School, color: 'slate' },
-    { id: 'classes', alias: 'academics', labelEn: 'Academics', labelHi: 'Academics', icon: BookOpen, color: 'blue' },
-    { id: 'faculty', labelEn: 'Teachers', labelHi: 'Teachers', icon: Users, color: 'violet' },
-    { id: 'facilities', labelEn: 'Facilities', labelHi: 'Facilities', icon: Building2, color: 'teal' },
-    { id: 'activities', labelEn: 'Activities', labelHi: 'Activities', icon: Sparkles, color: 'orange' },
-    { id: 'notices', labelEn: 'Notices', labelHi: 'Notices', icon: Bell, color: 'emerald' },
-    { id: 'gallery', labelEn: 'Gallery', labelHi: 'Gallery', icon: ImageIcon, color: 'amber' },
+    { id: 'home', labelEn: 'Home', labelHi: 'मुख्य पृष्ठ', icon: Home, color: 'indigo' },
+    { id: 'about', labelEn: 'About Us', labelHi: 'परिचय', icon: School, color: 'slate' },
+    { id: 'classes', alias: 'academics', labelEn: 'Academics', labelHi: 'पाठ्यक्रम', icon: BookOpen, color: 'blue' },
+    { id: 'faculty', labelEn: 'Teachers', labelHi: 'शिक्षक', icon: Users, color: 'violet' },
+    { id: 'facilities', labelEn: 'Facilities', labelHi: 'सुविधाएं', icon: Building2, color: 'teal' },
+    { id: 'activities', labelEn: 'Activities', labelHi: 'गतिविधियां', icon: Sparkles, color: 'orange' },
+    { id: 'notices', labelEn: 'Notices', labelHi: 'सूचनाएं', icon: Bell, color: 'emerald' },
+    { id: 'gallery', labelEn: 'Gallery', labelHi: 'गैलरी', icon: ImageIcon, color: 'amber' },
+    { id: 'schemes', labelEn: 'Govt Schemes', labelHi: 'योजनाएं', icon: Gift, color: 'cyan' },
     { id: 'donate', labelEn: 'Donate', labelHi: 'सहयोग / दान', icon: HeartHandshake, color: 'emerald' },
-    { id: 'contact', labelEn: 'Contact', labelHi: 'Contact', icon: Phone, color: 'rose' }
+    { id: 'contact', labelEn: 'Contact', labelHi: 'संपर्क', icon: Phone, color: 'rose' }
   ];
 
-  // Mobile Drawer Navigation Configuration with section color mapping & subtle active indicator
+  // Mobile Drawer Navigation Configuration - Single, non-duplicate comprehensive list
   const drawerNavItems = [
     { 
       id: 'home', 
@@ -160,7 +161,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
     { 
       id: 'about', 
       labelEn: 'About Us', 
-      labelHi: 'हमारे बारे में', 
+      labelHi: 'विद्यालय परिचय', 
       icon: School,
       iconColor: 'text-slate-700',
       activeBg: 'bg-slate-100',
@@ -227,7 +228,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
     { 
       id: 'gallery', 
       labelEn: 'Gallery', 
-      labelHi: 'चित्र वीथिका (फोटो)', 
+      labelHi: 'फोटो गैलरी', 
       icon: ImageIcon,
       iconColor: 'text-amber-600',
       activeBg: 'bg-amber-50/90',
@@ -236,9 +237,31 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
       activeArrow: 'text-amber-600',
     },
     { 
+      id: 'admission', 
+      labelEn: 'Admission', 
+      labelHi: 'नि:शुल्क प्रवेश (RTE)', 
+      icon: GraduationCap,
+      iconColor: 'text-emerald-600',
+      activeBg: 'bg-emerald-50/90',
+      activeBorder: 'border-l-[3.5px] border-emerald-600',
+      activeText: 'text-emerald-950 font-bold',
+      activeArrow: 'text-emerald-600',
+    },
+    { 
+      id: 'schemes', 
+      labelEn: 'Govt Schemes', 
+      labelHi: 'सरकारी योजनाएं (DBT/MDM)', 
+      icon: Gift,
+      iconColor: 'text-cyan-600',
+      activeBg: 'bg-cyan-50/90',
+      activeBorder: 'border-l-[3.5px] border-cyan-600',
+      activeText: 'text-cyan-950 font-bold',
+      activeArrow: 'text-cyan-600',
+    },
+    { 
       id: 'donate', 
-      labelEn: 'College Donation', 
-      labelHi: 'कॉलेज दान व सहयोग', 
+      labelEn: 'Donate', 
+      labelHi: 'सहयोग / दान', 
       icon: HeartHandshake,
       iconColor: 'text-emerald-600',
       activeBg: 'bg-emerald-50/90',
@@ -332,51 +355,17 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                   {language === 'hi' ? 'मुख्य सामग्री पर जाएं' : 'Skip to main content'}
                 </a>
 
-                {/* Audience Quick Links (Visible on desktop/large screens) */}
-                <div className="hidden xl:flex items-center gap-3 text-slate-300 font-semibold shrink-0">
-                  <button 
-                    onClick={() => handleNavClick('login-student')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
-                  >
-                    <GraduationCap className="w-3.5 h-3.5 text-gov-amber-400" />
-                    <span>{language === 'hi' ? 'विद्यार्थी (Student Login)' : 'Students Login'}</span>
-                  </button>
-                  <span className="text-slate-600">|</span>
-                  <button 
-                    onClick={() => handleNavClick('faculty')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
-                  >
-                    {language === 'hi' ? 'शिक्षक एवं स्टाफ' : 'Faculty & Staff'}
-                  </button>
-                  <span className="text-slate-600">|</span>
-                  <button 
-                    onClick={() => handleNavClick('login-teacher')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
-                  >
-                    <Users className="w-3.5 h-3.5 text-blue-400" />
-                    <span>{language === 'hi' ? 'शिक्षक लॉगिन' : 'Teacher Login'}</span>
-                  </button>
-                  <span className="text-slate-600">|</span>
-                  <button 
-                    onClick={() => handleNavClick('schemes')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
-                  >
-                    {language === 'hi' ? 'अभिभावक व योजनाएं' : 'Parents & Schemes'}
-                  </button>
-                  <span className="text-slate-600">|</span>
-                  <button 
-                    onClick={() => handleNavClick('sources')}
-                    className="hover:text-gov-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 py-1 px-1.5 rounded-lg hover:bg-gov-navy-900 touch-manipulation"
-                  >
-                    <span>RTE / UDISE</span>
-                    <span className="px-1.5 py-0.5 bg-gov-navy-800 text-gov-amber-400 rounded text-[10px] font-mono">09290205902</span>
-                  </button>
-                </div>
-
-                {/* Mobile / Tablet Short Audience Badge */}
-                <div className="flex xl:hidden items-center gap-1.5 text-[11px] text-slate-300 font-mono">
-                  <span className="text-gov-amber-400 font-black">UDISE:</span>
-                  <span className="bg-gov-navy-900 px-1.5 py-0.5 rounded border border-gov-navy-800 font-bold">{settings.schoolCode}</span>
+                {/* Official Identity Badge (Clean, non-duplicate government affiliation display) */}
+                <div className="flex items-center gap-2 text-xs text-slate-300 font-semibold shrink-0">
+                  <span className="inline-flex items-center gap-1.5 text-gov-amber-300 font-bold">
+                    <ShieldCheck className="w-3.5 h-3.5 text-gov-amber-400" />
+                    <span>{language === 'hi' ? 'बेसिक शिक्षा परिषद, उ.प्र.' : 'Basic Education Dept, UP'}</span>
+                  </span>
+                  <span className="text-slate-600 hidden sm:inline">|</span>
+                  <div className="flex items-center gap-1 font-mono text-[11px] text-slate-300">
+                    <span className="text-gov-amber-400 font-bold">UDISE:</span>
+                    <span className="bg-gov-navy-900 px-1.5 py-0.5 rounded border border-gov-navy-800 font-bold">{settings.schoolCode}</span>
+                  </div>
                 </div>
               </div>
 
@@ -601,17 +590,11 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                 })}
               </div>
 
-              {/* Right Side Quick Portals & Schemes */}
+              {/* Right Side Quick Official Portal */}
               <div className="flex items-center gap-2 py-1 text-xs">
                 <button
-                  onClick={() => handleNavClick('schemes')}
-                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-gov-navy-800 to-gov-navy-850 hover:from-gov-navy-700 hover:to-gov-navy-800 text-amber-300 border border-gov-navy-700 text-[11px] font-bold transition-all cursor-pointer shadow-xs"
-                >
-                  {language === 'hi' ? 'शासकीय योजनाएं' : 'Govt Schemes'}
-                </button>
-                <button
                   onClick={() => handleNavClick('sources')}
-                  className="text-slate-300 hover:text-amber-400 text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-gov-navy-800 transition-colors cursor-pointer"
+                  className="text-slate-300 hover:text-amber-400 text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-gov-navy-800 transition-colors cursor-pointer border border-transparent hover:border-gov-navy-700"
                 >
                   <Globe className="w-3.5 h-3.5 text-amber-400" />
                   <span>{language === 'hi' ? 'शिक्षा पोर्टल' : 'UP Portals'}</span>
@@ -688,52 +671,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               </button>
             )}
 
-            {/* Quick 1-Click Role Logins in Drawer when not logged in */}
-            {!role && (
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleNavClick('login-student');
-                  }}
-                  className="min-h-[58px] p-2 rounded-xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200/80 border border-slate-200/90 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold cursor-pointer touch-manipulation active:scale-[0.98] transition-all shadow-2xs"
-                  id="btn-drawer-quick-student"
-                >
-                  <GraduationCap className="w-5 h-5 text-amber-600 shrink-0" />
-                  <span className="truncate w-full text-center leading-tight">
-                    {language === 'hi' ? 'छात्र लॉगिन' : 'Student'}
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleNavClick('login-teacher');
-                  }}
-                  className="min-h-[58px] p-2 rounded-xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200/80 border border-slate-200/90 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold cursor-pointer touch-manipulation active:scale-[0.98] transition-all shadow-2xs"
-                  id="btn-drawer-quick-teacher"
-                >
-                  <Users className="w-5 h-5 text-blue-600 shrink-0" />
-                  <span className="truncate w-full text-center leading-tight">
-                    {language === 'hi' ? 'शिक्षक लॉगिन' : 'Teacher'}
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleNavClick('login-admin');
-                  }}
-                  className="min-h-[58px] p-2 rounded-xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200/80 border border-slate-200/90 text-slate-800 text-center flex flex-col items-center justify-center gap-1 text-[11px] font-bold cursor-pointer touch-manipulation active:scale-[0.98] transition-all shadow-2xs"
-                  id="btn-drawer-quick-admin"
-                >
-                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <span className="truncate w-full text-center leading-tight">
-                    {language === 'hi' ? 'प्रधानाध्यापक' : 'Admin'}
-                  </span>
-                </button>
-              </div>
-            )}
-
-            {/* Primary ERP Portal Login Card */}
+            {/* Single Unified ERP Portal Login Card */}
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
@@ -762,52 +700,10 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               <ChevronRight className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
             </button>
 
-            {/* Search Input / Trigger */}
-            <div 
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setIsSearchOpen(true);
-              }}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100/90 active:bg-slate-100 border border-slate-200/90 text-slate-600 text-xs flex items-center justify-between cursor-pointer touch-manipulation transition-all select-none"
-              id="btn-drawer-search"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                <span className="truncate text-slate-500 font-normal">
-                  {language === 'hi' ? 'सर्च करें (खोजें)...' : 'Search website...'}
-                </span>
-              </div>
-              <span className="px-2 py-0.5 bg-white text-slate-600 border border-slate-200 rounded-md text-[10px] font-bold shadow-2xs shrink-0">
-                {language === 'hi' ? 'खोजें' : 'Search'}
-              </span>
-            </div>
-
-            {/* Easy Guide Quick Finder for Students & Parents */}
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setIsFinderOpen(true);
-              }}
-              className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100/80 hover:to-orange-100/80 active:from-amber-100 active:to-orange-100 border border-amber-200/80 text-amber-950 text-left flex items-center justify-between transition-all group cursor-pointer touch-manipulation active:scale-[0.98]"
-              id="btn-drawer-quick-guide"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-6 h-6 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center text-xs shadow-2xs shrink-0 font-bold">
-                  🧭
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-amber-950 truncate">
-                    {language === 'hi' ? 'कहाँ क्या मिलेगा? आसान गाइड' : 'Quick Guide for Parents & Students'}
-                  </div>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
-            </button>
-
-            {/* Main Navigation Section */}
-            <div className="space-y-1 pt-0.5">
+            {/* Single Comprehensive Navigation List - All sections without duplicates */}
+            <div className="space-y-1 pt-1">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 pb-1">
-                {language === 'hi' ? 'मुख्य पृष्ठ अनुभाग' : 'Main Navigation'}
+                {language === 'hi' ? 'वेबसाइट मेन्यू' : 'Website Menu'}
               </div>
 
               <div className="space-y-1">
@@ -837,45 +733,6 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
                     </button>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* Secondary Links (Schemes & Official Sources) */}
-            <div className="pt-1 space-y-1.5">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">
-                {language === 'hi' ? 'शासकीय एवं UDISE पोर्टल' : 'Official Portals'}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleNavClick('schemes');
-                  }}
-                  className={`min-h-[44px] px-3 py-2 rounded-xl border text-xs font-bold text-center flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation active:scale-[0.98] transition-all ${
-                    selectedPage === 'schemes'
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                      : 'bg-white hover:bg-slate-50 active:bg-slate-100 border-slate-200 text-slate-700'
-                  }`}
-                  id="btn-drawer-schemes"
-                >
-                  <Gift className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span className="truncate">{language === 'hi' ? 'सरकारी योजनाएँ' : 'Govt Schemes'}</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleNavClick('sources');
-                  }}
-                  className={`min-h-[44px] px-3 py-2 rounded-xl border text-xs font-bold text-center flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation active:scale-[0.98] transition-all ${
-                    selectedPage === 'sources'
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                      : 'bg-white hover:bg-slate-50 active:bg-slate-100 border-slate-200 text-slate-700'
-                  }`}
-                  id="btn-drawer-sources"
-                >
-                  <Globe className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span className="truncate">{language === 'hi' ? 'शिक्षा पोर्टल (UDISE)' : 'UP Portals'}</span>
-                </button>
               </div>
             </div>
           </div>

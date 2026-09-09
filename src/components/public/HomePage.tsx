@@ -228,7 +228,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                 className="px-5 sm:px-7 py-3 sm:py-3.5 rounded-xl bg-white hover:bg-gov-amber-50 text-gov-navy-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-black/20 hover:shadow-xl transition-all cursor-pointer transform hover:-translate-y-0.5 active:scale-95 border border-white/80"
                 id="btn-hero-about"
               >
-                <span>{language === 'hi' ? 'स्कूल के बारे में (About School)' : 'About School'}</span>
+                <span>{language === 'hi' ? 'विद्यालय परिचय' : 'About School'}</span>
                 <ArrowRight className="w-4 h-4 text-gov-navy-950" />
               </button>
 
@@ -238,7 +238,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                 id="btn-hero-admission"
               >
                 <GraduationCap className="w-4 h-4 text-gov-navy-950" />
-                <span>{language === 'hi' ? 'नि:शुल्क प्रवेश (Admission)' : 'Free Admission'}</span>
+                <span>{language === 'hi' ? 'नि:शुल्क प्रवेश' : 'Free Admission'}</span>
               </button>
             </div>
 
@@ -387,7 +387,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
                 className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm inline-flex items-center gap-2 transition-all cursor-pointer shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                 id="btn-about-readmore"
               >
-                <span>{language === 'hi' ? 'विस्तृत परिचय पढ़ें (Read More)' : 'Read More About School'}</span>
+                <span>{language === 'hi' ? 'विस्तृत परिचय पढ़ें' : 'Read More About School'}</span>
                 <ArrowRight className="w-4 h-4 text-gov-amber-400" />
               </button>
             </div>
