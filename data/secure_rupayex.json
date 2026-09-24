@@ -1,0 +1,11 @@
+{
+  "apiToken": "d73d8f7f9956c111058f7ae2548412bf",
+  "instanceId": "I87obdcq6v1784696233",
+  "apiBaseUrl": "https://rupayex.net/api",
+  "webhookUrl": "https://primaryschoolharsinghpur.netlify.app/",
+  "isEnabled": true,
+  "merchantName": "कंपोजिट जू.हा. स्कूल हरसिंहपुर गोवा",
+  "minAmount": 100,
+  "lastUpdated": "2026-09-24T01:25:00.000Z",
+  "updatedBy": "Super Admin"
+}

@@ -766,6 +766,8 @@ export interface SchoolSettings {
   academicCalendar?: AcademicCalendarConfig;
   // College & School Donations (Razorpay Gateway Configuration)
   paymentConfig?: RazorpayPaymentConfig;
+  // Rupayex UPI Payment Gateway Configuration
+  rupayexConfig?: RupayexPaymentConfig;
 }
 
 export interface SchoolHolidayItem {
@@ -932,6 +934,17 @@ export interface RazorpayPaymentConfig {
   updatedBy?: string;
 }
 
+export interface RupayexPaymentConfig {
+  enabled: boolean;
+  isEnabled?: boolean;
+  apiToken: string;
+  instanceId: string;
+  apiBaseUrl: string;
+  webhookUrl: string;
+  merchantName?: string;
+  minAmount?: number;
+}
+
 export interface DonationRecord {
   id: string;
   receiptNumber: string; // Official format: DON-2026-0001
@@ -947,10 +960,13 @@ export interface DonationRecord {
   panNumber?: string;
   donorAddress?: string;
   isAnonymous?: boolean;
-  paymentGateway: 'razorpay' | 'upi_manual' | 'offline_cash' | 'cheque_dd';
+  paymentGateway: 'rupayex' | 'razorpay' | 'upi_manual' | 'offline_cash' | 'cheque_dd';
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
   razorpaySignature?: string;
+  rupayexOrderId?: string;
+  rupayexPaymentUrl?: string;
+  rupayexUtr?: string;
   status: 'SUCCESS' | 'PENDING' | 'FAILED';
   createdAt: string;
   is80GClaimed?: boolean;

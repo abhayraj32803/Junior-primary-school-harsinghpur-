@@ -107,7 +107,7 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({
                 {settings.schoolName || 'COMPOSITE JUNIOR HIGH SCHOOL HARSINGHPUR GOVA'}
               </h2>
               <div className="text-xs text-slate-600 font-medium">
-                {settings.schoolAddress || 'Harsinghpur Gova, Block Sahaswan, District Badaun, Uttar Pradesh - 243638'}
+                {settings.schoolAddress || 'Harsinghpur Gova, Block Shamsabad, District Farrukhabad, Uttar Pradesh'}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-mono text-slate-500 pt-1">
                 <span>U-DISE Code: <strong className="text-slate-900">{settings.schoolCode || '09290205902'}</strong></span>
@@ -133,13 +133,15 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({
                 <span className="font-medium text-slate-800">{dateFormatted}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Payment Gateway</span>
-                <span className="font-bold text-blue-700 uppercase">Razorpay Verified</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Payment Mode</span>
+                <span className="font-bold text-emerald-700 uppercase">
+                  {language === 'hi' ? 'ऑनलाइन डिजिटल भुगतान (UPI / नेट बैंकिंग)' : 'Online Digital Payment (UPI / NetBanking)'}
+                </span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Payment ID</span>
-                <span className="font-mono text-slate-800 text-[11px] truncate block" title={donation.razorpayPaymentId}>
-                  {donation.razorpayPaymentId || 'N/A'}
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Transaction Ref</span>
+                <span className="font-mono text-slate-800 text-[11px] truncate block" title={donation.rupayexUtr || donation.rupayexOrderId || donation.razorpayPaymentId || donation.receiptNumber}>
+                  {donation.rupayexUtr ? `UTR: ${donation.rupayexUtr}` : (donation.rupayexOrderId || donation.razorpayPaymentId || donation.receiptNumber)}
                 </span>
               </div>
             </div>

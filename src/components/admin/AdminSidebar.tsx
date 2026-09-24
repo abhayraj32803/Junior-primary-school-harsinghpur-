@@ -317,7 +317,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       theme: MODULE_THEMES.GOVERNANCE,
       subTabs: [
         { id: 'settings', labelEn: 'School ERP Settings', labelHi: 'विद्यालय सिस्टम सेटिंग्स', icon: SlidersHorizontal },
-        { id: 'donations', labelEn: 'Razorpay & Donations', labelHi: 'दान व रेज़रपे गेटवे', icon: CreditCard, badge: donations.length > 0 ? `${donations.length}` : undefined },
+        { id: 'donations', labelEn: 'School Donations & Receipts', labelHi: 'विद्यालय दान कोष एवं रसीदें', icon: CreditCard, badge: donations.length > 0 ? `${donations.length}` : undefined },
         { id: 'users', labelEn: 'User Logins & Access', labelHi: 'उपयोगकर्ता व सुरक्षा', icon: UserCog },
         { id: 'reports', labelEn: 'MIS Analytics & Reports', labelHi: 'प्रशासनिक विश्लेषण व रिपोर्ट', icon: TrendingUp },
         { id: 'audit', labelEn: 'Security Audit Logs', labelHi: 'सुरक्षा ऑडिट लॉग', icon: History }

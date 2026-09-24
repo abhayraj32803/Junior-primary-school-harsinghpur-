@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { GlobalSearchModal } from '../common/GlobalSearchModal';
-import { QuickFinderModal } from './QuickFinderModal';
 import { 
   School, 
   Home,
@@ -68,7 +67,6 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isFinderOpen, setIsFinderOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [fontSizeScale, setFontSizeScale] = useState<'normal' | 'large' | 'larger'>('normal');
   const [highContrast, setHighContrast] = useState(false);
@@ -323,20 +321,6 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
         }}
       />
 
-      {/* Quick Finder / Easy Guide Modal for Students & Parents */}
-      <QuickFinderModal
-        isOpen={isFinderOpen}
-        onClose={() => setIsFinderOpen(false)}
-        onNavigate={(p) => {
-          handleNavClick(p);
-          setIsFinderOpen(false);
-        }}
-        onOpenPortal={() => {
-          handleOpenPortal();
-          setIsFinderOpen(false);
-        }}
-      />
-
       <header className={`sticky top-0 z-40 bg-white border-b border-slate-200 transition-all duration-300 ${
         isScrolled ? 'shadow-md' : 'shadow-xs'
       }`}>
@@ -511,29 +495,18 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               </button>
             </div>
 
-            {/* Right: Easy Guide + Quick Search + Free Admission CTA + Hamburger with >=44px Touch Targets */}
+            {/* Right: Quick Search + Free Admission CTA + Responsive Menu Button */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
               
-              {/* Easy Student & Parent Guide (कहाँ क्या मिलेगा?) */}
-              <button
-                onClick={() => setIsFinderOpen(true)}
-                className="flex items-center justify-center gap-1.5 min-h-[44px] px-2.5 sm:px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-[11px] sm:text-xs shadow-md shadow-amber-500/20 hover:shadow-amber-500/40 transition-all cursor-pointer shrink-0 border border-amber-300 transform active:scale-95 touch-manipulation"
-                title={language === 'hi' ? 'कक्षा 1 से 8 विद्यार्थी व अभिभावक आसान गाइड' : 'Class 1-8 Easy Navigation Guide'}
-                id="btn-nav-guide"
-              >
-                <HelpCircle className="w-4 h-4 text-slate-950 shrink-0" />
-                <span>{language === 'hi' ? 'कहाँ क्या मिलेगा?' : 'Easy Guide'}</span>
-              </button>
-
-              {/* Universal Search (IIT Delhi Search Icon / Ctrl+K) */}
+              {/* Universal Search (Ctrl+K) */}
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="hidden md:flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer text-xs font-bold shrink-0 touch-manipulation"
+                className="flex items-center gap-2 min-h-[44px] px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer text-xs font-bold shrink-0 touch-manipulation"
                 title="Search website (Ctrl+K)"
                 id="btn-nav-search"
               >
                 <Search className="w-4 h-4 text-amber-600" />
-                <span className="text-xs hidden lg:inline">{language === 'hi' ? 'खोजें...' : 'Search...'}</span>
+                <span className="text-xs hidden md:inline">{language === 'hi' ? 'खोजें...' : 'Search...'}</span>
                 <kbd className="hidden lg:inline-block px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[9px] text-slate-500 font-mono">⌘K</kbd>
               </button>
 
@@ -655,22 +628,6 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
 
           {/* Drawer Scrollable Content */}
           <div className="px-4 py-3.5 space-y-3.5 overflow-y-auto overscroll-contain custom-scrollbar flex-1">
-            {/* Quick Back Button in Mobile Drawer if on subpage */}
-            {selectedPage !== 'home' && (
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  if (onGoBack) onGoBack();
-                  else handleNavClick('home');
-                }}
-                className="w-full min-h-[44px] p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-slate-900 text-xs font-bold flex items-center justify-center gap-2 border border-amber-200/80 transition-all shadow-2xs cursor-pointer touch-manipulation select-none active:scale-[0.98]"
-                id="btn-drawer-back"
-              >
-                <ArrowLeft className="w-4 h-4 text-amber-700" />
-                <span>{language === 'hi' ? '← पिछले पृष्ठ पर वापस जाएं' : '← Back to Previous Screen'}</span>
-              </button>
-            )}
-
             {/* Single Unified ERP Portal Login Card */}
             <button
               onClick={() => {

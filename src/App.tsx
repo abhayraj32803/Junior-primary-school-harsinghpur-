@@ -349,7 +349,7 @@ const SchoolAppInner: React.FC = () => {
         'documents': { pillar: 'Students & Academics', titleEn: 'Student Certificates & TC Vault', titleHi: 'प्रमाणपत्र व टीसी लॉकर' },
         'reports': { pillar: 'Governance & Security', titleEn: 'Governance Analytics & MIS', titleHi: 'प्रशासनिक विश्लेषण व रिपोर्ट' },
         'users': { pillar: 'Governance & Security', titleEn: 'User Logins & Permissions', titleHi: 'उपयोगकर्ता एवं अनुमतियां' },
-        'donations': { pillar: 'Governance & Security', titleEn: 'Razorpay & College Donations', titleHi: 'रेज़रपे व कॉलेज दान प्रबंधन' },
+        'donations': { pillar: 'Governance & Security', titleEn: 'School Donations & Receipts', titleHi: 'विद्यालय दान कोष एवं रसीदें' },
         'audit': { pillar: 'Governance & Security', titleEn: 'Security Audit Trail Logs', titleHi: 'सुरक्षा ऑडिट लॉग' },
         'settings': { pillar: 'Governance & Security', titleEn: 'Institutional System Settings', titleHi: 'विद्यालय सिस्टम सेटिंग्स' },
       };

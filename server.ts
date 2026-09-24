@@ -1271,6 +1271,81 @@ function persistSecureRazorpayVault(config: SecureRazorpayConfig): void {
   }
 }
 
+// -------------------------------------------------------------
+// RUPAYEX UPI GATEWAY VAULT & CONFIGURATION
+// -------------------------------------------------------------
+export interface SecureRupayexConfig {
+  apiToken: string;
+  instanceId: string;
+  apiBaseUrl: string;
+  webhookUrl: string;
+  isEnabled: boolean;
+  merchantName: string;
+  minAmount: number;
+  lastUpdated: string;
+  updatedBy: string;
+}
+
+const SECURE_RUPAYEX_FILE = path.join(SECURE_DATA_DIR, 'secure_rupayex.json');
+
+function initSecureRupayexVault(): SecureRupayexConfig {
+  const defaultApiToken = process.env.RUPAYEX_API_TOKEN || 'd73d8f7f9956c111058f7ae2548412bf';
+  const defaultInstanceId = process.env.RUPAYEX_INSTANCE_ID || 'I87obdcq6v1784696233';
+  const defaultApiBaseUrl = process.env.RUPAYEX_BASE_URL || 'https://rupayex.net/api';
+  const defaultWebhookUrl = process.env.RUPAYEX_WEBHOOK_URL || 'https://primaryschoolharsinghpur.netlify.app/';
+
+  try {
+    if (!fs.existsSync(SECURE_DATA_DIR)) {
+      fs.mkdirSync(SECURE_DATA_DIR, { recursive: true });
+    }
+
+    if (fs.existsSync(SECURE_RUPAYEX_FILE)) {
+      const raw = fs.readFileSync(SECURE_RUPAYEX_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return {
+        apiToken: parsed.apiToken || defaultApiToken,
+        instanceId: parsed.instanceId || defaultInstanceId,
+        apiBaseUrl: parsed.apiBaseUrl || defaultApiBaseUrl,
+        webhookUrl: parsed.webhookUrl || defaultWebhookUrl,
+        isEnabled: parsed.isEnabled !== false,
+        merchantName: parsed.merchantName || 'कंपोजिट जू.हा. स्कूल हरसिंहपुर गोवा',
+        minAmount: parsed.minAmount || 100,
+        lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+        updatedBy: parsed.updatedBy || 'Super Admin'
+      };
+    }
+  } catch (err) {
+    console.error('[RUPAYEX-VAULT] Error reading config file:', err);
+  }
+
+  return {
+    apiToken: defaultApiToken,
+    instanceId: defaultInstanceId,
+    apiBaseUrl: defaultApiBaseUrl,
+    webhookUrl: defaultWebhookUrl,
+    isEnabled: true,
+    merchantName: 'कंपोजिट जू.हा. स्कूल हरसिंहपुर गोवा',
+    minAmount: 100,
+    lastUpdated: new Date().toISOString(),
+    updatedBy: 'System Environment Default'
+  };
+}
+
+let secureRupayexVault: SecureRupayexConfig = initSecureRupayexVault();
+
+function persistSecureRupayexVault(config: SecureRupayexConfig): void {
+  try {
+    if (!fs.existsSync(SECURE_DATA_DIR)) {
+      fs.mkdirSync(SECURE_DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(SECURE_RUPAYEX_FILE, JSON.stringify(config, null, 2), 'utf-8');
+    secureRupayexVault = { ...config };
+    console.log(`[RUPAYEX-VAULT] 🔐 Vault updated successfully. Instance: ${config.instanceId} | Enabled: ${config.isEnabled}`);
+  } catch (err) {
+    console.error('[RUPAYEX-VAULT] Failed to persist secure config file:', err);
+  }
+}
+
 function maskSecret(secret: string): string {
   if (!secret) return '';
   if (secret.length <= 4) return '••••••••';
@@ -1604,6 +1679,274 @@ app.post('/api/razorpay/test-keys', async (req: Request, res: Response): Promise
     res.status(400).json({
       success: false,
       error: error?.error?.description || error?.message || 'Invalid Razorpay Key ID or Secret. Authentication failed.'
+    });
+  }
+});
+
+// -------------------------------------------------------------
+// RUPAYEX UPI GATEWAY ENDPOINTS (Create Order, Status & Webhook)
+// -------------------------------------------------------------
+
+// Public Config check
+app.get('/api/rupayex/config', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    isEnabled: secureRupayexVault.isEnabled,
+    merchantName: secureRupayexVault.merchantName,
+    minAmount: secureRupayexVault.minAmount || 100,
+    webhookUrl: secureRupayexVault.webhookUrl
+  });
+});
+
+// Create Order on Rupayex Gateway
+app.post('/api/rupayex/create-order', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { amount, donorName, donorEmail, donorPhone, reason, customReason, receiptNumber, redirectUrl } = req.body;
+
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount < 1) {
+      res.status(400).json({ success: false, error: 'Valid donation amount is required.' });
+      return;
+    }
+
+    if (!secureRupayexVault.isEnabled) {
+      res.status(403).json({ success: false, error: 'Rupayex payment gateway is currently disabled by administration.' });
+      return;
+    }
+
+    const minAllowed = secureRupayexVault.minAmount || 100;
+    if (numAmount < minAllowed) {
+      res.status(400).json({
+        success: false,
+        error: `Rupayex UPI gateway minimum contribution amount is ₹${minAllowed}.`
+      });
+      return;
+    }
+
+    const orderId = `ORD_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+    const effectiveRedirect = redirectUrl || secureRupayexVault.webhookUrl || 'https://primaryschoolharsinghpur.netlify.app/';
+
+    const targetUrl = `${secureRupayexVault.apiBaseUrl.replace(/\/+$/, '')}/create-order`;
+
+    const postPayload = {
+      order_id: orderId,
+      amount: numAmount,
+      redirect_url: effectiveRedirect,
+      instance_id: secureRupayexVault.instanceId
+    };
+
+    console.log(`[RUPAYEX-SERVER] 🚀 Creating order on Rupayex: ${orderId} for ₹${numAmount} (Instance: ${secureRupayexVault.instanceId})`);
+
+    const apiRes = await fetch(targetUrl, {
+      method: 'POST',
+      headers: {
+        'x-api-token': secureRupayexVault.apiToken,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'CompositeJHS-ERP/1.0'
+      },
+      body: JSON.stringify(postPayload)
+    });
+
+    const responseData = await apiRes.json() as any;
+
+    if (!apiRes.ok || !responseData.status) {
+      console.error('[RUPAYEX-SERVER] ❌ Rupayex API error response:', responseData);
+      res.status(apiRes.status >= 400 && apiRes.status < 500 ? apiRes.status : 502).json({
+        success: false,
+        error: responseData.message || 'Failed to create payment order on Rupayex gateway.'
+      });
+      return;
+    }
+
+    console.log(`[RUPAYEX-SERVER] ✅ Order created successfully: ${orderId} | PayURL: ${responseData.payment_url}`);
+
+    res.json({
+      success: true,
+      orderId: responseData.order_id || orderId,
+      paymentUrl: responseData.payment_url,
+      amount: responseData.amount || numAmount,
+      receiptNumber: receiptNumber || `RCPT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+      message: responseData.message || 'Order created successfully'
+    });
+  } catch (error: any) {
+    console.error('[RUPAYEX-SERVER] ❌ Exception in create-order:', error);
+    res.status(500).json({
+      success: false,
+      error: error?.message || 'Internal server error while connecting to Rupayex.'
+    });
+  }
+});
+
+// Check Order Status on Rupayex Gateway (GET and POST support)
+const handleCheckOrderStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = (req.query.order_id as string || req.body?.order_id as string || '').trim();
+    if (!orderId) {
+      res.status(400).json({ success: false, error: 'Order ID is required.' });
+      return;
+    }
+
+    const targetUrl = `${secureRupayexVault.apiBaseUrl.replace(/\/+$/, '')}/order-status?order_id=${encodeURIComponent(orderId)}&instance_id=${encodeURIComponent(secureRupayexVault.instanceId)}`;
+
+    const apiRes = await fetch(targetUrl, {
+      method: 'GET',
+      headers: {
+        'x-api-token': secureRupayexVault.apiToken,
+        'Accept': 'application/json'
+      }
+    });
+
+    const responseData = await apiRes.json() as any;
+
+    if (!apiRes.ok || !responseData.status) {
+      res.status(apiRes.status).json({
+        success: false,
+        error: responseData.message || 'Failed to fetch order status from Rupayex.'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      orderId: responseData.order_id,
+      amount: responseData.amount,
+      paymentStatus: responseData.payment_status, // "SUCCESS" | "PENDING" | "FAILED"
+      utr: responseData.utr || null,
+      method: responseData.method || 'UPI',
+      createdAt: responseData.created_at
+    });
+  } catch (error: any) {
+    console.error('[RUPAYEX-SERVER] ❌ Error checking order status:', error);
+    res.status(500).json({
+      success: false,
+      error: error?.message || 'Error checking order status.'
+    });
+  }
+};
+
+app.get('/api/rupayex/order-status', handleCheckOrderStatus);
+app.post('/api/rupayex/order-status', handleCheckOrderStatus);
+
+// Webhook listener for Rupayex Payment Gateway
+app.all(['/api/rupayex/webhook', '/api/rupayex-webhook'], (req: Request, res: Response): void => {
+  console.log('[RUPAYEX-WEBHOOK] 🔔 Received webhook callback:', {
+    method: req.method,
+    query: req.query,
+    body: req.body,
+    headers: req.headers
+  });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Webhook received and acknowledged successfully',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Admin: Get Rupayex Config
+app.get('/api/admin/rupayex-config', (req: Request, res: Response): void => {
+  res.json({
+    success: true,
+    config: {
+      isEnabled: secureRupayexVault.isEnabled,
+      apiToken: maskSecret(secureRupayexVault.apiToken),
+      instanceId: secureRupayexVault.instanceId,
+      apiBaseUrl: secureRupayexVault.apiBaseUrl,
+      webhookUrl: secureRupayexVault.webhookUrl,
+      merchantName: secureRupayexVault.merchantName,
+      minAmount: secureRupayexVault.minAmount || 100,
+      lastUpdated: secureRupayexVault.lastUpdated,
+      updatedBy: secureRupayexVault.updatedBy
+    }
+  });
+});
+
+// Admin: Save Rupayex Config
+app.post('/api/admin/rupayex-config', (req: Request, res: Response): void => {
+  try {
+    const { apiToken, instanceId, apiBaseUrl, webhookUrl, isEnabled, merchantName, minAmount, updatedBy } = req.body;
+
+    const newConfig: SecureRupayexConfig = {
+      apiToken: apiToken && !apiToken.includes('••••') ? apiToken.trim() : secureRupayexVault.apiToken,
+      instanceId: instanceId ? instanceId.trim() : secureRupayexVault.instanceId,
+      apiBaseUrl: apiBaseUrl ? apiBaseUrl.trim() : secureRupayexVault.apiBaseUrl,
+      webhookUrl: webhookUrl ? webhookUrl.trim() : secureRupayexVault.webhookUrl,
+      isEnabled: typeof isEnabled === 'boolean' ? isEnabled : secureRupayexVault.isEnabled,
+      merchantName: merchantName ? merchantName.trim() : secureRupayexVault.merchantName,
+      minAmount: typeof minAmount === 'number' && minAmount >= 1 ? minAmount : (secureRupayexVault.minAmount || 100),
+      lastUpdated: new Date().toISOString(),
+      updatedBy: updatedBy || 'Administrator'
+    };
+
+    persistSecureRupayexVault(newConfig);
+
+    res.json({
+      success: true,
+      message: 'Rupayex payment gateway configuration updated successfully.',
+      config: {
+        isEnabled: newConfig.isEnabled,
+        apiToken: maskSecret(newConfig.apiToken),
+        instanceId: newConfig.instanceId,
+        apiBaseUrl: newConfig.apiBaseUrl,
+        webhookUrl: newConfig.webhookUrl,
+        merchantName: newConfig.merchantName,
+        minAmount: newConfig.minAmount,
+        lastUpdated: newConfig.lastUpdated,
+        updatedBy: newConfig.updatedBy
+      }
+    });
+  } catch (error: any) {
+    console.error('[RUPAYEX-VAULT] ❌ Error saving config:', error);
+    res.status(500).json({ success: false, error: 'Failed to save Rupayex configuration.' });
+  }
+});
+
+// Admin: Test Connection to Rupayex API
+app.post('/api/admin/rupayex-test-connection', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { apiToken, instanceId, apiBaseUrl } = req.body;
+    const token = (apiToken && !apiToken.includes('••••') ? apiToken : secureRupayexVault.apiToken).trim();
+    const inst = (instanceId || secureRupayexVault.instanceId).trim();
+    const baseUrl = (apiBaseUrl || secureRupayexVault.apiBaseUrl).trim();
+
+    if (!token || !inst) {
+      res.status(400).json({ success: false, error: 'API Token and Instance ID are required.' });
+      return;
+    }
+
+    const testOrderId = `TEST_${Date.now()}`;
+    const testUrl = `${baseUrl.replace(/\/+$/, '')}/order-status?order_id=${encodeURIComponent(testOrderId)}&instance_id=${encodeURIComponent(inst)}`;
+
+    const apiRes = await fetch(testUrl, {
+      method: 'GET',
+      headers: {
+        'x-api-token': token,
+        'Accept': 'application/json'
+      }
+    });
+
+    const body = await apiRes.json() as any;
+
+    if (apiRes.status === 401) {
+      res.status(401).json({
+        success: false,
+        error: 'Invalid Rupayex API Token. Server returned 401 Unauthorized.'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: 'Successfully connected and verified with Rupayex payment gateway!',
+      status: apiRes.status,
+      response: body
+    });
+  } catch (error: any) {
+    console.error('[RUPAYEX-VAULT] ❌ Test connection error:', error);
+    res.status(500).json({
+      success: false,
+      error: error?.message || 'Failed to connect to Rupayex API.'
     });
   }
 });

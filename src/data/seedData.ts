@@ -644,6 +644,16 @@ export const initialSettings: SchoolSettings = {
     ],
     lastUpdated: '2025-04-01'
   },
+  rupayexConfig: {
+    enabled: true,
+    isEnabled: true,
+    apiToken: 'd73d8f7f9956c111058f7ae2548412bf',
+    instanceId: 'I87obdcq6v1784696233',
+    apiBaseUrl: 'https://rupayex.net/api',
+    webhookUrl: 'https://primaryschoolharsinghpur.netlify.app/',
+    merchantName: 'Composite JHS Harsinghpur Gova',
+    minAmount: 100
+  },
   paymentConfig: {
     enabled: true,
     isLiveMode: false,
