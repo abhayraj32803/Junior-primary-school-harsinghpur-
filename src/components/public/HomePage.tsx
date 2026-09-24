@@ -483,69 +483,117 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
           </button>
         </div>
 
-        {/* 6 Cards Grid with Distinct Colorful Palettes */}
+        {/* 6 Cards Grid with Distinct Colorful Palettes & Interactive Hover Animations */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {sixFacilities.map((fac, idx) => {
             const Icon = typeof fac.icon === 'string' ? getFacilityIconComponent(fac.icon) : (fac.icon || Building2);
             
             const facilityThemes = [
               {
-                bg: 'bg-gradient-to-br from-white via-amber-50/30 to-orange-50/20',
+                bg: 'bg-gradient-to-br from-white via-amber-50/40 to-orange-50/20',
                 border: 'border-2 border-amber-200/80 hover:border-amber-400',
                 iconBg: 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-amber-500/25',
-                tag: 'text-amber-800'
+                tag: 'text-amber-800',
+                glow: 'bg-amber-400',
+                shadow: 'hover:shadow-amber-500/15',
+                accentLine: 'bg-amber-500'
               },
               {
-                bg: 'bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20',
+                bg: 'bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/20',
                 border: 'border-2 border-blue-200/80 hover:border-blue-400',
                 iconBg: 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-500/25',
-                tag: 'text-blue-800'
+                tag: 'text-blue-800',
+                glow: 'bg-blue-400',
+                shadow: 'hover:shadow-blue-500/15',
+                accentLine: 'bg-blue-500'
               },
               {
-                bg: 'bg-gradient-to-br from-white via-teal-50/30 to-cyan-50/20',
+                bg: 'bg-gradient-to-br from-white via-teal-50/40 to-cyan-50/20',
                 border: 'border-2 border-teal-200/80 hover:border-teal-400',
                 iconBg: 'bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-teal-500/25',
-                tag: 'text-teal-800'
+                tag: 'text-teal-800',
+                glow: 'bg-teal-400',
+                shadow: 'hover:shadow-teal-500/15',
+                accentLine: 'bg-teal-500'
               },
               {
-                bg: 'bg-gradient-to-br from-white via-emerald-50/30 to-green-50/20',
+                bg: 'bg-gradient-to-br from-white via-emerald-50/40 to-green-50/20',
                 border: 'border-2 border-emerald-200/80 hover:border-emerald-400',
                 iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-emerald-500/25',
-                tag: 'text-emerald-800'
+                tag: 'text-emerald-800',
+                glow: 'bg-emerald-400',
+                shadow: 'hover:shadow-emerald-500/15',
+                accentLine: 'bg-emerald-500'
               },
               {
-                bg: 'bg-gradient-to-br from-white via-sky-50/30 to-blue-50/20',
+                bg: 'bg-gradient-to-br from-white via-sky-50/40 to-blue-50/20',
                 border: 'border-2 border-sky-200/80 hover:border-sky-400',
                 iconBg: 'bg-gradient-to-br from-sky-500 to-blue-500 text-white shadow-sky-500/25',
-                tag: 'text-sky-800'
+                tag: 'text-sky-800',
+                glow: 'bg-sky-400',
+                shadow: 'hover:shadow-sky-500/15',
+                accentLine: 'bg-sky-500'
               },
               {
-                bg: 'bg-gradient-to-br from-white via-rose-50/30 to-orange-50/20',
+                bg: 'bg-gradient-to-br from-white via-rose-50/40 to-orange-50/20',
                 border: 'border-2 border-rose-200/80 hover:border-rose-400',
                 iconBg: 'bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-rose-500/25',
-                tag: 'text-rose-800'
+                tag: 'text-rose-800',
+                glow: 'bg-rose-400',
+                shadow: 'hover:shadow-rose-500/15',
+                accentLine: 'bg-rose-500'
               }
             ];
 
             const theme = facilityThemes[idx % facilityThemes.length];
 
             return (
-              <div
+              <motion.div
                 key={fac.id}
-                className={`${theme.bg} ${theme.border} rounded-2xl md:rounded-3xl p-5 sm:p-6 shadow-xs hover:shadow-md card-hover-glow transition-all space-y-3 relative overflow-hidden group`}
+                whileHover={{ y: -6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                onClick={() => onNavigate('facilities')}
+                className={`${theme.bg} ${theme.border} ${theme.shadow} rounded-2xl md:rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 space-y-3.5 relative overflow-hidden group cursor-pointer flex flex-col justify-between select-none`}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onNavigate('facilities');
+                  }
+                }}
               >
-                <div className={`w-11 h-11 rounded-xl md:rounded-2xl ${theme.iconBg} flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform`}>
-                  <Icon className="w-5 h-5" />
+                {/* Radiant ambient glow orb on hover */}
+                <div className={`absolute -top-12 -right-12 w-32 h-32 rounded-full ${theme.glow} opacity-0 group-hover:opacity-15 blur-2xl transition-opacity duration-500 pointer-events-none`} />
+
+                <div className="space-y-3 relative z-10">
+                  <div className="flex items-center justify-between">
+                    <div className={`w-12 h-12 rounded-xl md:rounded-2xl ${theme.iconBg} flex items-center justify-center font-bold shadow-md group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                      <Icon className="w-6 h-6" />
+                    </div>
+
+                    {/* Subtle quick action arrow button */}
+                    <div className="w-8 h-8 rounded-xl bg-white/80 border border-slate-200/80 flex items-center justify-center text-slate-400 group-hover:text-slate-900 group-hover:bg-white group-hover:shadow-xs transition-all opacity-70 group-hover:opacity-100">
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-slate-950 transition-colors">
+                      {language === 'hi' ? fac.nameHi : fac.nameEn}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed font-normal line-clamp-3">
+                      {language === 'hi' ? fac.descHi : fac.descEn}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-black text-slate-900">
-                    {language === 'hi' ? fac.nameHi : fac.nameEn}
-                  </h3>
-                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-normal">
-                    {language === 'hi' ? fac.descHi : fac.descEn}
-                  </p>
+
+                {/* Bottom subtle accent line that expands on hover */}
+                <div className="w-full pt-1 relative z-10">
+                  <div className={`h-1 w-8 group-hover:w-full rounded-full transition-all duration-300 opacity-40 group-hover:opacity-100 ${theme.accentLine}`} />
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
