@@ -2,6 +2,7 @@
 
 export interface RupayexOrderParams {
   amount: number;
+  orderId?: string;
   donorName?: string;
   donorEmail?: string;
   donorPhone?: string;

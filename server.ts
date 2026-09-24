@@ -1723,8 +1723,11 @@ app.post('/api/rupayex/create-order', async (req: Request, res: Response): Promi
       return;
     }
 
-    const orderId = `ORD_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-    const effectiveRedirect = redirectUrl || secureRupayexVault.webhookUrl || 'https://primaryschoolharsinghpur.netlify.app/';
+    const orderId = (req.body.orderId || req.body.order_id || `ORD_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`).toString().trim();
+    let effectiveRedirect = redirectUrl || secureRupayexVault.webhookUrl || 'https://primaryschoolharsinghpur.netlify.app/';
+    if (!effectiveRedirect.includes('order_id=')) {
+      effectiveRedirect += effectiveRedirect.includes('?') ? `&order_id=${encodeURIComponent(orderId)}` : `?order_id=${encodeURIComponent(orderId)}`;
+    }
 
     const targetUrl = `${secureRupayexVault.apiBaseUrl.replace(/\/+$/, '')}/create-order`;
 

@@ -2,7 +2,34 @@
 <html lang="hi">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
+    <script>
+      // Early dynamic screen size detection to adjust UI layout instantly before rendering
+      (function() {
+        function adjustViewportMetrics() {
+          var w = window.innerWidth || document.documentElement.clientWidth || screen.width;
+          var h = window.innerHeight || document.documentElement.clientHeight || screen.height;
+          var root = document.documentElement;
+          root.style.setProperty('--vw', (w * 0.01) + 'px');
+          root.style.setProperty('--vh', (h * 0.01) + 'px');
+          root.style.setProperty('--screen-w', w + 'px');
+          root.style.setProperty('--screen-h', h + 'px');
+          
+          var device = 'desktop';
+          if (w < 768) {
+            device = 'mobile';
+          } else if (w < 1024) {
+            device = 'tablet';
+          }
+          root.setAttribute('data-device', device);
+          root.setAttribute('data-screen-width', w);
+          root.setAttribute('data-orientation', w > h ? 'landscape' : 'portrait');
+        }
+        adjustViewportMetrics();
+        window.addEventListener('resize', adjustViewportMetrics, { passive: true });
+        window.addEventListener('orientationchange', adjustViewportMetrics, { passive: true });
+      })();
+    </script>
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://apis.google.com https://*.firebaseapp.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http: https://*.razorpay.com; connect-src 'self' https: wss: http: https://api.razorpay.com https://lumberjack.razorpay.com; frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com https://*.firebaseapp.com https://www.youtube.com https://www.youtube-nocookie.com https://www.google.com; object-src 'none'; base-uri 'self';" />

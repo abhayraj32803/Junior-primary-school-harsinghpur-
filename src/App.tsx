@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
+import { useScreenSize } from './hooks/useScreenSize';
 import { ForcePasswordChangeModal } from './components/common/ForcePasswordChangeModal';
 import { ResetPasswordActionModal } from './components/common/ResetPasswordActionModal';
 import { UserProfileDropdown } from './components/common/UserProfileDropdown';
@@ -77,6 +78,7 @@ import {
 const SchoolAppInner: React.FC = () => {
   const { userProfile, isAuthenticated, logout } = useAuth();
   const { settings, language } = useSchool();
+  const screenSize = useScreenSize();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   // Public navigation state with history tracking and session persistence

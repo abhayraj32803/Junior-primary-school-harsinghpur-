@@ -3,7 +3,6 @@ import { useSchool } from '../../context/SchoolContext';
 import { DonationRecord, DonationReasonConfig } from '../../types';
 import { createRupayexOrder, checkRupayexOrderStatus } from '../../utils/rupayex';
 import { DonationReceiptModal } from './DonationReceiptModal';
-import { RupayexPaymentModal } from './RupayexPaymentModal';
 import { 
   Heart, 
   ShieldCheck, 
@@ -115,28 +114,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
   const [completedDonation, setCompletedDonation] = useState<DonationRecord | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
-  // Rupayex Payment Modal state
-  const [rupayexModalState, setRupayexModalState] = useState<{
-    isOpen: boolean;
-    orderId: string | null;
-    paymentUrl: string | null;
-    amount: number;
-    receiptNumber: string;
-    donorName: string;
-    causeLabel: string;
-    pendingRecord: DonationRecord | null;
-  }>({
-    isOpen: false,
-    orderId: null,
-    paymentUrl: null,
-    amount: 0,
-    receiptNumber: '',
-    donorName: '',
-    causeLabel: '',
-    pendingRecord: null
-  });
-
-  // Check URL callback on mount (if user redirected from Rupayex payment gateway)
+  // Check URL callback on mount (if user returned after completing payment on gateway)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -144,22 +122,32 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
     if (orderIdParam) {
       checkRupayexOrderStatus(orderIdParam).then(async (res) => {
         if (res.success && res.paymentStatus === 'SUCCESS') {
+          let pendingData: Partial<DonationRecord> | null = null;
+          try {
+            const saved = localStorage.getItem(`pending_donation_${orderIdParam}`);
+            if (saved) pendingData = JSON.parse(saved);
+          } catch (e) {}
+
           const existing = donations.find(d => d.rupayexOrderId === orderIdParam);
           if (existing) {
             setCompletedDonation(existing);
             setIsReceiptModalOpen(true);
           } else {
             const newRec: DonationRecord = {
-              id: `don_${Date.now()}`,
-              receiptNumber: `DON-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
-              donorName: 'Well-Wisher',
-              donorEmail: '',
-              donorPhone: '',
-              amount: res.amount || 100,
+              id: pendingData?.id || `don_${Date.now()}`,
+              receiptNumber: pendingData?.receiptNumber || `DON-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
+              donorName: pendingData?.donorName || 'Well-Wisher',
+              donorEmail: pendingData?.donorEmail || '',
+              donorPhone: pendingData?.donorPhone || '',
+              amount: res.amount || pendingData?.amount || 100,
               currency: 'INR',
-              reasonId: 'college-development',
-              reasonLabelEn: 'General School Development Fund',
-              reasonLabelHi: 'सामान्य विद्यालय विकास कोष',
+              reasonId: pendingData?.reasonId || 'college-development',
+              reasonLabelEn: pendingData?.reasonLabelEn || 'General School Development Fund',
+              reasonLabelHi: pendingData?.reasonLabelHi || 'सामान्य विद्यालय विकास कोष',
+              customReason: pendingData?.customReason,
+              panNumber: pendingData?.panNumber,
+              donorAddress: pendingData?.donorAddress,
+              isAnonymous: pendingData?.isAnonymous || false,
               paymentGateway: 'rupayex',
               rupayexOrderId: orderIdParam,
               rupayexUtr: res.utr || undefined,
@@ -170,6 +158,9 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
             setCompletedDonation(newRec);
             setIsReceiptModalOpen(true);
           }
+
+          // Clean URL param without page reload
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
       });
     }
@@ -207,22 +198,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
     }
   };
 
-  // Callback when Rupayex payment completes successfully
-  const handleRupayexSuccess = async (completedRecord: DonationRecord) => {
-    await addDonationRecord(completedRecord);
-    setRupayexModalState(prev => ({ ...prev, isOpen: false }));
-    setCompletedDonation(completedRecord);
-    setIsReceiptModalOpen(true);
-    setIsProcessing(false);
-    setStatusMessage({
-      type: 'success',
-      text: language === 'hi' 
-        ? `धन्यवाद! आपका ₹${completedRecord.amount.toLocaleString('en-IN')} का सहयोग सफलतापूर्वक प्राप्त हुआ। रसीद संख्या: ${completedRecord.receiptNumber}` 
-        : `Thank you! Your donation of ₹${completedRecord.amount.toLocaleString('en-IN')} was successfully received. Receipt No: ${completedRecord.receiptNumber}`
-    });
-  };
-
-  // Process Online Donation via Rupayex Gateway
+  // Process Online Donation via Payment Gateway
   const handleInitiateDonation = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage(null);
@@ -248,14 +224,15 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
     setIsProcessing(true);
     setStatusMessage({
       type: 'info',
-      text: language === 'hi' ? 'सुरक्षित भुगतान विंडो तैयार की जा रही है, कृपया प्रतीक्षा करें...' : 'Opening secure payment window, please wait...'
+      text: language === 'hi' ? 'सुरक्षित पेमेंट गेटवे खोला जा रहा है, कृपया प्रतीक्षा करें...' : 'Opening secure payment gateway, please wait...'
     });
 
     try {
       const reasonLabel = language === 'hi' ? selectedReasonObj?.labelHi : selectedReasonObj?.labelEn;
       const receiptNumber = `RCPT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://primaryschoolharsinghpur.netlify.app';
 
-      // 1. Create order on Rupayex Gateway
+      // 1. Create order on Payment Gateway
       const orderRes = await createRupayexOrder({
         amount,
         donorName: isAnonymous ? 'Anonymous Donor' : donorName.trim(),
@@ -263,7 +240,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
         donorPhone: donorPhone.trim(),
         reason: `${reasonLabel}${customReasonText ? ` (${customReasonText})` : ''}`,
         receiptNumber,
-        redirectUrl: 'https://primaryschoolharsinghpur.netlify.app/'
+        redirectUrl: `${currentOrigin}/?order_id=${receiptNumber}`
       });
 
       if (orderRes.success && orderRes.paymentUrl && orderRes.orderId) {
@@ -291,23 +268,27 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
           notes: message.trim() || undefined
         };
 
-        setRupayexModalState({
-          isOpen: true,
-          orderId: orderRes.orderId,
-          paymentUrl: orderRes.paymentUrl,
-          amount,
-          receiptNumber,
-          donorName: isAnonymous ? 'Anonymous Well-Wisher' : donorName.trim(),
-          causeLabel: reasonLabel || 'School Fund',
-          pendingRecord: pendingRec
+        // 1. Record pending donation
+        await addDonationRecord(pendingRec);
+
+        // 2. Persist to localStorage for automatic receipt generation on return
+        try {
+          localStorage.setItem(`pending_donation_${orderRes.orderId}`, JSON.stringify(pendingRec));
+        } catch (e) {}
+
+        setStatusMessage({
+          type: 'info',
+          text: language === 'hi' 
+            ? 'पेमेंट गेटवे पर पुनः निर्देशित किया जा रहा है...' 
+            : 'Redirecting to payment gateway...'
         });
 
-        setIsProcessing(false);
-        setStatusMessage(null);
+        // 3. IMMEDIATELY redirect directly to the payment gateway without any intermediate screen!
+        window.location.href = orderRes.paymentUrl;
         return;
       }
 
-      throw new Error(orderRes.error || 'Failed to initialize Rupayex payment gateway.');
+      throw new Error(orderRes.error || 'Failed to initialize payment gateway.');
     } catch (err: any) {
       console.error('[DONATION] Error initializing payment:', err);
       setIsProcessing(false);
@@ -833,21 +814,6 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
           )}
         </div>
       </div>
-
-      {/* Rupayex UPI Payment & Real-Time Verification Modal */}
-      <RupayexPaymentModal
-        isOpen={rupayexModalState.isOpen}
-        orderId={rupayexModalState.orderId}
-        paymentUrl={rupayexModalState.paymentUrl}
-        amount={rupayexModalState.amount}
-        receiptNumber={rupayexModalState.receiptNumber}
-        donorName={rupayexModalState.donorName}
-        causeLabel={rupayexModalState.causeLabel}
-        pendingRecord={rupayexModalState.pendingRecord}
-        onClose={() => setRupayexModalState(prev => ({ ...prev, isOpen: false }))}
-        onSuccess={handleRupayexSuccess}
-        language={language}
-      />
 
       {/* Official Printable 80G Receipt Modal */}
       <DonationReceiptModal

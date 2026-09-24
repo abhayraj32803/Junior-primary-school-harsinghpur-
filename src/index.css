@@ -400,3 +400,82 @@
   }
 }
 
+/* =========================================================================
+   DYNAMIC SCREEN SIZE DETECTION & AUTO-ADJUSTMENT STYLES
+   ========================================================================= */
+
+/* Prevent horizontal overflow on all screen sizes */
+html, body, #root {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Ensure mobile inputs are at least 16px to prevent iOS auto-zoom shift */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe area insets for mobile notches and gesture navigation bars */
+.safe-padding-top {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+.safe-padding-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.safe-padding-x {
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+/* Automatic table responsiveness on mobile */
+@media (max-width: 768px) {
+  .table-responsive-scroll {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Dynamic screen size adjustments based on data-device and screen width */
+[data-device="mobile"] {
+  --container-px: 0.875rem;
+}
+
+[data-device="tablet"] {
+  --container-px: 1.5rem;
+}
+
+[data-device="desktop"] {
+  --container-px: 2rem;
+}
+
+/* Automatic card and element sizing safeguards for very small phones (< 380px) */
+@media (max-width: 380px) {
+  .xs-stack-flex {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .xs-compact-text {
+    font-size: 0.8125rem !important;
+  }
+
+  .xs-compact-px {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+}
+
+

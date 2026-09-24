@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
+import { useScreenSize } from '../../hooks/useScreenSize';
 import { GlobalSearchModal } from '../common/GlobalSearchModal';
 import { 
   School, 
@@ -64,6 +65,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
 }) => {
   const { role, isAuthenticated, userProfile, logout } = useAuth();
   const { settings, language, setLanguage, notices } = useSchool();
+  const { isMobile, isSmallMobile } = useScreenSize();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -341,12 +343,12 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
 
                 {/* Official Identity Badge (Clean, non-duplicate government affiliation display) */}
                 <div className="flex items-center gap-2 text-xs text-slate-300 font-semibold shrink-0">
-                  <span className="inline-flex items-center gap-1.5 text-gov-amber-300 font-bold">
-                    <ShieldCheck className="w-3.5 h-3.5 text-gov-amber-400" />
+                  <span className="inline-flex items-center gap-1.5 text-gov-amber-300 font-bold truncate">
+                    <ShieldCheck className="w-3.5 h-3.5 text-gov-amber-400 shrink-0" />
                     <span>{language === 'hi' ? 'बेसिक शिक्षा परिषद, उ.प्र.' : 'Basic Education Dept, UP'}</span>
                   </span>
                   <span className="text-slate-600 hidden sm:inline">|</span>
-                  <div className="flex items-center gap-1 font-mono text-[11px] text-slate-300">
+                  <div className="hidden sm:flex items-center gap-1 font-mono text-[11px] text-slate-300">
                     <span className="text-gov-amber-400 font-bold">UDISE:</span>
                     <span className="bg-gov-navy-900 px-1.5 py-0.5 rounded border border-gov-navy-800 font-bold">{settings.schoolCode}</span>
                   </div>
@@ -443,7 +445,7 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
 
         {/* 2. MAIN INSTITUTIONAL MASTHEAD / BRANDING (RESPONSIVE WRAPPER & TOUCH TARGETS) */}
         <div className="w-full max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between min-h-16 sm:min-h-20 py-2 sm:py-3.5 gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center justify-between min-h-16 sm:min-h-20 py-2 sm:py-3.5 gap-2 sm:gap-4 flex-nowrap">
             
             {/* Left: School Crest + Official Bilingual Titles */}
             <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 flex-1">
@@ -501,24 +503,26 @@ export const PublicNavbar: React.FC<PublicNavbarProps> = ({
               {/* Universal Search (Ctrl+K) */}
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="flex items-center gap-2 min-h-[44px] px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer text-xs font-bold shrink-0 touch-manipulation"
+                className="flex items-center justify-center min-h-[44px] min-w-[44px] px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer text-xs font-bold shrink-0 touch-manipulation"
                 title="Search website (Ctrl+K)"
                 id="btn-nav-search"
+                aria-label="Search website"
               >
                 <Search className="w-4 h-4 text-amber-600" />
-                <span className="text-xs hidden md:inline">{language === 'hi' ? 'खोजें...' : 'Search...'}</span>
-                <kbd className="hidden lg:inline-block px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[9px] text-slate-500 font-mono">⌘K</kbd>
+                <span className="text-xs hidden md:inline ml-1.5">{language === 'hi' ? 'खोजें...' : 'Search...'}</span>
+                <kbd className="hidden lg:inline-block px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[9px] text-slate-500 font-mono ml-1.5">⌘K</kbd>
               </button>
 
               {/* Free Admission CTA Button - Min 44px Touch Target */}
               <button
                 onClick={() => handleNavClick('admission')}
-                className="flex items-center justify-center gap-1.5 min-h-[44px] px-3 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:bg-emerald-700 text-white transition-all cursor-pointer shadow-md shadow-emerald-600/30 hover:shadow-lg hover:shadow-emerald-600/40 shrink-0 whitespace-nowrap touch-manipulation active:scale-95"
+                className="hidden xs:flex items-center justify-center gap-1.5 min-h-[44px] px-2.5 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:bg-emerald-700 text-white transition-all cursor-pointer shadow-md shadow-emerald-600/30 hover:shadow-lg hover:shadow-emerald-600/40 shrink-0 whitespace-nowrap touch-manipulation active:scale-95"
                 title="RTE 2009 Free Admissions"
                 id="btn-nav-admissions"
               >
                 <GraduationCap className="w-4 h-4 text-emerald-200 shrink-0" />
-                <span>{language === 'hi' ? 'नि:शुल्क प्रवेश' : 'Admissions'}</span>
+                <span className="hidden sm:inline">{language === 'hi' ? 'नि:शुल्क प्रवेश' : 'Admissions'}</span>
+                <span className="sm:hidden">{language === 'hi' ? 'प्रवेश' : 'Admit'}</span>
               </button>
 
               {/* Mobile / Tablet Hamburger Menu Toggle with >= 44px Touch Area */}
