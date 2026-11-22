@@ -5,6 +5,7 @@ import { auth } from '../lib/firebase';
 export interface CashfreeOrderResponse {
   success: boolean;
   code?: string;
+  isHtmlFallback?: boolean;
   orderId?: string;
   cfOrderId?: string;
   paymentSessionId?: string;
@@ -157,6 +158,9 @@ export const fetchPublicCashfreeConfig = async (): Promise<CashfreePublicConfigR
   }
 };
 
+const STATIC_HOST_BACKEND_ERROR =
+  'Payment gateway backend server (/api/cashfree/*) is unreachable on this domain (received HTML page instead of JSON). If hosted on static hosting like Netlify or Firebase Hosting, deploy with the Node Express server (npm start) or configure your live Node Backend Server URL in Admin Settings.';
+
 export const createCashfreeOrder = async (params: {
   amount: number;
   donorName: string;
@@ -176,10 +180,18 @@ export const createCashfreeOrder = async (params: {
       body: JSON.stringify(params)
     });
     const parsed = await safeParseJson<CashfreeOrderResponse>(res);
+    if (parsed.isHtmlFallback) {
+      return {
+        success: false,
+        code: 'BACKEND_HTML_FALLBACK',
+        isHtmlFallback: true,
+        error: STATIC_HOST_BACKEND_ERROR
+      };
+    }
     if (parsed.data) return parsed.data;
     return {
       success: false,
-      error: 'Payment gateway server did not respond with valid JSON. Please try again.'
+      error: `Payment gateway server returned HTTP ${res.status} without valid JSON. Please verify the live server logs.`
     };
   } catch (err: any) {
     return {
@@ -196,10 +208,16 @@ export const verifyCashfreeOrderStatus = async (orderId: string): Promise<Cashfr
       headers: { 'Accept': 'application/json' }
     });
     const parsed = await safeParseJson<CashfreeVerificationResponse>(res);
+    if (parsed.isHtmlFallback) {
+      return {
+        success: false,
+        error: STATIC_HOST_BACKEND_ERROR
+      };
+    }
     if (parsed.data) return parsed.data;
     return {
       success: false,
-      error: 'Unable to verify payment status with server.'
+      error: `Unable to verify payment status with server (HTTP ${res.status}).`
     };
   } catch (err: any) {
     return {
@@ -268,7 +286,7 @@ export const fetchSecureCashfreeConfig = async (authData?: {
       lastUpdated: '',
       updatedBy: '',
       error: parsed.isHtmlFallback
-        ? 'Backend server unreachable. Verify server is running.'
+        ? 'Backend API (/api/*) returned HTML instead of JSON. On static hosting (like Netlify/Firebase), set your live Node Backend Server URL below.'
         : 'Invalid response from Cashfree vault.'
     };
   } catch (err: any) {
@@ -315,6 +333,12 @@ export const saveSecureCashfreeConfig = async (payload: {
       body: JSON.stringify(payload)
     });
     const parsed = await safeParseJson<any>(res);
+    if (parsed.isHtmlFallback) {
+      return {
+        success: false,
+        error: 'Backend API (/api/*) returned HTML instead of JSON. Configure your live Node Backend Server URL or run the full-stack server.'
+      };
+    }
     return parsed.data || { success: false, error: 'Failed to save Cashfree credentials.' };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to save Cashfree credentials.' };
@@ -376,6 +400,12 @@ export const testSecureCashfreeConnection = async (payload: {
       body: JSON.stringify(payload)
     });
     const parsed = await safeParseJson<any>(res);
+    if (parsed.isHtmlFallback) {
+      return {
+        success: false,
+        error: 'Backend API (/api/*) returned HTML instead of JSON. Configure your live Node Backend Server URL below.'
+      };
+    }
     return parsed.data || { success: false, error: 'Failed to test Cashfree API connection.' };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to test Cashfree API connection.' };
@@ -399,6 +429,12 @@ export const fetchCashfreeServerLogs = async (authData?: {
       headers
     });
     const parsed = await safeParseJson<any>(res);
+    if (parsed.isHtmlFallback) {
+      return {
+        success: false,
+        error: 'Backend API (/api/*) returned HTML instead of JSON.'
+      };
+    }
     return parsed.data || { success: false, error: 'Failed to load server Cashfree diagnostics.' };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to load server Cashfree diagnostics.' };

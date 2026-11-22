@@ -48,7 +48,7 @@ interface HealthResponse {
 }
 
 export const AdminSmtpSettings: React.FC = () => {
-  const { language, addAuditLog } = useSchool();
+  const { language, settings, updateSettings, addAuditLog } = useSchool();
   const { currentUser, role, sessionToken } = useAuth();
 
   const isSuperAdmin =
@@ -88,7 +88,7 @@ export const AdminSmtpSettings: React.FC = () => {
 
   // Live backend health & static host API URL override
   const [healthStatus, setHealthStatus] = useState<HealthResponse | null>(null);
-  const [customApiBase, setCustomApiBase] = useState(() => getApiBaseUrl());
+  const [customApiBase, setCustomApiBase] = useState(() => getApiBaseUrl() || settings.liveApiBaseUrl || '');
   const [apiBaseSaved, setApiBaseSaved] = useState(false);
 
   const buildAuthHeaders = async (isJson = false) => {
@@ -308,9 +308,15 @@ export const AdminSmtpSettings: React.FC = () => {
     }
   };
 
-  const handleSaveApiBase = () => {
-    setCustomApiBaseUrl(customApiBase);
+  const handleSaveApiBase = async () => {
+    const clean = customApiBase.trim().replace(/\/+$/, '');
+    setCustomApiBaseUrl(clean);
     setApiBaseSaved(true);
+    try {
+      await updateSettings({ liveApiBaseUrl: clean });
+    } catch {
+      // ignore Firestore fallback errors
+    }
     setTimeout(() => setApiBaseSaved(false), 3000);
     loadConfigAndHealth();
   };

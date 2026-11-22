@@ -769,6 +769,8 @@ export interface SchoolSettings {
   academicCalendar?: AcademicCalendarConfig;
   // School & Institutional Donations (Cashfree Payment Gateway Configuration - No secrets stored here)
   paymentConfig?: CashfreePaymentConfig;
+  // Optional remote Node backend server URL when frontend is hosted separately on static CDN (e.g. Netlify / Firebase Hosting)
+  liveApiBaseUrl?: string;
 }
 
 export interface SchoolHolidayItem {

@@ -11,6 +11,13 @@ import {
   CashfreeServerLogEntry
 } from '../../../utils/cashfree';
 import {
+  apiUrl,
+  getApiBaseUrl,
+  setCustomApiBaseUrl,
+  probeBackendHealth,
+  BackendHealthResult
+} from '../../../utils/apiClient';
+import {
   Shield,
   ShieldCheck,
   ShieldAlert,
@@ -31,7 +38,7 @@ import {
 } from 'lucide-react';
 
 export const AdminCashfreeSettings: React.FC = () => {
-  const { language, settings, updatePaymentConfig, addAuditLog } = useSchool();
+  const { language, settings, updateSettings, updatePaymentConfig, addAuditLog } = useSchool();
   const { currentUser, role, sessionToken } = useAuth();
 
   const isSuperAdmin =
@@ -73,10 +80,13 @@ export const AdminCashfreeSettings: React.FC = () => {
   const [diagnostics, setDiagnostics] = useState<CashfreeDiagnostics | null>(null);
   const [serverLogs, setServerLogs] = useState<CashfreeServerLogEntry[]>([]);
   const [showServerLogs, setShowServerLogs] = useState<boolean>(false);
+  const [backendHealth, setBackendHealth] = useState<BackendHealthResult | null>(null);
+  const [customApiBase, setCustomApiBase] = useState<string>(() => getApiBaseUrl() || settings.liveApiBaseUrl || '');
+  const [apiBaseSaved, setApiBaseSaved] = useState<boolean>(false);
 
   useEffect(() => {
     loadSecureConfig();
-  }, [currentUser, sessionToken]);
+  }, [currentUser, sessionToken, settings.liveApiBaseUrl]);
 
   const loadSecureConfig = async () => {
     setIsLoading(true);
@@ -87,10 +97,12 @@ export const AdminCashfreeSettings: React.FC = () => {
         adminEmail: currentUser?.email || undefined,
         userRole: role || undefined
       };
-      const [data, logRes] = await Promise.all([
+      const [data, logRes, healthRes] = await Promise.all([
         fetchSecureCashfreeConfig(authMeta),
-        fetchCashfreeServerLogs(authMeta)
+        fetchCashfreeServerLogs(authMeta),
+        probeBackendHealth()
       ]);
+      setBackendHealth(healthRes);
       if (logRes.success) {
         if (logRes.diagnostics) setDiagnostics(logRes.diagnostics);
         if (logRes.logs) setServerLogs(logRes.logs);
@@ -115,6 +127,19 @@ export const AdminCashfreeSettings: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSaveApiBase = async () => {
+    const clean = customApiBase.trim().replace(/\/+$/, '');
+    setCustomApiBaseUrl(clean);
+    setApiBaseSaved(true);
+    try {
+      await updateSettings({ liveApiBaseUrl: clean });
+    } catch {
+      // ignore Firestore fallback errors
+    }
+    setTimeout(() => setApiBaseSaved(false), 3000);
+    loadSecureConfig();
   };
 
   const handleTestConnection = async () => {
@@ -246,10 +271,12 @@ export const AdminCashfreeSettings: React.FC = () => {
     );
   }
 
-  const webhookEndpoint =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/api/cashfree/webhook`
-      : '/api/cashfree/webhook';
+  const activeBase = getApiBaseUrl();
+  const webhookEndpoint = activeBase
+    ? apiUrl('/api/cashfree/webhook')
+    : (typeof window !== 'undefined'
+        ? `${window.location.origin}/api/cashfree/webhook`
+        : '/api/cashfree/webhook');
 
   return (
     <div className="space-y-6">
@@ -342,6 +369,26 @@ export const AdminCashfreeSettings: React.FC = () => {
             <span className="text-emerald-700">
               Donation checkout now uses Cashfree {environment.toUpperCase()} PG v3. Secret credentials were omitted from Firestore.
             </span>
+          </div>
+        </div>
+      )}
+
+      {backendHealth?.isHtmlFallback && (
+        <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-xs text-amber-950 space-y-2 animate-in fade-in">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold text-sm block">
+                {language === 'hi'
+                  ? 'स्टैटिक होस्टिंग पर बैकएंड सर्वर (/api/*) उपलब्ध नहीं है (HTML <!doctype> प्राप्त हुआ)'
+                  : 'Static Hosting Detected: /api/* returned HTML (<!doctype>) instead of JSON'}
+              </span>
+              <p className="text-amber-900 leading-relaxed">
+                {language === 'hi'
+                  ? 'जब वेबसाइट Netlify या Firebase Hosting जैसी स्टैटिक होस्टिंग पर लाइव होती है, तो /api/cashfree/* अनुरोध बैकएंड सर्वर के बजाय index.html लौटाते हैं (जिससे "Unexpected token \'<\', <!doctype..." त्रुटि आती है)। समाधान के लिए वेबसाइट को Node सर्वर (npm start) पर होस्ट करें या नीचे अपना लाइव Node Backend Server URL सेव करें।'
+                  : 'This happens when the built frontend is deployed on static hosting (like Netlify or Firebase Hosting) without the Express Node server running at /api/*. Deploy the full-stack Node server (npm start) or enter your live Node Backend Server URL below.'}
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -780,6 +827,50 @@ export const AdminCashfreeSettings: React.FC = () => {
             )}
           </div>
         )}
+      </div>
+
+      {/* Live Backend API URL Override for Static Hosting (Netlify / Firebase Hosting) */}
+      <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+            <Globe className="w-4 h-4 text-indigo-600" />
+            <span>Live Node Backend Server URL (For Static Hosting Only)</span>
+          </h4>
+          {backendHealth && (
+            <span
+              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold border ${
+                backendHealth.reachable
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-rose-50 text-rose-700 border-rose-200'
+              }`}
+            >
+              {backendHealth.reachable
+                ? `API Connected (${backendHealth.health?.environment || 'live'})`
+                : backendHealth.isHtmlFallback
+                ? 'Static HTML Fallback (No Node API)'
+                : 'Backend Unreachable'}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          When running the full-stack server (AI Studio Live / Cloud Run <code className="font-mono bg-white px-1 rounded border border-slate-200">npm start</code>), leave this blank so same-origin <code className="font-mono bg-white px-1 rounded border border-slate-200">/api/*</code> is used. Only if the frontend is hosted separately on static hosting (Netlify, Firebase Hosting), paste your live Node Express server URL below — it syncs via Firestore for all donors.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="url"
+            value={customApiBase}
+            onChange={(e) => setCustomApiBase(e.target.value)}
+            placeholder="https://your-live-node-server.run.app (leave blank for same-origin)"
+            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900"
+          />
+          <button
+            type="button"
+            onClick={handleSaveApiBase}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer shrink-0"
+          >
+            {apiBaseSaved ? 'Saved & Synced!' : 'Save Backend URL'}
+          </button>
+        </div>
       </div>
     </div>
   );

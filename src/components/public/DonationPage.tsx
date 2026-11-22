@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useSchool } from '../../context/SchoolContext';
 import { DonationRecord, DonationReasonConfig } from '../../types';
 import {
@@ -120,6 +120,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const [completedDonation, setCompletedDonation] = useState<DonationRecord | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const processedReturnOrderRef = useRef<string | null>(null);
 
   // Helper: Build & persist verified donation record without undefined fields
   const saveVerifiedDonation = async (
@@ -175,7 +176,8 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const orderIdParam = params.get('order_id');
-    if (orderIdParam) {
+    if (orderIdParam && processedReturnOrderRef.current !== orderIdParam) {
+      processedReturnOrderRef.current = orderIdParam;
       let isActive = true;
       setStatusMessage({
         type: 'info',

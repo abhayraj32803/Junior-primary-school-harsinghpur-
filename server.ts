@@ -1623,7 +1623,13 @@ async function getFirebasePublicCerts(): Promise<Record<string, string>> {
   if (!res.ok) {
     throw new Error('Failed to fetch Firebase verification certificates');
   }
-  const certs = (await res.json()) as Record<string, string>;
+  const rawCerts = await res.text();
+  let certs: Record<string, string>;
+  try {
+    certs = JSON.parse(rawCerts) as Record<string, string>;
+  } catch {
+    throw new Error('Firebase verification certificates endpoint returned non-JSON response');
+  }
   firebaseCertsCache = { certs, expiresAt: Date.now() + 60 * 60 * 1000 };
   return certs;
 }
@@ -2333,7 +2339,8 @@ const handleCheckCashfreeOrderStatus = async (req: Request, res: Response): Prom
     let paymentsList: any[] = [];
     if (paymentsRes && paymentsRes.ok) {
       try {
-        const pJson = await paymentsRes.json();
+        const pText = await paymentsRes.text();
+        const pJson = pText ? JSON.parse(pText) : [];
         if (Array.isArray(pJson)) paymentsList = pJson;
       } catch {
         paymentsList = [];
@@ -2675,12 +2682,25 @@ app.get('/api/health', (_req: Request, res: Response) => {
   });
 });
 
-// API 404 JSON Fallback (Never return index.html for missing /api/* routes)
-app.all('/api/*', (req: Request, res: Response) => {
+// API 404 JSON Fallback (Never return index.html for missing /api or /api/* routes)
+app.all(['/api', '/api/*'], (req: Request, res: Response) => {
   res.status(404).json({
     success: false,
     error: `API route not found: ${req.method} ${req.originalUrl}`
   });
+});
+
+// Express JSON error handler so malformed JSON bodies or middleware errors on /api/* never return HTML
+app.use((err: any, req: Request, res: Response, next: express.NextFunction) => {
+  if (req.path === '/api' || req.path.startsWith('/api/')) {
+    const statusCode = typeof err?.status === 'number' ? err.status : 400;
+    res.status(statusCode).json({
+      success: false,
+      error: err?.message || 'Invalid API request payload or server error.'
+    });
+    return;
+  }
+  next(err);
 });
 
 // Vite Middleware for Development / Static Hosting in Production
@@ -2699,6 +2719,13 @@ async function startServer() {
   } else {
     app.use(express.static(distPath));
     app.get('*', (req: Request, res: Response) => {
+      if (req.path === '/api' || req.path.startsWith('/api/')) {
+        res.status(404).json({
+          success: false,
+          error: `API route not found: ${req.method} ${req.originalUrl}`
+        });
+        return;
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

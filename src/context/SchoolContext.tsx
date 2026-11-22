@@ -32,6 +32,7 @@ import {
   DonationRecord,
   CashfreePaymentConfig
 } from '../types';
+import { setRuntimeApiBaseUrl } from '../utils/apiClient';
 import { 
   initialClasses, 
   initialSections, 
@@ -428,7 +429,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { saveLocal('notices', notices); }, [notices]);
   useEffect(() => { saveLocal('documents', documents); }, [documents]);
   useEffect(() => { saveLocal('auditLogs', auditLogs); }, [auditLogs]);
-  useEffect(() => { saveLocal('settings', settings); }, [settings]);
+  useEffect(() => {
+    saveLocal('settings', settings);
+    setRuntimeApiBaseUrl(settings.liveApiBaseUrl);
+  }, [settings]);
   useEffect(() => { saveLocal('facilities', facilities); }, [facilities]);
   useEffect(() => { saveLocal('governmentSchemes', governmentSchemes); }, [governmentSchemes]);
   useEffect(() => { saveLocal('gallery', gallery); }, [gallery]);
