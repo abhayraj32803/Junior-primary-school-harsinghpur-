@@ -321,6 +321,41 @@ export const saveSecureCashfreeConfig = async (payload: {
   }
 };
 
+export interface CashfreeDiagnostics {
+  nodeEnv: string;
+  cashfreeEnvVar: string | null;
+  activeEnvironment: 'sandbox' | 'production';
+  apiBaseUrl: string;
+  apiVersion: string;
+  credentialSource: 'env_vars' | 'vault_file' | 'none';
+  isEnabled: boolean;
+  isConfigured: boolean;
+  hasEnvAppId: boolean;
+  hasEnvSecretKey: boolean;
+  appIdFingerprint: string;
+  secretKeyPrefix: string;
+  keyPrefixMode: 'production' | 'sandbox' | 'unknown';
+  envMismatch: boolean;
+}
+
+export interface CashfreeServerLogEntry {
+  traceId: string;
+  timestamp: string;
+  operation: string;
+  outcome: string;
+  environment: 'sandbox' | 'production';
+  endpoint?: string;
+  orderId?: string;
+  httpStatus?: number;
+  durationMs?: number;
+  cashfreeCode?: string;
+  cashfreeMessage?: string;
+  cashfreeRequestId?: string;
+  returnUrl?: string;
+  networkErrorCode?: string;
+  errorDetail?: string;
+}
+
 export const testSecureCashfreeConnection = async (payload: {
   appId?: string;
   secretKey?: string;
@@ -328,7 +363,7 @@ export const testSecureCashfreeConnection = async (payload: {
   adminEmail?: string;
   userRole?: string;
   sessionToken?: string;
-}): Promise<{ success: boolean; message?: string; error?: string; environment?: 'sandbox' | 'production' }> => {
+}): Promise<{ success: boolean; message?: string; error?: string; traceId?: string; environment?: 'sandbox' | 'production' }> => {
   try {
     const headers = await buildAdminAuthHeaders({
       token: payload.sessionToken,
@@ -346,3 +381,27 @@ export const testSecureCashfreeConnection = async (payload: {
     return { success: false, error: err?.message || 'Failed to test Cashfree API connection.' };
   }
 };
+
+export const fetchCashfreeServerLogs = async (authData?: {
+  token?: string;
+  adminEmail?: string;
+  userRole?: string;
+}): Promise<{
+  success: boolean;
+  diagnostics?: CashfreeDiagnostics;
+  logs?: CashfreeServerLogEntry[];
+  error?: string;
+}> => {
+  try {
+    const headers = await buildAdminAuthHeaders(authData);
+    const res = await fetch(apiUrl('/api/admin/cashfree-logs'), {
+      method: 'GET',
+      headers
+    });
+    const parsed = await safeParseJson<any>(res);
+    return parsed.data || { success: false, error: 'Failed to load server Cashfree diagnostics.' };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to load server Cashfree diagnostics.' };
+  }
+};
+

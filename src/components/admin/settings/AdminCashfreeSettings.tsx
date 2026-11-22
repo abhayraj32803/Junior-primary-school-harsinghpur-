@@ -5,7 +5,10 @@ import {
   fetchSecureCashfreeConfig,
   saveSecureCashfreeConfig,
   testSecureCashfreeConnection,
-  SecureCashfreeVaultData
+  fetchCashfreeServerLogs,
+  SecureCashfreeVaultData,
+  CashfreeDiagnostics,
+  CashfreeServerLogEntry
 } from '../../../utils/cashfree';
 import {
   Shield,
@@ -67,6 +70,9 @@ export const AdminCashfreeSettings: React.FC = () => {
     environment?: string;
     error?: string;
   } | null>(null);
+  const [diagnostics, setDiagnostics] = useState<CashfreeDiagnostics | null>(null);
+  const [serverLogs, setServerLogs] = useState<CashfreeServerLogEntry[]>([]);
+  const [showServerLogs, setShowServerLogs] = useState<boolean>(false);
 
   useEffect(() => {
     loadSecureConfig();
@@ -76,11 +82,19 @@ export const AdminCashfreeSettings: React.FC = () => {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const data: SecureCashfreeVaultData = await fetchSecureCashfreeConfig({
+      const authMeta = {
         token: sessionToken || undefined,
         adminEmail: currentUser?.email || undefined,
         userRole: role || undefined
-      });
+      };
+      const [data, logRes] = await Promise.all([
+        fetchSecureCashfreeConfig(authMeta),
+        fetchCashfreeServerLogs(authMeta)
+      ]);
+      if (logRes.success) {
+        if (logRes.diagnostics) setDiagnostics(logRes.diagnostics);
+        if (logRes.logs) setServerLogs(logRes.logs);
+      }
 
       if (data.success) {
         setHasExistingAppId(data.hasAppId);
@@ -118,6 +132,15 @@ export const AdminCashfreeSettings: React.FC = () => {
         sessionToken: sessionToken || undefined
       });
       setTestResult(res);
+      const logRes = await fetchCashfreeServerLogs({
+        token: sessionToken || undefined,
+        adminEmail: currentUser?.email || undefined,
+        userRole: role || undefined
+      });
+      if (logRes.success) {
+        if (logRes.diagnostics) setDiagnostics(logRes.diagnostics);
+        if (logRes.logs) setServerLogs(logRes.logs);
+      }
     } catch (err: any) {
       setTestResult({
         success: false,
@@ -669,6 +692,94 @@ export const AdminCashfreeSettings: React.FC = () => {
             <strong>Zero Frontend Exposure:</strong> Neither App ID nor Secret Key is stored in browser storage or public Firestore; all Cashfree PG v3 calls and HMAC signature checks run exclusively on the server.
           </li>
         </ul>
+      </div>
+
+      {/* Live Server Environment Diagnostics & Recent Transaction Logs */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Live Server Environment & Transaction Error Logs
+            </h4>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Inspect active backend endpoint, CASHFREE_ENV state, and real-time Cashfree API error traces.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowServerLogs(!showServerLogs);
+              if (!showServerLogs) loadSecureConfig();
+            }}
+            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold cursor-pointer transition-colors"
+          >
+            {showServerLogs ? 'Hide Diagnostics' : 'View Server Diagnostics & Logs'}
+          </button>
+        </div>
+
+        {diagnostics && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11px]">
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-400 uppercase font-bold block text-[10px]">CASHFREE_ENV</span>
+              <span className={`font-mono font-bold ${diagnostics.activeEnvironment === 'production' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                {diagnostics.cashfreeEnvVar || diagnostics.activeEnvironment}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-400 uppercase font-bold block text-[10px]">API Endpoint</span>
+              <span className="font-mono text-slate-800 truncate block">{diagnostics.apiBaseUrl}</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-400 uppercase font-bold block text-[10px]">Key Source</span>
+              <span className="font-mono text-slate-800">{diagnostics.credentialSource}</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-400 uppercase font-bold block text-[10px]">Key vs Env Match</span>
+              <span className={`font-bold ${diagnostics.envMismatch ? 'text-rose-600' : 'text-emerald-700'}`}>
+                {diagnostics.envMismatch ? 'MISMATCH DETECTED' : `Matched (${diagnostics.keyPrefixMode})`}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {showServerLogs && (
+          <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pt-2 border-t border-slate-100">
+            {serverLogs.length === 0 ? (
+              <div className="text-xs text-slate-400 text-center py-4">
+                No Cashfree server logs recorded yet in this session.
+              </div>
+            ) : (
+              serverLogs.map((entry) => (
+                <div
+                  key={entry.traceId}
+                  className={`p-3 rounded-xl border text-[11px] font-mono space-y-1 ${
+                    entry.outcome === 'SUCCESS'
+                      ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+                      : 'bg-rose-50/70 border-rose-200 text-rose-950'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 font-bold">
+                    <span>[{entry.operation}] {entry.outcome} ({entry.environment})</span>
+                    <span className="text-[10px] text-slate-500">{entry.traceId} • {new Date(entry.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                  {(entry.orderId || entry.httpStatus || entry.cashfreeCode) && (
+                    <div className="text-[10px] text-slate-700">
+                      {entry.orderId ? `Order: ${entry.orderId} | ` : ''}
+                      {entry.httpStatus ? `HTTP: ${entry.httpStatus} | ` : ''}
+                      {entry.cashfreeCode ? `Code: ${entry.cashfreeCode}` : ''}
+                    </div>
+                  )}
+                  {(entry.cashfreeMessage || entry.errorDetail) && (
+                    <div className="text-[10px] break-all text-slate-700">
+                      {entry.cashfreeMessage || entry.errorDetail}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

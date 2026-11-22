@@ -1374,14 +1374,105 @@ function normalizeCashfreeEnv(raw?: string): 'sandbox' | 'production' {
   return String(raw || '').toLowerCase().trim() === 'production' ? 'production' : 'sandbox';
 }
 
+function detectCashfreeKeyEnv(secretKey?: string): 'production' | 'sandbox' | 'unknown' {
+  const s = String(secretKey || '').trim();
+  if (s.startsWith('cfsk_ma_prod_')) return 'production';
+  if (s.startsWith('cfsk_ma_test_')) return 'sandbox';
+  return 'unknown';
+}
+
+function resolveCashfreeEnvironment(explicitEnv?: string, secretKey?: string): 'sandbox' | 'production' {
+  const keyEnv = detectCashfreeKeyEnv(secretKey);
+  if (explicitEnv && String(explicitEnv).trim()) {
+    const normalized = normalizeCashfreeEnv(explicitEnv);
+    // Prevent catastrophic live failure where a production key hits sandbox or vice versa
+    if (keyEnv !== 'unknown' && keyEnv !== normalized) {
+      console.error(
+        `[CASHFREE-CONFIG-MISMATCH] ⚠️ Configured env="${normalized}" conflicts with secretKey prefix ("${keyEnv}"). Using key-matched endpoint "${keyEnv}" to avoid Cashfree 401 failure.`
+      );
+      return keyEnv;
+    }
+    return normalized;
+  }
+  if (keyEnv !== 'unknown') return keyEnv;
+  return process.env.NODE_ENV === 'production' ? 'production' : 'sandbox';
+}
+
 function getCashfreeApiBaseUrl(env: 'sandbox' | 'production'): string {
   return env === 'production' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
 }
 
+export interface CashfreeTransactionLogEntry {
+  traceId: string;
+  timestamp: string;
+  operation: 'CONFIG_INIT' | 'CREATE_ORDER' | 'ORDER_STATUS' | 'TEST_CONNECTION' | 'WEBHOOK';
+  outcome: 'SUCCESS' | 'API_ERROR' | 'NETWORK_ERROR' | 'AUTH_ERROR' | 'VALIDATION_ERROR' | 'SIGNATURE_ERROR' | 'CONFIG_ERROR';
+  environment: 'sandbox' | 'production';
+  endpoint?: string;
+  orderId?: string;
+  httpStatus?: number;
+  durationMs?: number;
+  cashfreeCode?: string;
+  cashfreeType?: string;
+  cashfreeMessage?: string;
+  cashfreeRequestId?: string;
+  origin?: string;
+  returnUrl?: string;
+  notifyUrl?: string;
+  networkErrorCode?: string;
+  errorDetail?: string;
+}
+
+const CASHFREE_TX_LOG_LIMIT = 100;
+const cashfreeTransactionLogs: CashfreeTransactionLogEntry[] = [];
+
+function logCashfreeTransaction(entry: Omit<CashfreeTransactionLogEntry, 'traceId' | 'timestamp'> & { traceId?: string }): CashfreeTransactionLogEntry {
+  const fullEntry: CashfreeTransactionLogEntry = {
+    traceId: entry.traceId || `CF_TX_${Date.now()}_${crypto.randomBytes(2).toString('hex').toUpperCase()}`,
+    timestamp: new Date().toISOString(),
+    ...entry
+  };
+
+  cashfreeTransactionLogs.unshift(fullEntry);
+  if (cashfreeTransactionLogs.length > CASHFREE_TX_LOG_LIMIT) {
+    cashfreeTransactionLogs.length = CASHFREE_TX_LOG_LIMIT;
+  }
+
+  const logSummary = JSON.stringify({
+    traceId: fullEntry.traceId,
+    operation: fullEntry.operation,
+    outcome: fullEntry.outcome,
+    environment: fullEntry.environment,
+    endpoint: fullEntry.endpoint,
+    orderId: fullEntry.orderId,
+    httpStatus: fullEntry.httpStatus,
+    durationMs: fullEntry.durationMs,
+    cashfreeCode: fullEntry.cashfreeCode,
+    cashfreeType: fullEntry.cashfreeType,
+    cashfreeMessage: fullEntry.cashfreeMessage,
+    cashfreeRequestId: fullEntry.cashfreeRequestId,
+    origin: fullEntry.origin,
+    returnUrl: fullEntry.returnUrl,
+    notifyUrl: fullEntry.notifyUrl,
+    networkErrorCode: fullEntry.networkErrorCode,
+    errorDetail: fullEntry.errorDetail
+  });
+
+  if (fullEntry.outcome === 'SUCCESS') {
+    console.log(`[CASHFREE-TX] ✅ ${logSummary}`);
+  } else {
+    console.error(`[CASHFREE-TX] ❌ ${logSummary}`);
+  }
+
+  return fullEntry;
+}
+
+let cashfreeCredentialSource: 'env_vars' | 'vault_file' | 'none' = 'none';
+
 function initSecureCashfreeVault(): SecureCashfreeConfig {
   const envAppId = (process.env.CASHFREE_APP_ID || '').trim();
   const envSecret = (process.env.CASHFREE_SECRET_KEY || '').trim();
-  const envMode = normalizeCashfreeEnv(process.env.CASHFREE_ENV);
+  const envExplicitMode = (process.env.CASHFREE_ENV || '').trim();
 
   try {
     if (!fs.existsSync(SECURE_DATA_DIR)) {
@@ -1391,10 +1482,22 @@ function initSecureCashfreeVault(): SecureCashfreeConfig {
     if (fs.existsSync(SECURE_CASHFREE_FILE)) {
       const raw = fs.readFileSync(SECURE_CASHFREE_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
+
+      // Prefer explicit environment secrets when provided in container runtime; fallback to vault file
+      const effectiveAppId = (envAppId || parsed.appId || '').trim();
+      const effectiveSecret = (envSecret || parsed.secretKey || '').trim();
+      cashfreeCredentialSource = (envAppId && envSecret)
+        ? 'env_vars'
+        : ((parsed.appId && parsed.secretKey) ? 'vault_file' : 'none');
+
+      const effectiveEnv = resolveCashfreeEnvironment(envExplicitMode || parsed.environment, effectiveSecret);
+      // Keep process.env.CASHFREE_ENV synchronized for runtime diagnostics
+      process.env.CASHFREE_ENV = effectiveEnv;
+
       return {
-        appId: (parsed.appId || envAppId || '').trim(),
-        secretKey: (parsed.secretKey || envSecret || '').trim(),
-        environment: parsed.environment ? normalizeCashfreeEnv(parsed.environment) : envMode,
+        appId: effectiveAppId,
+        secretKey: effectiveSecret,
+        environment: effectiveEnv,
         isEnabled: parsed.isEnabled !== false,
         merchantName: parsed.merchantName || 'Composite JHS Harsinghpur Gova',
         minAmount: typeof parsed.minAmount === 'number' && parsed.minAmount >= 1 ? parsed.minAmount : 100,
@@ -1403,20 +1506,24 @@ function initSecureCashfreeVault(): SecureCashfreeConfig {
         updatedBy: parsed.updatedBy || 'Super Admin'
       };
     }
-  } catch (err) {
-    console.error('[CASHFREE-VAULT] Error loading secure_cashfree.json:', err);
+  } catch (err: any) {
+    console.error('[CASHFREE-VAULT] Error loading secure_cashfree.json:', err?.message || err);
   }
+
+  const fallbackEnv = resolveCashfreeEnvironment(envExplicitMode, envSecret);
+  process.env.CASHFREE_ENV = fallbackEnv;
+  cashfreeCredentialSource = (envAppId && envSecret) ? 'env_vars' : 'none';
 
   return {
     appId: envAppId,
     secretKey: envSecret,
-    environment: envMode,
+    environment: fallbackEnv,
     isEnabled: true,
     merchantName: 'Composite JHS Harsinghpur Gova',
     minAmount: 100,
     taxExemptionNumber: '80G-DEL-2024-00129',
     lastUpdated: new Date().toISOString(),
-    updatedBy: 'System Environment Default'
+    updatedBy: envAppId ? 'Server Environment Variables' : 'System Environment Default'
   };
 }
 
@@ -1436,17 +1543,52 @@ function isCashfreeConfigured(vault: SecureCashfreeConfig = secureCashfreeVault)
   return Boolean(vault.appId && vault.secretKey);
 }
 
+function getCashfreeDiagnostics(vault: SecureCashfreeConfig = secureCashfreeVault) {
+  const keyPrefixMode = detectCashfreeKeyEnv(vault.secretKey);
+  const envMismatch = keyPrefixMode !== 'unknown' && keyPrefixMode !== vault.environment;
+  return {
+    nodeEnv: process.env.NODE_ENV || 'development',
+    cashfreeEnvVar: process.env.CASHFREE_ENV || null,
+    activeEnvironment: vault.environment,
+    apiBaseUrl: getCashfreeApiBaseUrl(vault.environment),
+    apiVersion: CASHFREE_API_VERSION,
+    credentialSource: cashfreeCredentialSource,
+    isEnabled: vault.isEnabled,
+    isConfigured: isCashfreeConfigured(vault),
+    hasEnvAppId: Boolean(process.env.CASHFREE_APP_ID),
+    hasEnvSecretKey: Boolean(process.env.CASHFREE_SECRET_KEY),
+    appIdFingerprint: vault.appId ? `${vault.appId.slice(0, 4)}...${vault.appId.slice(-4)} (len:${vault.appId.length})` : 'unset',
+    secretKeyPrefix: vault.secretKey ? (vault.secretKey.slice(0, 13) + '...') : 'unset',
+    keyPrefixMode,
+    envMismatch
+  };
+}
+
+logCashfreeTransaction({
+  operation: 'CONFIG_INIT',
+  outcome: isCashfreeConfigured() ? 'SUCCESS' : 'CONFIG_ERROR',
+  environment: secureCashfreeVault.environment,
+  endpoint: getCashfreeApiBaseUrl(secureCashfreeVault.environment),
+  errorDetail: isCashfreeConfigured()
+    ? `Loaded Cashfree (${secureCashfreeVault.environment}) from ${cashfreeCredentialSource}`
+    : 'Cashfree API keys are missing from environment variables and server vault.'
+});
+
 function persistSecureCashfreeVault(config: SecureCashfreeConfig): void {
+  const resolvedEnv = resolveCashfreeEnvironment(config.environment, config.secretKey);
+  const finalConfig: SecureCashfreeConfig = { ...config, environment: resolvedEnv };
+  process.env.CASHFREE_ENV = resolvedEnv;
   try {
     if (!fs.existsSync(SECURE_DATA_DIR)) {
       fs.mkdirSync(SECURE_DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(SECURE_CASHFREE_FILE, JSON.stringify(config, null, 2), 'utf-8');
+    fs.writeFileSync(SECURE_CASHFREE_FILE, JSON.stringify(finalConfig, null, 2), { encoding: 'utf-8', mode: 0o600 });
   } catch (err) {
     console.error('[CASHFREE-VAULT] Failed to persist secure_cashfree.json:', err);
   }
-  secureCashfreeVault = { ...config };
-  console.log(`[CASHFREE-VAULT] 🔐 Vault updated. Env: ${config.environment.toUpperCase()} | Enabled: ${config.isEnabled} | Configured: ${isCashfreeConfigured(config)}`);
+  secureCashfreeVault = { ...finalConfig };
+  cashfreeCredentialSource = isCashfreeConfigured(finalConfig) ? 'vault_file' : 'none';
+  console.log(`[CASHFREE-VAULT] 🔐 Vault updated. Env: ${finalConfig.environment.toUpperCase()} | Endpoint: ${getCashfreeApiBaseUrl(finalConfig.environment)} | Enabled: ${finalConfig.isEnabled} | Configured: ${isCashfreeConfigured(finalConfig)}`);
 }
 
 function maskSecret(secret: string): string {
@@ -1641,11 +1783,28 @@ app.post('/api/admin/cashfree-secure-config', async (req: Request, res: Response
   }
 });
 
+app.get('/api/admin/cashfree-logs', async (req: Request, res: Response): Promise<void> => {
+  if (!(await verifyAdminAuthorization(req))) {
+    res.status(403).json({ success: false, error: 'Unauthorized: Verified Super Admin session required.' });
+    return;
+  }
+
+  res.json({
+    success: true,
+    diagnostics: getCashfreeDiagnostics(),
+    logs: cashfreeTransactionLogs.slice(0, 50)
+  });
+});
+
 app.post('/api/admin/cashfree-test-connection', async (req: Request, res: Response): Promise<void> => {
   if (!(await verifyAdminAuthorization(req))) {
     res.status(403).json({ success: false, error: 'Unauthorized: Verified Super Admin session required.' });
     return;
   }
+
+  const startMs = Date.now();
+  let testEnv: 'sandbox' | 'production' = secureCashfreeVault.environment;
+  let probeUrl = '';
 
   try {
     const { appId, secretKey, environment } = req.body;
@@ -1655,9 +1814,15 @@ app.post('/api/admin/cashfree-test-connection', async (req: Request, res: Respon
     const testSecretKey = (typeof secretKey === 'string' && secretKey.trim() && !secretKey.includes('••••'))
       ? secretKey.trim()
       : secureCashfreeVault.secretKey;
-    const testEnv = environment ? normalizeCashfreeEnv(environment) : secureCashfreeVault.environment;
+    testEnv = resolveCashfreeEnvironment(environment || secureCashfreeVault.environment, testSecretKey);
 
     if (!testAppId || !testSecretKey) {
+      logCashfreeTransaction({
+        operation: 'TEST_CONNECTION',
+        outcome: 'CONFIG_ERROR',
+        environment: testEnv,
+        errorDetail: 'Missing App ID or Secret Key during connection test.'
+      });
       res.status(400).json({
         success: false,
         error: 'Both Cashfree App ID and Secret Key are required to test the API connection.'
@@ -1666,7 +1831,7 @@ app.post('/api/admin/cashfree-test-connection', async (req: Request, res: Respon
     }
 
     const baseUrl = getCashfreeApiBaseUrl(testEnv);
-    const probeUrl = `${baseUrl}/orders/PROBE_CHECK_${Date.now()}`;
+    probeUrl = `${baseUrl}/orders/PROBE_CHECK_${Date.now()}`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000);
@@ -1686,6 +1851,8 @@ app.post('/api/admin/cashfree-test-connection', async (req: Request, res: Respon
       clearTimeout(timeoutId);
     }
 
+    const durationMs = Date.now() - startMs;
+    const cfRequestId = apiRes.headers.get('x-request-id') || apiRes.headers.get('cf-ray') || undefined;
     const rawText = await apiRes.text();
     let parsed: any = {};
     try {
@@ -1696,8 +1863,22 @@ app.post('/api/admin/cashfree-test-connection', async (req: Request, res: Respon
 
     // 401/403 means invalid App ID, Secret Key, or wrong Environment (Sandbox vs Production)
     if (apiRes.status === 401 || apiRes.status === 403) {
+      const txLog = logCashfreeTransaction({
+        operation: 'TEST_CONNECTION',
+        outcome: 'AUTH_ERROR',
+        environment: testEnv,
+        endpoint: probeUrl,
+        httpStatus: apiRes.status,
+        durationMs,
+        cashfreeCode: parsed?.code,
+        cashfreeType: parsed?.type,
+        cashfreeMessage: parsed?.message,
+        cashfreeRequestId: cfRequestId,
+        errorDetail: rawText.slice(0, 400)
+      });
       res.status(400).json({
         success: false,
+        traceId: txLog.traceId,
         error: parsed?.message || `Cashfree rejected these credentials in ${testEnv.toUpperCase()} mode. Check your App ID, Secret Key, and Environment.`
       });
       return;
@@ -1705,20 +1886,54 @@ app.post('/api/admin/cashfree-test-connection', async (req: Request, res: Respon
 
     // 200 or 404 (order_not_found) proves Cashfree authenticated our client credentials cleanly
     if (apiRes.ok || apiRes.status === 404) {
+      const txLog = logCashfreeTransaction({
+        operation: 'TEST_CONNECTION',
+        outcome: 'SUCCESS',
+        environment: testEnv,
+        endpoint: probeUrl,
+        httpStatus: apiRes.status,
+        durationMs,
+        cashfreeCode: parsed?.code,
+        cashfreeRequestId: cfRequestId
+      });
       res.json({
         success: true,
+        traceId: txLog.traceId,
         message: `Successfully authenticated with Cashfree ${testEnv.toUpperCase()} PG servers!`,
         environment: testEnv
       });
       return;
     }
 
+    const txLog = logCashfreeTransaction({
+      operation: 'TEST_CONNECTION',
+      outcome: 'API_ERROR',
+      environment: testEnv,
+      endpoint: probeUrl,
+      httpStatus: apiRes.status,
+      durationMs,
+      cashfreeCode: parsed?.code,
+      cashfreeType: parsed?.type,
+      cashfreeMessage: parsed?.message,
+      cashfreeRequestId: cfRequestId,
+      errorDetail: rawText.slice(0, 400)
+    });
+
     res.status(400).json({
       success: false,
+      traceId: txLog.traceId,
       error: parsed?.message || `Unexpected response from Cashfree (${apiRes.status}).`
     });
   } catch (error: any) {
-    console.error('[CASHFREE-VAULT] ❌ Connection test failed:', error);
+    logCashfreeTransaction({
+      operation: 'TEST_CONNECTION',
+      outcome: 'NETWORK_ERROR',
+      environment: testEnv,
+      endpoint: probeUrl || getCashfreeApiBaseUrl(testEnv),
+      durationMs: Date.now() - startMs,
+      networkErrorCode: error?.cause?.code || error?.code || error?.name,
+      errorDetail: error?.message || String(error)
+    });
     res.status(500).json({
       success: false,
       error: error?.message || 'Network error while connecting to Cashfree servers.'
@@ -1741,6 +1956,15 @@ app.get('/api/cashfree/config', (_req: Request, res: Response): void => {
 });
 
 app.post('/api/cashfree/create-order', async (req: Request, res: Response): Promise<void> => {
+  const startMs = Date.now();
+  const activeEnv = resolveCashfreeEnvironment(secureCashfreeVault.environment, secureCashfreeVault.secretKey);
+  const baseUrl = getCashfreeApiBaseUrl(activeEnv);
+  const ordersEndpoint = `${baseUrl}/orders`;
+  let orderId = '';
+  let requestOrigin = '';
+  let effectiveReturnUrl = '';
+  let notifyUrl: string | undefined;
+
   try {
     const {
       amount,
@@ -1759,6 +1983,13 @@ app.post('/api/cashfree/create-order', async (req: Request, res: Response): Prom
     }
 
     if (!secureCashfreeVault.isEnabled) {
+      logCashfreeTransaction({
+        operation: 'CREATE_ORDER',
+        outcome: 'VALIDATION_ERROR',
+        environment: activeEnv,
+        endpoint: ordersEndpoint,
+        errorDetail: 'Gateway is paused in Admin settings.'
+      });
       res.status(403).json({ success: false, error: 'Online donation gateway is currently disabled by administration.' });
       return;
     }
@@ -1773,16 +2004,24 @@ app.post('/api/cashfree/create-order', async (req: Request, res: Response): Prom
     }
 
     if (!isCashfreeConfigured()) {
+      const txLog = logCashfreeTransaction({
+        operation: 'CREATE_ORDER',
+        outcome: 'CONFIG_ERROR',
+        environment: activeEnv,
+        endpoint: ordersEndpoint,
+        errorDetail: 'Missing CASHFREE_APP_ID / CASHFREE_SECRET_KEY in environment and server vault.'
+      });
       res.status(503).json({
         success: false,
         code: 'GATEWAY_NOT_CONFIGURED',
-        error: 'Cashfree Payment Gateway credentials (App ID & Secret Key) are not configured yet. Please ask the Administrator to add Cashfree API keys in Governance -> Payment Gateway Vault.'
+        traceId: txLog.traceId,
+        error: 'Cashfree Payment Gateway credentials (App ID & Secret Key) are not configured yet. Please ask the Administrator to add Cashfree API keys in Governance -> Cashfree Gateway Vault.'
       });
       return;
     }
 
     // Generate Cashfree-compliant unique order_id (alphanumeric, _ and -, max 45 chars)
-    const orderId = `CF_ORD_${Date.now()}_${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    orderId = `CF_ORD_${Date.now()}_${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
     const customerId = `donor_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
 
     // Cashfree PG v3 requires a 10-digit customer_phone
@@ -1793,12 +2032,15 @@ app.post('/api/cashfree/create-order', async (req: Request, res: Response): Prom
       ? donorEmail.trim().slice(0, 100)
       : undefined;
 
-    // Resolve safe HTTPS/origin return URL
+    // Resolve safe HTTPS/origin return URL cleanly behind Cloud Run / reverse proxies
     const forwardedProto = (req.headers['x-forwarded-proto'] as string)?.split(',')[0]?.trim() || 'https';
     const forwardedHost = (req.headers['x-forwarded-host'] as string)?.split(',')[0]?.trim();
-    const requestOrigin =
-      (typeof req.headers.origin === 'string' && /^https?:\/\//i.test(req.headers.origin) ? req.headers.origin : '') ||
-      (forwardedHost ? `${forwardedProto}://${forwardedHost}` : '') ||
+    const rawHost = forwardedHost || (typeof req.headers.host === 'string' ? req.headers.host.trim() : '');
+    const inferredProto = rawHost && !rawHost.startsWith('localhost') && !rawHost.startsWith('127.0.0.1') ? 'https' : forwardedProto;
+
+    requestOrigin =
+      (typeof req.headers.origin === 'string' && /^https?:\/\//i.test(req.headers.origin) ? req.headers.origin.replace(/\/+$/, '') : '') ||
+      (rawHost ? `${inferredProto}://${rawHost}` : '') ||
       (process.env.APP_URL && /^https?:\/\//i.test(process.env.APP_URL) ? process.env.APP_URL.replace(/\/+$/, '') : '');
 
     let safeReturnBase = requestOrigin;
@@ -1814,7 +2056,18 @@ app.post('/api/cashfree/create-order', async (req: Request, res: Response): Prom
       }
     }
 
-    const effectiveReturnUrl = safeReturnBase
+    // Cashfree Production strictly mandates HTTPS for return_url and notify_url
+    if (activeEnv === 'production' && safeReturnBase) {
+      const isLocalHost = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(safeReturnBase);
+      if (isLocalHost) {
+        const appUrlEnv = process.env.APP_URL && /^https:\/\//i.test(process.env.APP_URL) ? process.env.APP_URL.replace(/\/+$/, '') : '';
+        if (appUrlEnv) safeReturnBase = appUrlEnv;
+      } else if (safeReturnBase.startsWith('http://')) {
+        safeReturnBase = safeReturnBase.replace(/^http:\/\//i, 'https://');
+      }
+    }
+
+    effectiveReturnUrl = safeReturnBase
       ? `${safeReturnBase}/?page=donation&order_id=${encodeURIComponent(orderId)}`
       : `https://cashfree.com/?order_id=${encodeURIComponent(orderId)}`;
 
@@ -1822,7 +2075,8 @@ app.post('/api/cashfree/create-order', async (req: Request, res: Response): Prom
       return_url: effectiveReturnUrl
     };
     if (safeReturnBase && safeReturnBase.startsWith('https://')) {
-      orderMeta.notify_url = `${safeReturnBase}/api/cashfree/webhook`;
+      notifyUrl = `${safeReturnBase}/api/cashfree/webhook`;
+      orderMeta.notify_url = notifyUrl;
     }
 
     const payload: Record<string, any> = {
@@ -1839,13 +2093,12 @@ app.post('/api/cashfree/create-order', async (req: Request, res: Response): Prom
       order_note: String(reason || 'School Development Contribution').slice(0, 190)
     };
 
-    const baseUrl = getCashfreeApiBaseUrl(secureCashfreeVault.environment);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     let apiRes: globalThis.Response;
     try {
-      apiRes = await fetch(`${baseUrl}/orders`, {
+      apiRes = await fetch(ordersEndpoint, {
         method: 'POST',
         headers: {
           'x-client-id': secureCashfreeVault.appId,
@@ -1861,20 +2114,58 @@ app.post('/api/cashfree/create-order', async (req: Request, res: Response): Prom
       clearTimeout(timeoutId);
     }
 
+    const durationMs = Date.now() - startMs;
+    const cfRequestId = apiRes.headers.get('x-request-id') || apiRes.headers.get('cf-ray') || undefined;
     const rawText = await apiRes.text();
     let cfData: any = {};
     try {
       cfData = rawText ? JSON.parse(rawText) : {};
     } catch {
-      console.error('[CASHFREE-SERVER] ❌ Invalid JSON from Cashfree /orders:', rawText.slice(0, 300));
-      res.status(502).json({ success: false, error: 'Cashfree gateway returned an unexpected response. Please try again.' });
+      const txLog = logCashfreeTransaction({
+        operation: 'CREATE_ORDER',
+        outcome: 'API_ERROR',
+        environment: activeEnv,
+        endpoint: ordersEndpoint,
+        orderId,
+        httpStatus: apiRes.status,
+        durationMs,
+        cashfreeRequestId: cfRequestId,
+        origin: requestOrigin,
+        returnUrl: effectiveReturnUrl,
+        notifyUrl,
+        errorDetail: `Non-JSON response from Cashfree /orders: ${rawText.slice(0, 400)}`
+      });
+      res.status(502).json({
+        success: false,
+        traceId: txLog.traceId,
+        error: 'Cashfree gateway returned an unexpected response. Please try again.'
+      });
       return;
     }
 
     if (!apiRes.ok || !cfData.payment_session_id) {
-      console.error('[CASHFREE-SERVER] ❌ Cashfree order creation failed:', cfData);
+      const outcome = (apiRes.status === 401 || apiRes.status === 403) ? 'AUTH_ERROR' : 'API_ERROR';
+      const txLog = logCashfreeTransaction({
+        operation: 'CREATE_ORDER',
+        outcome,
+        environment: activeEnv,
+        endpoint: ordersEndpoint,
+        orderId,
+        httpStatus: apiRes.status,
+        durationMs,
+        cashfreeCode: cfData?.code,
+        cashfreeType: cfData?.type,
+        cashfreeMessage: cfData?.message,
+        cashfreeRequestId: cfRequestId,
+        origin: requestOrigin,
+        returnUrl: effectiveReturnUrl,
+        notifyUrl,
+        errorDetail: rawText.slice(0, 500)
+      });
       res.status(apiRes.status >= 400 && apiRes.status < 500 ? apiRes.status : 502).json({
         success: false,
+        traceId: txLog.traceId,
+        code: cfData?.code,
         error: cfData.message || 'Failed to initialize payment session with Cashfree.'
       });
       return;
@@ -1892,41 +2183,79 @@ app.post('/api/cashfree/create-order', async (req: Request, res: Response): Prom
       status: cfData.order_status || 'ACTIVE'
     });
 
-    console.log(`[CASHFREE-SERVER] ✅ Order created: ${orderId} (${secureCashfreeVault.environment}) | ₹${numAmount}`);
+    logCashfreeTransaction({
+      operation: 'CREATE_ORDER',
+      outcome: 'SUCCESS',
+      environment: activeEnv,
+      endpoint: ordersEndpoint,
+      orderId: cfData.order_id || orderId,
+      httpStatus: apiRes.status,
+      durationMs,
+      cashfreeRequestId: cfRequestId,
+      origin: requestOrigin,
+      returnUrl: effectiveReturnUrl,
+      notifyUrl
+    });
 
     res.json({
       success: true,
       orderId: cfData.order_id || orderId,
       cfOrderId: cfData.cf_order_id ? String(cfData.cf_order_id) : undefined,
       paymentSessionId: cfData.payment_session_id,
-      environment: secureCashfreeVault.environment,
+      environment: activeEnv,
       amount: Number(cfData.order_amount) || numAmount,
       currency: cfData.order_currency || 'INR',
       receiptNumber: finalReceipt
     });
   } catch (error: any) {
-    console.error('[CASHFREE-SERVER] ❌ Exception creating Cashfree order:', error);
+    const txLog = logCashfreeTransaction({
+      operation: 'CREATE_ORDER',
+      outcome: 'NETWORK_ERROR',
+      environment: activeEnv,
+      endpoint: ordersEndpoint,
+      orderId: orderId || undefined,
+      durationMs: Date.now() - startMs,
+      origin: requestOrigin || undefined,
+      returnUrl: effectiveReturnUrl || undefined,
+      notifyUrl,
+      networkErrorCode: error?.cause?.code || error?.code || error?.name,
+      errorDetail: error?.message || String(error)
+    });
     res.status(500).json({
       success: false,
+      traceId: txLog.traceId,
       error: error?.message || 'Internal server error while initiating Cashfree checkout.'
     });
   }
 });
 
 const handleCheckCashfreeOrderStatus = async (req: Request, res: Response): Promise<void> => {
+  const startMs = Date.now();
+  const activeEnv = resolveCashfreeEnvironment(secureCashfreeVault.environment, secureCashfreeVault.secretKey);
+  const baseUrl = getCashfreeApiBaseUrl(activeEnv);
+  let orderId = '';
+  let orderEndpoint = '';
+
   try {
-    const orderId = String(req.query.order_id || req.body?.order_id || req.body?.orderId || '').trim();
+    orderId = String(req.query.order_id || req.body?.order_id || req.body?.orderId || '').trim();
     if (!orderId || !/^[a-zA-Z0-9_-]{4,64}$/.test(orderId)) {
       res.status(400).json({ success: false, error: 'Valid Cashfree Order ID is required.' });
       return;
     }
 
     if (!isCashfreeConfigured()) {
+      logCashfreeTransaction({
+        operation: 'ORDER_STATUS',
+        outcome: 'CONFIG_ERROR',
+        environment: activeEnv,
+        orderId,
+        errorDetail: 'Cashfree credentials missing when verifying order status.'
+      });
       res.status(503).json({ success: false, error: 'Cashfree API credentials are not configured on the server.' });
       return;
     }
 
-    const baseUrl = getCashfreeApiBaseUrl(secureCashfreeVault.environment);
+    orderEndpoint = `${baseUrl}/orders/${encodeURIComponent(orderId)}`;
     const headers = {
       'x-client-id': secureCashfreeVault.appId,
       'x-client-secret': secureCashfreeVault.secretKey,
@@ -1939,13 +2268,13 @@ const handleCheckCashfreeOrderStatus = async (req: Request, res: Response): Prom
     let orderRes: globalThis.Response;
     let paymentsRes: globalThis.Response | null = null;
     try {
-      orderRes = await fetch(`${baseUrl}/orders/${encodeURIComponent(orderId)}`, {
+      orderRes = await fetch(orderEndpoint, {
         method: 'GET',
         headers,
         signal: controller.signal
       });
       if (orderRes.ok) {
-        paymentsRes = await fetch(`${baseUrl}/orders/${encodeURIComponent(orderId)}/payments`, {
+        paymentsRes = await fetch(`${orderEndpoint}/payments`, {
           method: 'GET',
           headers,
           signal: controller.signal
@@ -1955,18 +2284,47 @@ const handleCheckCashfreeOrderStatus = async (req: Request, res: Response): Prom
       clearTimeout(timeoutId);
     }
 
+    const durationMs = Date.now() - startMs;
+    const cfRequestId = orderRes.headers.get('x-request-id') || orderRes.headers.get('cf-ray') || undefined;
     const orderText = await orderRes.text();
     let orderData: any = {};
     try {
       orderData = orderText ? JSON.parse(orderText) : {};
     } catch {
-      res.status(502).json({ success: false, error: 'Invalid response received from Cashfree verification API.' });
+      const txLog = logCashfreeTransaction({
+        operation: 'ORDER_STATUS',
+        outcome: 'API_ERROR',
+        environment: activeEnv,
+        endpoint: orderEndpoint,
+        orderId,
+        httpStatus: orderRes.status,
+        durationMs,
+        cashfreeRequestId: cfRequestId,
+        errorDetail: `Non-JSON verification response: ${orderText.slice(0, 400)}`
+      });
+      res.status(502).json({ success: false, traceId: txLog.traceId, error: 'Invalid response received from Cashfree verification API.' });
       return;
     }
 
     if (!orderRes.ok) {
+      const outcome = (orderRes.status === 401 || orderRes.status === 403) ? 'AUTH_ERROR' : 'API_ERROR';
+      const txLog = logCashfreeTransaction({
+        operation: 'ORDER_STATUS',
+        outcome,
+        environment: activeEnv,
+        endpoint: orderEndpoint,
+        orderId,
+        httpStatus: orderRes.status,
+        durationMs,
+        cashfreeCode: orderData?.code,
+        cashfreeType: orderData?.type,
+        cashfreeMessage: orderData?.message,
+        cashfreeRequestId: cfRequestId,
+        errorDetail: orderText.slice(0, 400)
+      });
       res.status(orderRes.status >= 400 && orderRes.status < 500 ? orderRes.status : 502).json({
         success: false,
+        traceId: txLog.traceId,
         error: orderData.message || 'Unable to verify order with Cashfree.'
       });
       return;
@@ -2005,6 +2363,21 @@ const handleCheckCashfreeOrderStatus = async (req: Request, res: Response): Prom
       ? String(latestPayment.payment_group).replace(/_/g, ' ').toUpperCase()
       : (latestPayment?.payment_method ? Object.keys(latestPayment.payment_method)[0]?.toUpperCase() : 'Online');
 
+    if (paymentStatus === 'FAILED') {
+      logCashfreeTransaction({
+        operation: 'ORDER_STATUS',
+        outcome: 'API_ERROR',
+        environment: activeEnv,
+        endpoint: orderEndpoint,
+        orderId,
+        httpStatus: orderRes.status,
+        durationMs,
+        cashfreeRequestId: cfRequestId,
+        cashfreeMessage: latestPayment?.error_details?.error_description || latestPayment?.payment_message || `Order=${orderStatusUpper}, Payment=${latestStatusUpper}`,
+        errorDetail: `Payment failed/dropped: ${JSON.stringify(latestPayment?.error_details || { orderStatus: orderStatusUpper, latestStatus: latestStatusUpper }).slice(0, 400)}`
+      });
+    }
+
     res.json({
       success: true,
       verified: paymentStatus === 'SUCCESS',
@@ -2020,9 +2393,19 @@ const handleCheckCashfreeOrderStatus = async (req: Request, res: Response): Prom
       paymentTime: latestPayment?.payment_completion_time || latestPayment?.payment_time || undefined
     });
   } catch (error: any) {
-    console.error('[CASHFREE-SERVER] ❌ Error checking order status:', error);
+    const txLog = logCashfreeTransaction({
+      operation: 'ORDER_STATUS',
+      outcome: 'NETWORK_ERROR',
+      environment: activeEnv,
+      endpoint: orderEndpoint || baseUrl,
+      orderId: orderId || undefined,
+      durationMs: Date.now() - startMs,
+      networkErrorCode: error?.cause?.code || error?.code || error?.name,
+      errorDetail: error?.message || String(error)
+    });
     res.status(500).json({
       success: false,
+      traceId: txLog.traceId,
       error: error?.message || 'Failed to verify Cashfree payment status.'
     });
   }
@@ -2033,17 +2416,30 @@ app.post('/api/cashfree/verify-payment', handleCheckCashfreeOrderStatus);
 
 // Cashfree Official Webhook Listener (HMAC-SHA256 Raw Body Signature Verified)
 app.post('/api/cashfree/webhook', (req: Request, res: Response): void => {
+  const activeEnv = resolveCashfreeEnvironment(secureCashfreeVault.environment, secureCashfreeVault.secretKey);
   try {
     const signature = String(req.headers['x-webhook-signature'] || '').trim();
     const timestamp = String(req.headers['x-webhook-timestamp'] || '').trim();
     const rawBody = (req as any).rawBody || JSON.stringify(req.body || {});
 
     if (!secureCashfreeVault.secretKey) {
+      logCashfreeTransaction({
+        operation: 'WEBHOOK',
+        outcome: 'CONFIG_ERROR',
+        environment: activeEnv,
+        errorDetail: 'Webhook received while gateway secret key is unconfigured.'
+      });
       res.status(503).json({ success: false, error: 'Gateway secret key not configured.' });
       return;
     }
 
     if (!signature || !timestamp) {
+      logCashfreeTransaction({
+        operation: 'WEBHOOK',
+        outcome: 'SIGNATURE_ERROR',
+        environment: activeEnv,
+        errorDetail: 'Missing x-webhook-signature or x-webhook-timestamp header.'
+      });
       res.status(400).json({ success: false, error: 'Missing webhook signature headers.' });
       return;
     }
@@ -2056,7 +2452,12 @@ app.post('/api/cashfree/webhook', (req: Request, res: Response): void => {
     const sigBuf = Buffer.from(signature, 'utf8');
     const expBuf = Buffer.from(expectedSignature, 'utf8');
     if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-      console.warn('[CASHFREE-WEBHOOK] ❌ Invalid webhook signature rejected.');
+      logCashfreeTransaction({
+        operation: 'WEBHOOK',
+        outcome: 'SIGNATURE_ERROR',
+        environment: activeEnv,
+        errorDetail: 'HMAC-SHA256 webhook signature mismatch rejected.'
+      });
       res.status(401).json({ success: false, error: 'Invalid webhook signature.' });
       return;
     }
@@ -2080,7 +2481,14 @@ app.post('/api/cashfree/webhook', (req: Request, res: Response): void => {
       });
     }
 
-    console.log(`[CASHFREE-WEBHOOK] 🔔 Verified webhook event=${eventType} orderId=${orderId || 'N/A'} status=${paymentStatus || 'N/A'}`);
+    logCashfreeTransaction({
+      operation: 'WEBHOOK',
+      outcome: String(paymentStatus || '').toUpperCase() === 'FAILED' ? 'API_ERROR' : 'SUCCESS',
+      environment: activeEnv,
+      orderId,
+      cashfreeCode: eventType,
+      cashfreeMessage: `status=${paymentStatus || 'N/A'}`
+    });
 
     res.status(200).json({
       success: true,
@@ -2088,7 +2496,12 @@ app.post('/api/cashfree/webhook', (req: Request, res: Response): void => {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('[CASHFREE-WEBHOOK] ❌ Error processing webhook:', error);
+    logCashfreeTransaction({
+      operation: 'WEBHOOK',
+      outcome: 'NETWORK_ERROR',
+      environment: activeEnv,
+      errorDetail: error?.message || 'Webhook processing exception.'
+    });
     res.status(500).json({ success: false, error: 'Webhook processing error.' });
   }
 });
@@ -2246,6 +2659,7 @@ app.post('/api/admin/smtp-test', async (req: Request, res: Response): Promise<vo
 
 // API Route: Health Check (including live status of Cashfree PG & SMTP)
 app.get('/api/health', (_req: Request, res: Response) => {
+  const cfDiag = getCashfreeDiagnostics();
   res.json({
     status: 'ok',
     environment: process.env.NODE_ENV || 'development',
@@ -2253,6 +2667,10 @@ app.get('/api/health', (_req: Request, res: Response) => {
     cashfreeEnabled: secureCashfreeVault.isEnabled,
     cashfreeConfigured: isCashfreeConfigured(),
     cashfreeEnvironment: secureCashfreeVault.environment,
+    cashfreeEnvVar: cfDiag.cashfreeEnvVar,
+    cashfreeApiBaseUrl: cfDiag.apiBaseUrl,
+    cashfreeKeySource: cfDiag.credentialSource,
+    cashfreeEnvMismatch: cfDiag.envMismatch,
     timestamp: new Date().toISOString()
   });
 });
