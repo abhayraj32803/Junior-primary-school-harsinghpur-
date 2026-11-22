@@ -6,11 +6,12 @@
       "type": "object",
       "properties": {
         "uid": { "type": "string", "maxLength": 128, "description": "Unique Firebase Authentication UID" },
+        "username": { "type": "string", "maxLength": 80, "description": "Institutional username or login ID" },
         "name": { "type": "string", "maxLength": 150, "description": "Full name of the user" },
         "email": { "type": "string", "maxLength": 150, "description": "User email address" },
         "phone": { "type": "string", "maxLength": 25, "description": "Contact phone number" },
         "role": { "type": "string", "enum": ["admin", "teacher", "student"], "description": "Security access role" },
-        "status": { "type": "string", "enum": ["active", "inactive", "pending"], "description": "Account approval status" },
+        "status": { "type": "string", "enum": ["active", "inactive", "pending", "suspended", "disabled"], "description": "Account approval status" },
         "linkedEntityId": { "type": "string", "maxLength": 100, "description": "Linked studentId or teacherId" },
         "admissionNumber": { "type": "string", "maxLength": 50, "description": "Official school admission number" },
         "employeeId": { "type": "string", "maxLength": 50, "description": "Teacher employee identification number" },
@@ -28,8 +29,9 @@
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128, "description": "Document unique identifier" },
-        "studentId": { "type": "string", "maxLength": 50, "description": "Institutional Student Code (e.g. STU-2025-0101)" },
+        "studentId": { "type": "string", "maxLength": 50, "description": "Institutional Student Code" },
         "userId": { "type": "string", "maxLength": 128, "description": "Linked user authentication UID" },
+        "uid": { "type": "string", "maxLength": 128, "description": "Linked Firebase Auth UID" },
         "admissionNumber": { "type": "string", "maxLength": 50, "description": "Official Admission Number" },
         "name": { "type": "string", "maxLength": 150, "description": "Student full name" },
         "dateOfBirth": { "type": "string", "maxLength": 20, "description": "DOB in YYYY-MM-DD" },
@@ -67,6 +69,54 @@
       },
       "required": ["id", "employeeId", "name", "email", "designation", "status"]
     },
+    "SchoolClass": {
+      "title": "SchoolClass",
+      "description": "Academic class definition (Class 1 to Class 8).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "classNumber": { "type": "number" },
+        "name": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "classNumber", "name"]
+    },
+    "Section": {
+      "title": "Section",
+      "description": "Class section allocation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "classNumber": { "type": "number" },
+        "sectionName": { "type": "string", "maxLength": 20 }
+      },
+      "required": ["id", "classNumber", "sectionName"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Curriculum subject mapped to a class.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "classNumber": { "type": "number" }
+      },
+      "required": ["id", "name", "classNumber"]
+    },
+    "TeacherAssignment": {
+      "title": "TeacherAssignment",
+      "description": "Mapping of teachers to classes, sections, and subjects.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "teacherId": { "type": "string", "maxLength": 128 },
+        "teacherName": { "type": "string", "maxLength": 150 },
+        "classNumber": { "type": "number" },
+        "sectionName": { "type": "string", "maxLength": 20 },
+        "subjectName": { "type": "string", "maxLength": 120 }
+      },
+      "required": ["id", "teacherId"]
+    },
     "AttendanceRecord": {
       "title": "AttendanceRecord",
       "description": "Daily student attendance tracking record.",
@@ -82,11 +132,23 @@
         "sectionId": { "type": "string", "maxLength": 50 },
         "sectionName": { "type": "string", "maxLength": 10 },
         "date": { "type": "string", "maxLength": 20 },
-        "status": { "type": "string", "enum": ["present", "absent", "late"] },
+        "status": { "type": "string", "enum": ["present", "absent", "late", "half_day"] },
         "remarks": { "type": "string", "maxLength": 250 },
         "createdAt": { "type": "string" }
       },
       "required": ["id", "studentId", "classNumber", "sectionName", "date", "status"]
+    },
+    "Examination": {
+      "title": "Examination",
+      "description": "Academic examination schedule and metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "academicYear": { "type": "string", "maxLength": 30 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
     },
     "Mark": {
       "title": "Mark",
@@ -144,6 +206,20 @@
       },
       "required": ["id", "homeworkId", "studentId", "status"]
     },
+    "TimetableItem": {
+      "title": "TimetableItem",
+      "description": "Class schedule period item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "classNumber": { "type": "number" },
+        "sectionName": { "type": "string", "maxLength": 20 },
+        "day": { "type": "string", "maxLength": 20 },
+        "periodNumber": { "type": "number" },
+        "subjectName": { "type": "string", "maxLength": 120 }
+      },
+      "required": ["id", "classNumber", "day", "periodNumber"]
+    },
     "Notice": {
       "title": "Notice",
       "description": "School circular, notice, or official announcement.",
@@ -163,6 +239,21 @@
       },
       "required": ["id", "title", "description", "targetRole", "isPublic", "status"]
     },
+    "StudentDocument": {
+      "title": "StudentDocument",
+      "description": "Student certificates, transfer certificates, and verification records.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 150 },
+        "title": { "type": "string", "maxLength": 200 },
+        "documentType": { "type": "string", "maxLength": 100 },
+        "verificationStatus": { "type": "string", "enum": ["PENDING", "VERIFIED", "REJECTED"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "title"]
+    },
     "AuditLog": {
       "title": "AuditLog",
       "description": "Immutable security and action audit trail.",
@@ -179,6 +270,82 @@
         "timestamp": { "type": "string" }
       },
       "required": ["id", "userId", "action", "entity", "timestamp"]
+    },
+    "VerificationLog": {
+      "title": "VerificationLog",
+      "description": "Immutable institutional data verification audit record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "entity": { "type": "string", "maxLength": 120 },
+        "field": { "type": "string", "maxLength": 120 },
+        "previousValue": { "type": "string", "maxLength": 500 },
+        "newValue": { "type": "string", "maxLength": 500 },
+        "source": { "type": "string", "maxLength": 200 },
+        "verificationStatus": { "type": "string", "maxLength": 60 },
+        "updatedBy": { "type": "string", "maxLength": 150 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "entity", "field", "updatedAt"]
+    },
+    "SchoolSettings": {
+      "title": "SchoolSettings",
+      "description": "Public school institutional metadata and homepage configuration.",
+      "type": "object",
+      "properties": {
+        "schoolName": { "type": "string", "maxLength": 250 },
+        "schoolCode": { "type": "string", "maxLength": 50 },
+        "academicYear": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 40 }
+      },
+      "required": ["schoolName", "schoolCode"]
+    },
+    "FacilityItem": {
+      "title": "FacilityItem",
+      "description": "Campus infrastructure and facility item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nameEn": { "type": "string", "maxLength": 150 },
+        "nameHi": { "type": "string", "maxLength": 150 }
+      },
+      "required": ["id", "nameEn"]
+    },
+    "GovernmentScheme": {
+      "title": "GovernmentScheme",
+      "description": "Government welfare scheme such as DBT or Mid-Day Meal.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nameEn": { "type": "string", "maxLength": 200 },
+        "nameHi": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["id", "nameEn"]
+    },
+    "GalleryItem": {
+      "title": "GalleryItem",
+      "description": "Photo and educational video gallery record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "titleEn": { "type": "string", "maxLength": 200 },
+        "titleHi": { "type": "string", "maxLength": 200 },
+        "mediaType": { "type": "string", "enum": ["image", "video"] },
+        "sortOrder": { "type": "number" }
+      },
+      "required": ["id", "titleEn"]
+    },
+    "PublicDocument": {
+      "title": "PublicDocument",
+      "description": "Publicly downloadable school circular or official PDF document.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "titleEn": { "type": "string", "maxLength": 200 },
+        "titleHi": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["id", "titleEn"]
     },
     "RegistrationRequest": {
       "title": "RegistrationRequest",
@@ -242,7 +409,7 @@
     },
     "DonationRecord": {
       "title": "DonationRecord",
-      "description": "College and school development donations, receipts, and Razorpay transaction records.",
+      "description": "College and school development donations, receipts, and payment records.",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
@@ -260,18 +427,32 @@
         "donorAddress": { "type": "string", "maxLength": 300 },
         "isAnonymous": { "type": "boolean" },
         "paymentGateway": { "type": "string", "maxLength": 50 },
-        "razorpayPaymentId": { "type": "string", "maxLength": 100 },
-        "razorpayOrderId": { "type": "string", "maxLength": 100 },
-        "razorpaySignature": { "type": "string", "maxLength": 200 },
+        "cashfreeOrderId": { "type": "string", "maxLength": 100 },
+        "cashfreeCfOrderId": { "type": "string", "maxLength": 100 },
+        "cashfreePaymentId": { "type": "string", "maxLength": 100 },
+        "cashfreePaymentMethod": { "type": "string", "maxLength": 60 },
+        "cashfreeBankReference": { "type": "string", "maxLength": 100 },
         "status": { "type": "string", "enum": ["SUCCESS", "PENDING", "FAILED", "REFUNDED"] },
         "createdAt": { "type": "string" },
         "is80GClaimed": { "type": "boolean" },
         "notes": { "type": "string", "maxLength": 500 }
       },
       "required": ["id", "receiptNumber", "donorName", "amount", "status", "createdAt"]
+    },
+    "HealthProbe": {
+      "title": "HealthProbe",
+      "description": "Read-only Firestore startup connectivity probe document.",
+      "type": "object",
+      "properties": {
+        "ok": { "type": "boolean" }
+      }
     }
   },
   "firestore": {
+    "/test/{docId}": {
+      "schema": "HealthProbe",
+      "description": "Public read-only connectivity check document (/test/connection)."
+    },
     "/emailVerifications/{verificationId}": {
       "schema": "EmailVerification",
       "description": "Student email verification OTP codes with expiration and attempt limits."
@@ -300,9 +481,29 @@
       "schema": "Teacher",
       "description": "Faculty profile records."
     },
+    "/classes/{classId}": {
+      "schema": "SchoolClass",
+      "description": "School academic classes."
+    },
+    "/sections/{sectionId}": {
+      "schema": "Section",
+      "description": "Academic sections."
+    },
+    "/subjects/{subjectId}": {
+      "schema": "Subject",
+      "description": "Curriculum subjects."
+    },
+    "/teacherAssignments/{assignmentId}": {
+      "schema": "TeacherAssignment",
+      "description": "Faculty class and subject allocations."
+    },
     "/attendance/{attendanceId}": {
       "schema": "AttendanceRecord",
       "description": "Daily attendance records."
+    },
+    "/examinations/{examId}": {
+      "schema": "Examination",
+      "description": "Examination schedule definitions."
     },
     "/marks/{markId}": {
       "schema": "Mark",
@@ -316,13 +517,45 @@
       "schema": "Submission",
       "description": "Student homework submissions and grading notes."
     },
+    "/timetable/{timetableId}": {
+      "schema": "TimetableItem",
+      "description": "Master class timetable periods."
+    },
     "/notices/{noticeId}": {
       "schema": "Notice",
       "description": "Notices and circulars for school community."
     },
+    "/documents/{documentId}": {
+      "schema": "StudentDocument",
+      "description": "Student certificates and official documents."
+    },
     "/auditLogs/{logId}": {
       "schema": "AuditLog",
       "description": "Immutable audit trails of sensitive actions."
+    },
+    "/verificationLogs/{logId}": {
+      "schema": "VerificationLog",
+      "description": "Immutable institutional data verification logs."
+    },
+    "/settings/{settingId}": {
+      "schema": "SchoolSettings",
+      "description": "School institutional metadata and public homepage settings."
+    },
+    "/facilities/{facilityId}": {
+      "schema": "FacilityItem",
+      "description": "Campus facilities and infrastructure."
+    },
+    "/governmentSchemes/{schemeId}": {
+      "schema": "GovernmentScheme",
+      "description": "Government welfare schemes (DBT, MDM, scholarships)."
+    },
+    "/gallery/{galleryId}": {
+      "schema": "GalleryItem",
+      "description": "School photo and educational video gallery."
+    },
+    "/publicDocuments/{docId}": {
+      "schema": "PublicDocument",
+      "description": "Publicly accessible government circulars and PDFs."
     }
   }
 }

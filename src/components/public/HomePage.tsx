@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion, type Variants } from 'motion/react';
 import { useSchool } from '../../context/SchoolContext';
+import { useScreenSize } from '../../hooks/useScreenSize';
 import { recordPrivatePageView } from '../../utils/visitorAnalytics';
 import { 
   GraduationCap, 
@@ -23,12 +24,19 @@ import {
   Image as ImageIcon, 
   Sparkles, 
   ExternalLink,
-  School
+  School,
+  Video,
+  Play,
+  Gift
 } from 'lucide-react';
 import { 
   getFacilityIconComponent, 
   DEFAULT_HOMEPAGE_FACILITIES 
 } from '../../utils/facilityIconUtils';
+import { 
+  getResolvedSectionOrder, 
+  getResolvedSectionVisibility 
+} from '../../utils/homepageSectionsUtils';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
@@ -44,6 +52,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
     gallery, 
     language 
   } = useSchool();
+  const { isMobile, isSmallMobile } = useScreenSize();
 
   useEffect(() => {
     recordPrivatePageView('home');
@@ -119,6 +128,69 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
         { id: '4', title: 'पौष्टिक मध्याह्न भोजन वितरण', imageUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80', category: 'Campus' }
       ];
 
+  // Resolve admin-configured dynamic section order and visibility
+  const resolvedSectionOrder = useMemo(() => {
+    let savedOrder: string[] | undefined = settings.homepageSectionOrder;
+    if (!savedOrder || savedOrder.length === 0) {
+      try {
+        const local = localStorage.getItem('sms_homepage_sections_order');
+        if (local) savedOrder = JSON.parse(local);
+      } catch {}
+    }
+    return getResolvedSectionOrder(savedOrder);
+  }, [settings.homepageSectionOrder]);
+
+  const resolvedSectionVisibility = useMemo(() => {
+    let savedVis: Record<string, boolean> | undefined = settings.homepageSectionVisibility;
+    if (!savedVis) {
+      try {
+        const local = localStorage.getItem('sms_homepage_sections_visibility');
+        if (local) savedVis = JSON.parse(local);
+      } catch {}
+    }
+    return getResolvedSectionVisibility(savedVis);
+  }, [settings.homepageSectionVisibility]);
+
+  // Featured Educational Videos for Homepage showcase
+  const featuredEducationalVideos = useMemo(() => {
+    const videoItems = (gallery || []).filter(item => 
+      item.mediaType === 'video' || !!item.videoURL || !!item.youtubeId
+    );
+    if (videoItems.length > 0) return videoItems.slice(0, 3);
+    return [
+      {
+        id: 'v1',
+        titleHi: 'निपुण भारत मिशन - बुनियादी भाषा एवं गणित दक्षता',
+        titleEn: 'NIPUN Bharat Mission - Foundational Learning',
+        descHi: 'कक्षा 1-3 के बच्चों के लिए गतिविधि-आधारित FLN शिक्षण',
+        descEn: 'Activity-based foundational literacy and numeracy pedagogy',
+        youtubeId: '7Pq-S557XQU',
+        imageUrl: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80',
+        targetClass: 'Class 1-3'
+      },
+      {
+        id: 'v2',
+        titleHi: 'विज्ञान के रोचक प्रयोग - आओ करके सीखें',
+        titleEn: 'Hands-on Science Experiments for Students',
+        descHi: 'दैनिक जीवन में विज्ञान के सरल एवं आकर्षक प्रयोग',
+        descEn: 'Simple and fascinating science experiments for curious minds',
+        youtubeId: 'EngW7tLk6R8',
+        imageUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80',
+        targetClass: 'Class 4-5'
+      },
+      {
+        id: 'v3',
+        titleHi: 'डॉ. एपीजे अब्दुल कलाम - प्रेरक संदेश',
+        titleEn: 'Dr. APJ Abdul Kalam - Inspiring Words',
+        descHi: 'सपनों को साकार करने का हौसला और लक्ष्य के प्रति समर्पण',
+        descEn: 'Courage to dream big and dedicated commitment to goals',
+        youtubeId: 'kJQP7kiw5Fk',
+        imageUrl: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=800&q=80',
+        targetClass: 'Class 6-8'
+      }
+    ];
+  }, [gallery]);
+
   // Government portal dignified cubic-bezier easing curve
   const GOV_EASING: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -153,7 +225,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
       initial="hidden"
       animate="visible"
       variants={pageContainerVariants}
-      className="space-y-12 sm:space-y-16 pb-16"
+      className={isSmallMobile ? 'space-y-8 pb-10' : isMobile ? 'space-y-10 pb-12' : 'space-y-12 sm:space-y-16 pb-16'}
     >
       
       {/* =========================================================================
@@ -189,8 +261,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
         </div>
 
         {/* Content Container */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 lg:py-24">
-          <div className="max-w-3xl space-y-6">
+        <div className={`relative z-10 max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 ${isSmallMobile ? 'py-9' : isMobile ? 'py-11' : 'py-14 sm:py-20 lg:py-24'}`}>
+          <div className={`max-w-3xl ${isSmallMobile ? 'space-y-4' : 'space-y-6'}`}>
             
             {/* Department Tag with Glowing Saffron Border */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-gov-amber-500/25 to-orange-500/25 border border-gov-amber-400/50 text-gov-amber-300 text-xs sm:text-sm font-bold backdrop-blur-md shadow-sm">
@@ -249,624 +321,774 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenPortal }) 
       </motion.section>
 
       {/* =========================================================================
-          2. SCHOOL INFORMATION (4 Colorful & Vibrant Stat Cards)
+          DYNAMICALLY REORDERABLE HOMEPAGE SECTIONS (Configured via Admin Drag-and-Drop)
           ========================================================================= */}
-      <motion.section
-        variants={sectionFadeInVariants}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
-          
-          {/* Card 1: Classes 1-8 (Warm Amber / Saffron) */}
-          <div className="bg-gradient-to-br from-white via-amber-50/40 to-orange-50/30 rounded-2xl p-4 sm:p-6 border-2 border-amber-200/80 shadow-sm hover:border-amber-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-400/10 rounded-full blur-xl pointer-events-none" />
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25 group-hover:scale-105 transition-transform">
-              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-amber-800 uppercase tracking-wider">
-                {language === 'hi' ? 'कक्षाएं' : 'Classes'}
-              </div>
-              <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 leading-snug">
-                कक्षा 1 – 8
-              </div>
-              <div className="text-xs text-amber-700 font-semibold mt-0.5 leading-tight">
-                {language === 'hi' ? 'प्राथमिक व उच्च प्राथमिक' : 'Primary & Upper Primary'}
-              </div>
-            </div>
-          </div>
+      {resolvedSectionOrder.map((sectionId) => {
+        if (resolvedSectionVisibility[sectionId] === false) return null;
 
-          {/* Card 2: Total Students (Ocean Blue / Sky) */}
-          <div className="bg-gradient-to-br from-white via-blue-50/40 to-sky-50/30 rounded-2xl p-4 sm:p-6 border-2 border-blue-200/80 shadow-sm hover:border-blue-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-400/10 rounded-full blur-xl pointer-events-none" />
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
-              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-blue-800 uppercase tracking-wider">
-                {language === 'hi' ? 'कुल विद्यार्थी' : 'Total Students'}
-              </div>
-              <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 leading-snug">
-                {students.length > 0 ? `${students.length}+ नामांकित` : '100% Free RTE'}
-              </div>
-              <div className="text-xs text-blue-700 font-semibold mt-0.5 leading-tight">
-                {language === 'hi' ? 'निःशुल्क सर्व शिक्षा' : 'Zero Fee Education'}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Teachers (Emerald Green / Teal) */}
-          <div className="bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 rounded-2xl p-4 sm:p-6 border-2 border-emerald-200/80 shadow-sm hover:border-emerald-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-400/10 rounded-full blur-xl pointer-events-none" />
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25 group-hover:scale-105 transition-transform">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
-                {language === 'hi' ? 'शिक्षक' : 'Teachers'}
-              </div>
-              <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 leading-snug">
-                {teachers.length > 0 ? `${teachers.length} शिक्षक` : 'योग्य शिक्षक'}
-              </div>
-              <div className="text-xs text-emerald-700 font-semibold mt-0.5 leading-tight">
-                {language === 'hi' ? 'प्रशिक्षित व समर्पित' : 'Govt Certified Faculty'}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: UDISE Code (Royal Purple / Violet) */}
-          <div className="bg-gradient-to-br from-white via-purple-50/40 to-indigo-50/30 rounded-2xl p-4 sm:p-6 border-2 border-purple-200/80 shadow-sm hover:border-purple-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-400/10 rounded-full blur-xl pointer-events-none" />
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-purple-800 uppercase tracking-wider">
-                {language === 'hi' ? 'यू-डायस कोड' : 'UDISE Code'}
-              </div>
-              <div className="text-base sm:text-2xl font-mono font-black text-slate-900 mt-0.5 leading-snug truncate">
-                {settings.schoolCode || '09290205902'}
-              </div>
-              <div className="text-xs text-purple-700 font-semibold mt-0.5 leading-tight">
-                {language === 'hi' ? 'राष्ट्रीय पोर्टल मान्य' : 'UDISE+ Verified'}
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </motion.section>
-
-      {/* =========================================================================
-          3. ABOUT OUR SCHOOL (Rich & Attractive Warm Theme)
-          ========================================================================= */}
-      <motion.section
-        variants={sectionFadeInVariants}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-      >
-        <div className="bg-gradient-to-br from-white via-slate-50 to-amber-50/30 rounded-3xl p-6 sm:p-9 border-2 border-amber-200/70 shadow-sm relative overflow-hidden">
-          <div className="absolute -top-16 -right-16 w-64 h-64 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
-          
-          <div className="max-w-4xl space-y-4 relative z-10">
-            
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-300 text-amber-900 text-xs font-black uppercase tracking-wider">
-              <School className="w-3.5 h-3.5 text-amber-700" />
-              <span>{language === 'hi' ? 'विद्यालय परिचय' : 'About Our School'}</span>
-            </div>
-
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {language === 'hi' 
-                ? `${settings.schoolNameHi || settings.schoolName} का परिचय`
-                : `About ${settings.schoolName}`}
-            </h2>
-
-            {/* Clean 3-4 lines description */}
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-normal">
-              {language === 'hi'
-                ? `${settings.schoolNameHi || settings.schoolName} बेसिक शिक्षा परिषद उत्तर प्रदेश के अंतर्गत संचालित एक मान्यता प्राप्त परिषदीय विद्यालय है। विद्यालय में कक्षा 1 से 8 तक के ग्रामीण छात्र-छात्राओं को निपुण भारत मिशन, सुसज्जित कक्षा-कक्ष, समृद्ध पुस्तकालय, खेलकूद एवं निःशुल्क मध्याह्न भोजन के साथ संस्कारयुक्त व गुणवत्तापूर्ण शिक्षा प्रदान की जाती है।`
-                : `${settings.schoolName} is an officially recognized Government Composite School under the Basic Education Department of Uttar Pradesh. Serving Classes 1 to 8, the school is dedicated to providing inclusive learning, modern smart classrooms, a curated library, active sports facilities, and nutritious mid-day meals.`}
-            </p>
-
-            {/* Read More button with Glowing Accent */}
-            <div className="pt-2">
-              <button
-                onClick={() => onNavigate('about')}
-                className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm inline-flex items-center gap-2 transition-all cursor-pointer shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                id="btn-about-readmore"
-              >
-                <span>{language === 'hi' ? 'विस्तृत परिचय पढ़ें' : 'Read More About School'}</span>
-                <ArrowRight className="w-4 h-4 text-gov-amber-400" />
-              </button>
-            </div>
-
-          </div>
-        </div>
-      </motion.section>
-
-      {/* =========================================================================
-          4. IMPORTANT NOTICES (Latest 4 Notices with Colorful Category Badges)
-          ========================================================================= */}
-      <motion.section
-        variants={sectionFadeInVariants}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4"
-      >
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-md shadow-rose-500/25">
-              <Bell className="w-4 h-4" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-              {language === 'hi' ? 'महत्वपूर्ण सूचनाएं' : 'Important Notices'}
-            </h2>
-          </div>
-
-          <button
-            onClick={() => onNavigate('notices')}
-            className="text-xs sm:text-sm font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 cursor-pointer transition-colors px-3 py-1.5 rounded-lg hover:bg-amber-50"
-          >
-            <span>{language === 'hi' ? 'सभी सूचनाएं देखें' : 'View All Notices'}</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* 4 Notices Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {latestNotices.length > 0 ? (
-            latestNotices.map((notice, nIdx) => {
-              const noticeColorSchemes = [
-                { badge: 'bg-amber-100 text-amber-900 border-amber-200', border: 'hover:border-amber-400', leftBar: 'border-l-4 border-l-amber-500' },
-                { badge: 'bg-blue-100 text-blue-900 border-blue-200', border: 'hover:border-blue-400', leftBar: 'border-l-4 border-l-blue-500' },
-                { badge: 'bg-emerald-100 text-emerald-900 border-emerald-200', border: 'hover:border-emerald-400', leftBar: 'border-l-4 border-l-emerald-500' },
-                { badge: 'bg-purple-100 text-purple-900 border-purple-200', border: 'hover:border-purple-400', leftBar: 'border-l-4 border-l-purple-500' }
-              ];
-              const scheme = noticeColorSchemes[nIdx % noticeColorSchemes.length];
-
-              return (
-                <div
-                  key={notice.id}
-                  onClick={() => onNavigate('notices')}
-                  className={`bg-white rounded-2xl p-5 border border-slate-200 ${scheme.leftBar} ${scheme.border} shadow-xs hover:shadow-md card-hover-glow transition-all cursor-pointer flex flex-col justify-between group`}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${scheme.badge}`}>
-                        {notice.category || 'NOTICE'}
-                      </span>
-                      <span className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{notice.publishDate || notice.date || 'नवीनतम'}</span>
-                      </span>
-                    </div>
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
-                      {language === 'hi' ? (notice.titleHi || notice.title) : notice.title}
-                    </h3>
-                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed font-normal">
-                      {language === 'hi' ? (notice.descriptionHi || notice.description) : notice.description}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="col-span-2 bg-white rounded-2xl p-6 text-center border border-slate-200 text-slate-500 text-xs">
-              {language === 'hi' ? 'वर्तमान में कोई नई सूचना उपलब्ध नहीं है।' : 'No new notices at this time.'}
-            </div>
-          )}
-        </div>
-
-      </motion.section>
-
-      {/* =========================================================================
-          5. OUR FACILITIES (6 Colorful & Attractive Cards)
-          ========================================================================= */}
-      <motion.section
-        variants={sectionFadeInVariants}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4"
-      >
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/25">
-              <Building2 className="w-4 h-4" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-              {language === 'hi' ? 'विद्यालय की सुविधाएं' : 'Our Facilities'}
-            </h2>
-          </div>
-
-          <button
-            onClick={() => onNavigate('facilities')}
-            className="text-xs sm:text-sm font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 cursor-pointer transition-colors px-3 py-1.5 rounded-lg hover:bg-amber-50"
-          >
-            <span>{language === 'hi' ? 'विस्तार से देखें' : 'View Details'}</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* 6 Cards Grid with Distinct Colorful Palettes & Interactive Hover Animations */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {sixFacilities.map((fac, idx) => {
-            const Icon = typeof fac.icon === 'string' ? getFacilityIconComponent(fac.icon) : (fac.icon || Building2);
-            
-            const facilityThemes = [
-              {
-                bg: 'bg-gradient-to-br from-white via-amber-50/40 to-orange-50/20',
-                border: 'border-2 border-amber-200/80 hover:border-amber-400',
-                iconBg: 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-amber-500/25',
-                tag: 'text-amber-800',
-                glow: 'bg-amber-400',
-                shadow: 'hover:shadow-amber-500/15',
-                accentLine: 'bg-amber-500'
-              },
-              {
-                bg: 'bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/20',
-                border: 'border-2 border-blue-200/80 hover:border-blue-400',
-                iconBg: 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-500/25',
-                tag: 'text-blue-800',
-                glow: 'bg-blue-400',
-                shadow: 'hover:shadow-blue-500/15',
-                accentLine: 'bg-blue-500'
-              },
-              {
-                bg: 'bg-gradient-to-br from-white via-teal-50/40 to-cyan-50/20',
-                border: 'border-2 border-teal-200/80 hover:border-teal-400',
-                iconBg: 'bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-teal-500/25',
-                tag: 'text-teal-800',
-                glow: 'bg-teal-400',
-                shadow: 'hover:shadow-teal-500/15',
-                accentLine: 'bg-teal-500'
-              },
-              {
-                bg: 'bg-gradient-to-br from-white via-emerald-50/40 to-green-50/20',
-                border: 'border-2 border-emerald-200/80 hover:border-emerald-400',
-                iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-emerald-500/25',
-                tag: 'text-emerald-800',
-                glow: 'bg-emerald-400',
-                shadow: 'hover:shadow-emerald-500/15',
-                accentLine: 'bg-emerald-500'
-              },
-              {
-                bg: 'bg-gradient-to-br from-white via-sky-50/40 to-blue-50/20',
-                border: 'border-2 border-sky-200/80 hover:border-sky-400',
-                iconBg: 'bg-gradient-to-br from-sky-500 to-blue-500 text-white shadow-sky-500/25',
-                tag: 'text-sky-800',
-                glow: 'bg-sky-400',
-                shadow: 'hover:shadow-sky-500/15',
-                accentLine: 'bg-sky-500'
-              },
-              {
-                bg: 'bg-gradient-to-br from-white via-rose-50/40 to-orange-50/20',
-                border: 'border-2 border-rose-200/80 hover:border-rose-400',
-                iconBg: 'bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-rose-500/25',
-                tag: 'text-rose-800',
-                glow: 'bg-rose-400',
-                shadow: 'hover:shadow-rose-500/15',
-                accentLine: 'bg-rose-500'
-              }
-            ];
-
-            const theme = facilityThemes[idx % facilityThemes.length];
-
+        switch (sectionId) {
+          case 'heroStats':
             return (
-              <motion.div
-                key={fac.id}
-                whileHover={{ y: -6, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                onClick={() => onNavigate('facilities')}
-                className={`${theme.bg} ${theme.border} ${theme.shadow} rounded-2xl md:rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 space-y-3.5 relative overflow-hidden group cursor-pointer flex flex-col justify-between select-none`}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onNavigate('facilities');
-                  }
-                }}
+              <motion.section
+                key="heroStats"
+                variants={sectionFadeInVariants}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
               >
-                {/* Radiant ambient glow orb on hover */}
-                <div className={`absolute -top-12 -right-12 w-32 h-32 rounded-full ${theme.glow} opacity-0 group-hover:opacity-15 blur-2xl transition-opacity duration-500 pointer-events-none`} />
-
-                <div className="space-y-3 relative z-10">
-                  <div className="flex items-center justify-between">
-                    <div className={`w-12 h-12 rounded-xl md:rounded-2xl ${theme.iconBg} flex items-center justify-center font-bold shadow-md group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-                      <Icon className="w-6 h-6" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
+                  {/* Card 1: Classes 1-8 (Warm Amber / Saffron) */}
+                  <div className="bg-gradient-to-br from-white via-amber-50/40 to-orange-50/30 rounded-2xl p-4 sm:p-6 border-2 border-amber-200/80 shadow-sm hover:border-amber-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-amber-400/10 rounded-full blur-xl pointer-events-none" />
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25 group-hover:scale-105 transition-transform">
+                      <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-
-                    {/* Subtle quick action arrow button */}
-                    <div className="w-8 h-8 rounded-xl bg-white/80 border border-slate-200/80 flex items-center justify-center text-slate-400 group-hover:text-slate-900 group-hover:bg-white group-hover:shadow-xs transition-all opacity-70 group-hover:opacity-100">
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-amber-800 uppercase tracking-wider">
+                        {language === 'hi' ? 'कक्षाएं' : 'Classes'}
+                      </div>
+                      <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 leading-snug">
+                        कक्षा 1 – 8
+                      </div>
+                      <div className="text-xs text-amber-700 font-semibold mt-0.5 leading-tight">
+                        {language === 'hi' ? 'प्राथमिक व उच्च प्राथमिक' : 'Primary & Upper Primary'}
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-slate-950 transition-colors">
-                      {language === 'hi' ? fac.nameHi : fac.nameEn}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed font-normal line-clamp-3">
-                      {language === 'hi' ? fac.descHi : fac.descEn}
-                    </p>
+                  {/* Card 2: Total Students (Ocean Blue / Sky) */}
+                  <div className="bg-gradient-to-br from-white via-blue-50/40 to-sky-50/30 rounded-2xl p-4 sm:p-6 border-2 border-blue-200/80 shadow-sm hover:border-blue-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-400/10 rounded-full blur-xl pointer-events-none" />
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
+                      <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-blue-800 uppercase tracking-wider">
+                        {language === 'hi' ? 'कुल विद्यार्थी' : 'Total Students'}
+                      </div>
+                      <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 leading-snug">
+                        {students.length > 0 ? `${students.length}+ नामांकित` : '100% Free RTE'}
+                      </div>
+                      <div className="text-xs text-blue-700 font-semibold mt-0.5 leading-tight">
+                        {language === 'hi' ? 'निःशुल्क सर्व शिक्षा' : 'Zero Fee Education'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Teachers (Emerald Green / Teal) */}
+                  <div className="bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 rounded-2xl p-4 sm:p-6 border-2 border-emerald-200/80 shadow-sm hover:border-emerald-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-400/10 rounded-full blur-xl pointer-events-none" />
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25 group-hover:scale-105 transition-transform">
+                      <Users className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                        {language === 'hi' ? 'शिक्षक' : 'Teachers'}
+                      </div>
+                      <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5 leading-snug">
+                        {teachers.length > 0 ? `${teachers.length} शिक्षक` : 'योग्य शिक्षक'}
+                      </div>
+                      <div className="text-xs text-emerald-700 font-semibold mt-0.5 leading-tight">
+                        {language === 'hi' ? 'प्रशिक्षित व समर्पित' : 'Govt Certified Faculty'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 4: UDISE Code (Royal Purple / Violet) */}
+                  <div className="bg-gradient-to-br from-white via-purple-50/40 to-indigo-50/30 rounded-2xl p-4 sm:p-6 border-2 border-purple-200/80 shadow-sm hover:border-purple-400 hover:shadow-md card-hover-glow transition-all flex items-center sm:items-start gap-3.5 sm:gap-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-purple-400/10 rounded-full blur-xl pointer-events-none" />
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25 group-hover:scale-105 transition-transform">
+                      <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-purple-800 uppercase tracking-wider">
+                        {language === 'hi' ? 'यू-डायस कोड' : 'UDISE Code'}
+                      </div>
+                      <div className="text-base sm:text-2xl font-mono font-black text-slate-900 mt-0.5 leading-snug truncate">
+                        {settings.schoolCode || '09290205902'}
+                      </div>
+                      <div className="text-xs text-purple-700 font-semibold mt-0.5 leading-tight">
+                        {language === 'hi' ? 'राष्ट्रीय पोर्टल मान्य' : 'UDISE+ Verified'}
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                {/* Bottom subtle accent line that expands on hover */}
-                <div className="w-full pt-1 relative z-10">
-                  <div className={`h-1 w-8 group-hover:w-full rounded-full transition-all duration-300 opacity-40 group-hover:opacity-100 ${theme.accentLine}`} />
-                </div>
-              </motion.div>
+              </motion.section>
             );
-          })}
-        </div>
 
-      </motion.section>
-
-      {/* =========================================================================
-          6. ACTIVITIES & GALLERY (Rich & Colorful Combined Section)
-          ========================================================================= */}
-      <motion.section
-        variants={sectionFadeInVariants}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6"
-      >
-        
-        <div className="bg-gradient-to-br from-white via-slate-50 to-purple-50/20 rounded-3xl p-6 sm:p-9 border-2 border-purple-200/60 shadow-sm space-y-6 relative overflow-hidden">
-          <div className="absolute -top-16 -right-16 w-64 h-64 bg-purple-400/10 rounded-full blur-2xl pointer-events-none" />
-          
-          {/* Section Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4 relative z-10">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-purple-500/15 to-pink-500/15 border border-purple-300 text-purple-900 text-xs font-black uppercase tracking-wider mb-1">
-                <Sparkles className="w-3.5 h-3.5 text-purple-700" />
-                <span>{language === 'hi' ? 'गतिविधियां एवं फोटो गैलरी' : 'Activities & Gallery'}</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-                {language === 'hi' ? 'छात्र गतिविधियां एवं विद्यालय झलकियां' : 'School Activities & Campus Glimpses'}
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onNavigate('activities')}
-                className="px-4 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-bold transition-all cursor-pointer shadow-xs"
+          case 'principalMessage':
+            return (
+              <motion.section
+                key="principalMessage"
+                variants={sectionFadeInVariants}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
               >
-                {language === 'hi' ? 'सभी गतिविधियां' : 'All Activities'}
-              </button>
-              <button
-                onClick={() => onNavigate('gallery')}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+                <div className={`bg-gradient-to-br from-white via-slate-50 to-amber-50/30 rounded-3xl ${isSmallMobile ? 'p-4' : 'p-5 sm:p-9'} border-2 border-amber-200/70 shadow-sm relative overflow-hidden`}>
+                  <div className="absolute -top-16 -right-16 w-64 h-64 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+                  
+                  <div className="max-w-4xl space-y-4 relative z-10">
+                    <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-300 text-amber-900 text-xs font-black uppercase tracking-wider">
+                      <School className="w-3.5 h-3.5 text-amber-700" />
+                      <span>{language === 'hi' ? 'विद्यालय परिचय' : 'About Our School'}</span>
+                    </div>
+
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                      {language === 'hi' 
+                        ? `${settings.schoolNameHi || settings.schoolName} का परिचय`
+                        : `About ${settings.schoolName}`}
+                    </h2>
+
+                    <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-normal">
+                      {language === 'hi'
+                        ? `${settings.schoolNameHi || settings.schoolName} बेसिक शिक्षा परिषद उत्तर प्रदेश के अंतर्गत संचालित एक मान्यता प्राप्त परिषदीय विद्यालय है। विद्यालय में कक्षा 1 से 8 तक के ग्रामीण छात्र-छात्राओं को निपुण भारत मिशन, सुसज्जित कक्षा-कक्ष, समृद्ध पुस्तकालय, खेलकूद एवं निःशुल्क मध्याह्न भोजन के साथ संस्कारयुक्त व गुणवत्तापूर्ण शिक्षा प्रदान की जाती है।`
+                        : `${settings.schoolName} is an officially recognized Government Composite School under the Basic Education Department of Uttar Pradesh. Serving Classes 1 to 8, the school is dedicated to providing inclusive learning, modern smart classrooms, a curated library, active sports facilities, and nutritious mid-day meals.`}
+                    </p>
+
+                    <div className="pt-2">
+                      <button
+                        onClick={() => onNavigate('about')}
+                        className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm inline-flex items-center gap-2 transition-all cursor-pointer shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                        id="btn-about-readmore"
+                      >
+                        <span>{language === 'hi' ? 'विस्तृत परिचय पढ़ें' : 'Read More About School'}</span>
+                        <ArrowRight className="w-4 h-4 text-gov-amber-400" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.section>
+            );
+
+          case 'noticeTicker':
+            return (
+              <motion.section
+                key="noticeTicker"
+                variants={sectionFadeInVariants}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4"
               >
-                {language === 'hi' ? 'पूरी फोटो गैलरी' : 'Full Gallery'}
-              </button>
-            </div>
-          </div>
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-md shadow-rose-500/25 shrink-0">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <h2 className="text-lg sm:text-2xl font-black text-slate-900">
+                      {language === 'hi' ? 'महत्वपूर्ण सूचनाएं' : 'Important Notices'}
+                    </h2>
+                  </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
-            
-            {/* Left Side: 4 Core Activities with Colorful Icon Badges */}
-            <div className="lg:col-span-5 space-y-3">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {language === 'hi' ? 'प्रमुख छात्र गतिविधियां' : 'Core Activities'}
-              </div>
-              <div className="space-y-2.5">
-                {combinedActivities.map((act, i) => {
-                  const Icon = act.icon;
-                  const actColors = [
-                    'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-amber-500/20',
-                    'bg-gradient-to-br from-purple-600 to-pink-500 text-white shadow-purple-500/20',
-                    'bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-blue-500/20',
-                    'bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-emerald-500/20'
-                  ];
+                  <button
+                    onClick={() => onNavigate('notices')}
+                    className="text-xs sm:text-sm font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 cursor-pointer transition-colors px-3 py-1.5 rounded-lg hover:bg-amber-50 shrink-0"
+                  >
+                    <span>{language === 'hi' ? 'सभी सूचनाएं देखें' : 'View All Notices'}</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
 
-                  return (
-                    <div
-                      key={i}
-                      className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-purple-300 hover:shadow-xs card-hover-glow transition-all flex items-start gap-3.5"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {latestNotices.length > 0 ? (
+                    latestNotices.map((notice, nIdx) => {
+                      const noticeColorSchemes = [
+                        { badge: 'bg-amber-100 text-amber-900 border-amber-200', border: 'hover:border-amber-400', leftBar: 'border-l-4 border-l-amber-500' },
+                        { badge: 'bg-blue-100 text-blue-900 border-blue-200', border: 'hover:border-blue-400', leftBar: 'border-l-4 border-l-blue-500' },
+                        { badge: 'bg-emerald-100 text-emerald-900 border-emerald-200', border: 'hover:border-emerald-400', leftBar: 'border-l-4 border-l-emerald-500' },
+                        { badge: 'bg-purple-100 text-purple-900 border-purple-200', border: 'hover:border-purple-400', leftBar: 'border-l-4 border-l-purple-500' }
+                      ];
+                      const scheme = noticeColorSchemes[nIdx % noticeColorSchemes.length];
+
+                      return (
+                        <div
+                          key={notice.id}
+                          onClick={() => onNavigate('notices')}
+                          className={`bg-white rounded-2xl p-5 border border-slate-200 ${scheme.leftBar} ${scheme.border} shadow-xs hover:shadow-md card-hover-glow transition-all cursor-pointer flex flex-col justify-between group`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${scheme.badge}`}>
+                                {notice.category || 'NOTICE'}
+                              </span>
+                              <span className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{notice.publishDate || notice.date || 'नवीनतम'}</span>
+                              </span>
+                            </div>
+                            <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
+                              {language === 'hi' ? (notice.titleHi || notice.title) : notice.title}
+                            </h3>
+                            <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed font-normal">
+                              {language === 'hi' ? (notice.descriptionHi || notice.description) : notice.description}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="col-span-1 md:col-span-2 bg-white rounded-2xl p-6 text-center border border-slate-200 text-slate-500 text-xs">
+                      {language === 'hi' ? 'वर्तमान में कोई नई सूचना उपलब्ध नहीं है।' : 'No new notices at this time.'}
+                    </div>
+                  )}
+                </div>
+              </motion.section>
+            );
+
+          case 'facilitiesPreview':
+            return (
+              <motion.section
+                key="facilitiesPreview"
+                variants={sectionFadeInVariants}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <h2 className="text-lg sm:text-2xl font-black text-slate-900">
+                      {language === 'hi' ? 'विद्यालय की सुविधाएं' : 'Our Facilities'}
+                    </h2>
+                  </div>
+
+                  <button
+                    onClick={() => onNavigate('facilities')}
+                    className="text-xs sm:text-sm font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 cursor-pointer transition-colors px-3 py-1.5 rounded-lg hover:bg-amber-50 shrink-0"
+                  >
+                    <span>{language === 'hi' ? 'विस्तार से देखें' : 'View Details'}</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 6 Cards Grid with Distinct Colorful Palettes & Interactive Hover Animations */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                  {sixFacilities.map((fac, idx) => {
+                    const Icon = typeof fac.icon === 'string' ? getFacilityIconComponent(fac.icon) : (fac.icon || Building2);
+                    
+                    const facilityThemes = [
+                      {
+                        bg: 'bg-gradient-to-br from-white via-amber-50/40 to-orange-50/20',
+                        border: 'border-2 border-amber-200/80 hover:border-amber-400',
+                        iconBg: 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-amber-500/25',
+                        tag: 'text-amber-800',
+                        glow: 'bg-amber-400',
+                        shadow: 'hover:shadow-amber-500/15',
+                        accentLine: 'bg-amber-500'
+                      },
+                      {
+                        bg: 'bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/20',
+                        border: 'border-2 border-blue-200/80 hover:border-blue-400',
+                        iconBg: 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-500/25',
+                        tag: 'text-blue-800',
+                        glow: 'bg-blue-400',
+                        shadow: 'hover:shadow-blue-500/15',
+                        accentLine: 'bg-blue-500'
+                      },
+                      {
+                        bg: 'bg-gradient-to-br from-white via-teal-50/40 to-cyan-50/20',
+                        border: 'border-2 border-teal-200/80 hover:border-teal-400',
+                        iconBg: 'bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-teal-500/25',
+                        tag: 'text-teal-800',
+                        glow: 'bg-teal-400',
+                        shadow: 'hover:shadow-teal-500/15',
+                        accentLine: 'bg-teal-500'
+                      },
+                      {
+                        bg: 'bg-gradient-to-br from-white via-emerald-50/40 to-green-50/20',
+                        border: 'border-2 border-emerald-200/80 hover:border-emerald-400',
+                        iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-emerald-500/25',
+                        tag: 'text-emerald-800',
+                        glow: 'bg-emerald-400',
+                        shadow: 'hover:shadow-emerald-500/15',
+                        accentLine: 'bg-emerald-500'
+                      },
+                      {
+                        bg: 'bg-gradient-to-br from-white via-sky-50/40 to-blue-50/20',
+                        border: 'border-2 border-sky-200/80 hover:border-sky-400',
+                        iconBg: 'bg-gradient-to-br from-sky-500 to-blue-500 text-white shadow-sky-500/25',
+                        tag: 'text-sky-800',
+                        glow: 'bg-sky-400',
+                        shadow: 'hover:shadow-sky-500/15',
+                        accentLine: 'bg-sky-500'
+                      },
+                      {
+                        bg: 'bg-gradient-to-br from-white via-rose-50/40 to-orange-50/20',
+                        border: 'border-2 border-rose-200/80 hover:border-rose-400',
+                        iconBg: 'bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-rose-500/25',
+                        tag: 'text-rose-800',
+                        glow: 'bg-rose-400',
+                        shadow: 'hover:shadow-rose-500/15',
+                        accentLine: 'bg-rose-500'
+                      }
+                    ];
+
+                    const theme = facilityThemes[idx % facilityThemes.length];
+
+                    return (
+                      <motion.div
+                        key={fac.id}
+                        whileHover={{ y: -6, scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                        onClick={() => onNavigate('facilities')}
+                        className={`${theme.bg} ${theme.border} ${theme.shadow} rounded-2xl md:rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 space-y-3.5 relative overflow-hidden group cursor-pointer flex flex-col justify-between select-none`}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onNavigate('facilities');
+                          }
+                        }}
+                      >
+                        {/* Radiant ambient glow orb on hover */}
+                        <div className={`absolute -top-12 -right-12 w-32 h-32 rounded-full ${theme.glow} opacity-0 group-hover:opacity-15 blur-2xl transition-opacity duration-500 pointer-events-none`} />
+
+                        <div className="space-y-3 relative z-10">
+                          <div className="flex items-center justify-between">
+                            <div className={`w-12 h-12 rounded-xl md:rounded-2xl ${theme.iconBg} flex items-center justify-center font-bold shadow-md group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                              <Icon className="w-6 h-6" />
+                            </div>
+
+                            <div className="w-8 h-8 rounded-xl bg-white/80 border border-slate-200/80 flex items-center justify-center text-slate-400 group-hover:text-slate-900 group-hover:bg-white group-hover:shadow-xs transition-all opacity-70 group-hover:opacity-100">
+                              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                            </div>
+                          </div>
+
+                          <div>
+                            <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-slate-950 transition-colors">
+                              {language === 'hi' ? fac.nameHi : fac.nameEn}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed font-normal line-clamp-3">
+                              {language === 'hi' ? fac.descHi : fac.descEn}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Bottom subtle accent line that expands on hover */}
+                        <div className="w-full pt-1 relative z-10">
+                          <div className={`h-1 w-8 group-hover:w-full rounded-full transition-all duration-300 opacity-40 group-hover:opacity-100 ${theme.accentLine}`} />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.section>
+            );
+
+          case 'educationalVideos':
+            return (
+              <motion.section
+                key="educationalVideos"
+                variants={sectionFadeInVariants}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4"
+              >
+                <div className={`bg-gradient-to-br from-white via-amber-50/20 to-orange-50/20 rounded-3xl ${isSmallMobile ? 'p-4' : 'p-5 sm:p-9'} border-2 border-amber-200/70 shadow-sm space-y-5 sm:space-y-6`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-300 text-amber-900 text-xs font-black uppercase tracking-wider mb-1">
+                        <Video className="w-3.5 h-3.5 text-amber-700" />
+                        <span>{language === 'hi' ? 'कक्षा 1-8 शैक्षिक वीडियो' : 'Educational Videos'}</span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                        {language === 'hi' ? 'पाठ्यक्रम, विज्ञान प्रयोग व प्रेरक वीडियो' : 'Curriculum, Science & Motivation Videos'}
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => onNavigate('gallery')}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5 self-start sm:self-auto"
                     >
-                      <div className={`w-9 h-9 rounded-xl ${actColors[i % actColors.length]} flex items-center justify-center shrink-0 mt-0.5 shadow-md`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs sm:text-sm font-bold text-slate-900">
-                          {language === 'hi' ? act.titleHi : act.titleEn}
+                      <span>{language === 'hi' ? 'सभी वीडियो देखें' : 'View All Videos'}</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* 3 Featured Video Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+                    {featuredEducationalVideos.map((vid, idx) => (
+                      <div
+                        key={vid.id || idx}
+                        onClick={() => onNavigate('gallery')}
+                        className="bg-white rounded-2xl overflow-hidden border-2 border-slate-200/90 hover:border-amber-400 shadow-xs hover:shadow-md card-hover-glow transition-all cursor-pointer flex flex-col justify-between group"
+                      >
+                        <div className="relative aspect-video bg-slate-900 overflow-hidden">
+                          <img
+                            src={vid.imageUrl || (vid.youtubeId ? `https://img.youtube.com/vi/${vid.youtubeId}/hqdefault.jpg` : "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80")}
+                            alt={vid.titleHi || 'Video'}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
+                          />
+                          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-full bg-amber-500/90 group-hover:bg-amber-400 text-slate-950 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <Play className="w-5 h-5 fill-current ml-0.5" />
+                            </div>
+                          </div>
+                          <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-amber-300 text-[10px] font-bold">
+                            {vid.targetClass || (language === 'hi' ? 'कक्षा 1-8' : 'Class 1-8')}
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-600 mt-0.5 font-normal">
-                          {language === 'hi' ? act.descHi : act.descEn}
+                        <div className="p-4 space-y-1.5 flex-1 flex flex-col justify-between">
+                          <div>
+                            <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors line-clamp-2">
+                              {language === 'hi' ? (vid.titleHi || vid.titleEn) : (vid.titleEn || vid.titleHi)}
+                            </h3>
+                            <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
+                              {language === 'hi' ? (vid.descHi || 'बेसिक शिक्षा पाठ्यक्रम आधारित शिक्षण सामग्री') : (vid.descEn || 'Basic education curriculum interactive video material')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.section>
+            );
+
+          case 'schemesPreview':
+            return (
+              <motion.section
+                key="schemesPreview"
+                variants={sectionFadeInVariants}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4"
+              >
+                <div className={`bg-gradient-to-br from-white via-emerald-50/20 to-teal-50/20 rounded-3xl ${isSmallMobile ? 'p-4' : 'p-5 sm:p-9'} border-2 border-emerald-200/70 shadow-sm space-y-5 sm:space-y-6`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-emerald-500/15 to-teal-500/15 border border-emerald-300 text-emerald-900 text-xs font-black uppercase tracking-wider mb-1">
+                        <Gift className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>{language === 'hi' ? 'शासकीय योजनाएं एवं डीबीटी' : 'Govt Schemes & DBT'}</span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                        {language === 'hi' ? 'छात्र-छात्राओं हेतु 100% निःशुल्क शासकीय सुविधाएं' : 'Free Government Welfare Schemes for Students'}
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => onNavigate('schemes')}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5 self-start sm:self-auto"
+                    >
+                      <span>{language === 'hi' ? 'सभी योजनाएं देखें' : 'View All Schemes'}</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* 4 Schemes Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                      {
+                        titleHi: 'पीएम पोषण (मध्याह्न भोजन)',
+                        titleEn: 'PM POSHAN (Mid-Day Meal)',
+                        descHi: 'कक्षा 1 से 8 तक के सभी बच्चों को प्रतिदिन ताजा, गर्म, पौष्टिक व मेन्यू आधारित स्वादिष्ट भोजन।',
+                        descEn: 'Hot, hygienic, nutritious daily meals cooked according to standard government weekly menu.',
+                        icon: Utensils,
+                        color: 'from-amber-500 to-orange-500'
+                      },
+                      {
+                        titleHi: 'प्रत्यक्ष लाभ अंतरण (DBT ₹1200)',
+                        titleEn: 'Direct Benefit Transfer (DBT)',
+                        descHi: 'यूनिफॉर्म (2 जोड़ी), स्कूल बैग, जूते-मोजे व स्वेटर क्रय हेतु अभिभावकों के खाते में ₹1200 अंतरण।',
+                        descEn: '₹1200 directly transferred to parent accounts for 2 sets of uniform, bag, shoes & sweater.',
+                        icon: Gift,
+                        color: 'from-emerald-500 to-teal-600'
+                      },
+                      {
+                        titleHi: 'निःशुल्क पाठ्यपुस्तकें व कार्यपुस्तिकाएं',
+                        titleEn: 'Free Textbooks & Workbooks',
+                        descHi: 'सत्र प्रारंभ होते ही प्रत्येक नामांकित छात्र को 100% निःशुल्क रंगीन पाठ्यपुस्तकें व वर्कबुक्स।',
+                        descEn: '100% free NCERT/SCERT curriculum books and skill workbooks for every enrolled child.',
+                        icon: BookOpen,
+                        color: 'from-blue-600 to-indigo-600'
+                      },
+                      {
+                        titleHi: 'समावेशी शिक्षा व छात्रवृत्ति',
+                        titleEn: 'Scholarships & Support',
+                        descHi: 'दिव्यांग बच्चों हेतु विशेष उपकरण, स्टाइपेंड व सामाजिक कल्याण विभाग की छात्रवृत्तियां।',
+                        descEn: 'Aids & appliances, escort allowance for special needs, and pre-matric scholarships.',
+                        icon: GraduationCap,
+                        color: 'from-purple-600 to-pink-600'
+                      }
+                    ].map((scheme, sIdx) => {
+                      const SIcon = scheme.icon;
+                      return (
+                        <div
+                          key={sIdx}
+                          onClick={() => onNavigate('schemes')}
+                          className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-md card-hover-glow transition-all cursor-pointer flex flex-col justify-between group"
+                        >
+                          <div className="space-y-3">
+                            <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${scheme.color} text-white flex items-center justify-center shadow-md group-hover:scale-105 transition-transform`}>
+                              <SIcon className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-black text-slate-900 group-hover:text-emerald-800 transition-colors">
+                                {language === 'hi' ? scheme.titleHi : scheme.titleEn}
+                              </h3>
+                              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                                {language === 'hi' ? scheme.descHi : scheme.descEn}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.section>
+            );
+
+          case 'galleryPreview':
+            return (
+              <motion.section
+                key="galleryPreview"
+                variants={sectionFadeInVariants}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6"
+              >
+                <div className={`bg-gradient-to-br from-white via-slate-50 to-purple-50/20 rounded-3xl ${isSmallMobile ? 'p-4' : 'p-5 sm:p-9'} border-2 border-purple-200/60 shadow-sm space-y-5 sm:space-y-6 relative overflow-hidden`}>
+                  <div className="absolute -top-16 -right-16 w-64 h-64 bg-purple-400/10 rounded-full blur-2xl pointer-events-none" />
+                  
+                  {/* Section Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4 relative z-10">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-purple-500/15 to-pink-500/15 border border-purple-300 text-purple-900 text-xs font-black uppercase tracking-wider mb-1">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-700" />
+                        <span>{language === 'hi' ? 'गतिविधियां एवं फोटो गैलरी' : 'Activities & Gallery'}</span>
+                      </div>
+                      <h2 className="text-lg sm:text-2xl font-black text-slate-900">
+                        {language === 'hi' ? 'छात्र गतिविधियां एवं विद्यालय झलकियां' : 'School Activities & Campus Glimpses'}
+                      </h2>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => onNavigate('activities')}
+                        className="px-3.5 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-bold transition-all cursor-pointer shadow-xs"
+                      >
+                        {language === 'hi' ? 'सभी गतिविधियां' : 'All Activities'}
+                      </button>
+                      <button
+                        onClick={() => onNavigate('gallery')}
+                        className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+                      >
+                        {language === 'hi' ? 'पूरी फोटो गैलरी' : 'Full Gallery'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
+                    {/* Left Side: 4 Core Activities with Colorful Icon Badges */}
+                    <div className="lg:col-span-5 space-y-3">
+                      <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        {language === 'hi' ? 'प्रमुख छात्र गतिविधियां' : 'Core Activities'}
+                      </div>
+                      <div className="space-y-2.5">
+                        {combinedActivities.map((act, i) => {
+                          const Icon = act.icon;
+                          const actColors = [
+                            'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-amber-500/20',
+                            'bg-gradient-to-br from-purple-600 to-pink-500 text-white shadow-purple-500/20',
+                            'bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-blue-500/20',
+                            'bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-emerald-500/20'
+                          ];
+
+                          return (
+                            <div
+                              key={i}
+                              className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-purple-300 hover:shadow-xs card-hover-glow transition-all flex items-start gap-3.5"
+                            >
+                              <div className={`w-9 h-9 rounded-xl ${actColors[i % actColors.length]} flex items-center justify-center shrink-0 mt-0.5 shadow-md`}>
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="text-xs sm:text-sm font-bold text-slate-900">
+                                  {language === 'hi' ? act.titleHi : act.titleEn}
+                                </div>
+                                <div className="text-[11px] text-slate-600 mt-0.5 font-normal">
+                                  {language === 'hi' ? act.descHi : act.descEn}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Right Side: 4 Gallery Photo Cards with Zoom & Glow */}
+                    <div className="lg:col-span-7 space-y-3">
+                      <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        {language === 'hi' ? 'परिसर एवं कार्यक्रम फोटो' : 'Campus Photos'}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3.5">
+                        {previewPhotos.map((photo) => (
+                          <div
+                            key={photo.id}
+                            onClick={() => onNavigate('gallery')}
+                            className="group relative rounded-2xl overflow-hidden aspect-4/3 bg-slate-100 border-2 border-slate-200 hover:border-purple-400 cursor-pointer shadow-xs hover:shadow-md card-hover-glow transition-all"
+                          >
+                            <img
+                              src={photo.imageUrl}
+                              alt={photo.title || 'School Photo'}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent opacity-80 group-hover:opacity-95 transition-opacity" />
+                            <div className="absolute bottom-2.5 left-2.5 right-2.5 text-white">
+                              <p className="text-[11px] sm:text-xs font-bold line-clamp-1 drop-shadow-sm">
+                                {photo.title}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.section>
+            );
+
+          case 'officialLinks':
+            return (
+              <motion.section
+                key="officialLinks"
+                variants={sectionFadeInVariants}
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6"
+              >
+                <div className={`bg-gradient-to-br from-white via-slate-50 to-blue-50/20 rounded-3xl ${isSmallMobile ? 'p-4' : 'p-5 sm:p-9'} border-2 border-blue-200/60 shadow-sm space-y-5 sm:space-y-6 relative overflow-hidden`}>
+                  <div className="absolute -top-16 -right-16 w-64 h-64 bg-blue-400/10 rounded-full blur-2xl pointer-events-none" />
+                  
+                  <div className="relative z-10">
+                    <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-blue-500/15 to-sky-500/15 border border-blue-300 text-blue-900 text-xs font-black uppercase tracking-wider mb-1">
+                      <MapPin className="w-3.5 h-3.5 text-blue-700" />
+                      <span>{language === 'hi' ? 'संपर्क एवं लोकेशन' : 'Contact & Location'}</span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                      {language === 'hi' ? 'विद्यालय से संपर्क करें एवं पता' : 'Get in Touch with School'}
+                    </h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
+                    {/* Left Column: Address, Phone, Email, Timings */}
+                    <div className="lg:col-span-7 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {/* Address (Warm Amber Tone) */}
+                        <div className="p-4 rounded-2xl bg-white border-2 border-amber-200/80 space-y-1.5 shadow-xs">
+                          <div className="flex items-center gap-2 text-xs font-bold text-gov-navy-950">
+                            <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                              <MapPin className="w-3.5 h-3.5" />
+                            </div>
+                            <span>{language === 'hi' ? 'विद्यालय का पता' : 'School Address'}</span>
+                          </div>
+                          <p className="text-xs text-slate-600 leading-relaxed font-normal">
+                            {language === 'hi'
+                              ? (settings.addressHi || `${settings.schoolNameHi || settings.schoolName}, ग्राम व पोस्ट: ${settings.villageHi || 'हरसिंहपुर गोवा'}, विकास खंड: ${settings.blockHi || 'शमसाबाद'}, जनपद: ${settings.districtHi || 'फर्रुखाबाद'}, उत्तर प्रदेश - 209503`)
+                              : (settings.address || `${settings.schoolName}, Village & Post: ${settings.village || 'Harsinghpur Gova'}, Block: ${settings.block || 'Shamsabad'}, District: ${settings.district || 'Farrukhabad'}, UP - 209503`)}
+                          </p>
+                        </div>
+
+                        {/* Phone & Email (Emerald & Sky Tones) */}
+                        <div className="p-4 rounded-2xl bg-white border-2 border-emerald-200/80 space-y-2.5 shadow-xs">
+                          <div>
+                            <div className="flex items-center gap-2 text-xs font-bold text-gov-navy-950">
+                              <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                                <Phone className="w-3.5 h-3.5" />
+                              </div>
+                              <span>{language === 'hi' ? 'फोन / हेल्पलाइन' : 'Phone / Helpline'}</span>
+                            </div>
+                            <p className="text-xs text-slate-800 font-mono font-bold mt-1">
+                              {settings.phone || '+91 9450000000'}
+                            </p>
+                          </div>
+                          <div className="pt-2 border-t border-slate-100">
+                            <div className="flex items-center gap-2 text-xs font-bold text-gov-navy-950">
+                              <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center">
+                                <Mail className="w-3.5 h-3.5" />
+                              </div>
+                              <span>{language === 'hi' ? 'ईमेल' : 'Email'}</span>
+                            </div>
+                            <p className="text-xs text-slate-800 font-mono mt-1 truncate">
+                              {settings.email || 'ups.harsinghpur@gmail.com'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* School Timings */}
+                      <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 flex items-start gap-3 shadow-xs">
+                        <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                        <div className="text-xs">
+                          <span className="font-bold text-slate-900">
+                            {language === 'hi' ? 'विद्यालय समय सारणी (School Timings):' : 'School Timings:'}
+                          </span>
+                          <div className="text-slate-700 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                            <span>
+                              <strong>{language === 'hi' ? 'ग्रीष्मकालीन:' : 'Summer:'}</strong> {settings.summerTiming || '08:00 AM से 02:00 PM'}
+                            </span>
+                            <span>
+                              <strong>{language === 'hi' ? 'शीतकालीन:' : 'Winter:'}</strong> {settings.winterTiming || '09:00 AM से 03:00 PM'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Important Official Links */}
+                      <div className="pt-2">
+                        <div className="text-xs font-bold text-slate-600 mb-2">
+                          {language === 'hi' ? 'महत्वपूर्ण शासकीय पोर्टल लिंक्स:' : 'Important Official Portals:'}
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <a
+                            href="https://basiceducation.up.gov.in"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-300 text-slate-800 font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs"
+                          >
+                            <span>बेसिक शिक्षा परिषद</span>
+                            <ExternalLink className="w-3 h-3 text-amber-600" />
+                          </a>
+                          <a
+                            href="https://prernaup.in"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-800 font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs"
+                          >
+                            <span>प्रेरणा पोर्टल (UP)</span>
+                            <ExternalLink className="w-3 h-3 text-blue-600" />
+                          </a>
+                          <a
+                            href="https://diksha.gov.in"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-800 font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs"
+                          >
+                            <span>दीक्षा पोर्टल</span>
+                            <ExternalLink className="w-3 h-3 text-emerald-600" />
+                          </a>
+                          <a
+                            href="https://udiseplus.gov.in"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-purple-50 border border-slate-200 hover:border-purple-300 text-slate-800 font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs"
+                          >
+                            <span>UDISE+</span>
+                            <ExternalLink className="w-3 h-3 text-purple-600" />
+                          </a>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Right Side: 4 Gallery Photo Cards with Zoom & Glow */}
-            <div className="lg:col-span-7 space-y-3">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {language === 'hi' ? 'परिसर एवं कार्यक्रम फोटो' : 'Campus Photos'}
-              </div>
-              <div className="grid grid-cols-2 gap-3.5">
-                {previewPhotos.map((photo) => (
-                  <div
-                    key={photo.id}
-                    onClick={() => onNavigate('gallery')}
-                    className="group relative rounded-2xl overflow-hidden aspect-4/3 bg-slate-100 border-2 border-slate-200 hover:border-purple-400 cursor-pointer shadow-xs hover:shadow-md card-hover-glow transition-all"
-                  >
-                    <img
-                      src={photo.imageUrl}
-                      alt={photo.title || 'School Photo'}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent opacity-80 group-hover:opacity-95 transition-opacity" />
-                    <div className="absolute bottom-2.5 left-2.5 right-2.5 text-white">
-                      <p className="text-[11px] sm:text-xs font-bold line-clamp-1 drop-shadow-sm">
-                        {photo.title}
-                      </p>
+                    {/* Right Column: Google Map with Rounded Frame */}
+                    <div className="lg:col-span-5 rounded-2xl overflow-hidden border-2 border-blue-200 min-h-[240px] relative bg-slate-100 shadow-sm">
+                      <iframe
+                        title="School Location Map"
+                        src={settings.googleMapsUrl || "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3550.0!2d79.4!3d27.5!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjfCsDMwJzAwLjAiTiA3OcKwMjQnMDAuMCJF!5e0!3m2!1sen!2sin!4v1600000000000"}
+                        width="100%"
+                        height="100%"
+                        className="w-full h-full min-h-[240px] border-0"
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-
-      </motion.section>
-
-      {/* =========================================================================
-          7. CONTACT & LOCATION (Address, Phone, Email, Google Map, Timings, Links)
-          ========================================================================= */}
-      <motion.section
-        variants={sectionFadeInVariants}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6"
-      >
-        
-        <div className="bg-gradient-to-br from-white via-slate-50 to-blue-50/20 rounded-3xl p-6 sm:p-9 border-2 border-blue-200/60 shadow-sm space-y-6 relative overflow-hidden">
-          <div className="absolute -top-16 -right-16 w-64 h-64 bg-blue-400/10 rounded-full blur-2xl pointer-events-none" />
-          
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-blue-500/15 to-sky-500/15 border border-blue-300 text-blue-900 text-xs font-black uppercase tracking-wider mb-1">
-              <MapPin className="w-3.5 h-3.5 text-blue-700" />
-              <span>{language === 'hi' ? 'संपर्क एवं लोकेशन' : 'Contact & Location'}</span>
-            </div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-              {language === 'hi' ? 'विद्यालय से संपर्क करें एवं पता' : 'Get in Touch with School'}
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
-            
-            {/* Left Column: Address, Phone, Email, Timings */}
-            <div className="lg:col-span-7 space-y-4">
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                
-                {/* Address (Warm Amber Tone) */}
-                <div className="p-4 rounded-2xl bg-white border-2 border-amber-200/80 space-y-1.5 shadow-xs">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gov-navy-950">
-                    <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
-                      <MapPin className="w-3.5 h-3.5" />
-                    </div>
-                    <span>{language === 'hi' ? 'विद्यालय का पता' : 'School Address'}</span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed font-normal">
-                    {language === 'hi'
-                      ? (settings.addressHi || `${settings.schoolNameHi || settings.schoolName}, ग्राम व पोस्ट: ${settings.villageHi || 'हरसिंहपुर गोवा'}, विकास खंड: ${settings.blockHi || 'शमसाबाद'}, जनपद: ${settings.districtHi || 'फर्रुखाबाद'}, उत्तर प्रदेश - 209503`)
-                      : (settings.address || `${settings.schoolName}, Village & Post: ${settings.village || 'Harsinghpur Gova'}, Block: ${settings.block || 'Shamsabad'}, District: ${settings.district || 'Farrukhabad'}, UP - 209503`)}
-                  </p>
                 </div>
+              </motion.section>
+            );
 
-                {/* Phone & Email (Emerald & Sky Tones) */}
-                <div className="p-4 rounded-2xl bg-white border-2 border-emerald-200/80 space-y-2.5 shadow-xs">
-                  <div>
-                    <div className="flex items-center gap-2 text-xs font-bold text-gov-navy-950">
-                      <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
-                        <Phone className="w-3.5 h-3.5" />
-                      </div>
-                      <span>{language === 'hi' ? 'फोन / हेल्पलाइन' : 'Phone / Helpline'}</span>
-                    </div>
-                    <p className="text-xs text-slate-800 font-mono font-bold mt-1">
-                      {settings.phone || '+91 9450000000'}
-                    </p>
-                  </div>
-                  <div className="pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-2 text-xs font-bold text-gov-navy-950">
-                      <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center">
-                        <Mail className="w-3.5 h-3.5" />
-                      </div>
-                      <span>{language === 'hi' ? 'ईमेल' : 'Email'}</span>
-                    </div>
-                    <p className="text-xs text-slate-800 font-mono mt-1 truncate">
-                      {settings.email || 'ups.harsinghpur@gmail.com'}
-                    </p>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* School Timings */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 flex items-start gap-3 shadow-xs">
-                <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <span className="font-bold text-slate-900">
-                    {language === 'hi' ? 'विद्यालय समय सारणी (School Timings):' : 'School Timings:'}
-                  </span>
-                  <div className="text-slate-700 mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                    <span>
-                      <strong>{language === 'hi' ? 'ग्रीष्मकालीन:' : 'Summer:'}</strong> {settings.summerTiming || '08:00 AM से 02:00 PM'}
-                    </span>
-                    <span>
-                      <strong>{language === 'hi' ? 'शीतकालीन:' : 'Winter:'}</strong> {settings.winterTiming || '09:00 AM से 03:00 PM'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Important Official Links */}
-              <div className="pt-2">
-                <div className="text-xs font-bold text-slate-600 mb-2">
-                  {language === 'hi' ? 'महत्वपूर्ण शासकीय पोर्टल लिंक्स:' : 'Important Official Portals:'}
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <a
-                    href="https://basiceducation.up.gov.in"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-300 text-slate-800 font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs"
-                  >
-                    <span>बेसिक शिक्षा परिषद</span>
-                    <ExternalLink className="w-3 h-3 text-amber-600" />
-                  </a>
-                  <a
-                    href="https://prernaup.in"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-800 font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs"
-                  >
-                    <span>प्रेरणा पोर्टल (UP)</span>
-                    <ExternalLink className="w-3 h-3 text-blue-600" />
-                  </a>
-                  <a
-                    href="https://diksha.gov.in"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-800 font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs"
-                  >
-                    <span>दीक्षा पोर्टल</span>
-                    <ExternalLink className="w-3 h-3 text-emerald-600" />
-                  </a>
-                  <a
-                    href="https://udiseplus.gov.in"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-purple-50 border border-slate-200 hover:border-purple-300 text-slate-800 font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs"
-                  >
-                    <span>UDISE+</span>
-                    <ExternalLink className="w-3 h-3 text-purple-600" />
-                  </a>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Right Column: Google Map with Rounded Frame */}
-            <div className="lg:col-span-5 rounded-2xl overflow-hidden border-2 border-blue-200 min-h-[240px] relative bg-slate-100 shadow-sm">
-              <iframe
-                title="School Location Map"
-                src={settings.googleMapsUrl || "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3550.0!2d79.4!3d27.5!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjfCsDMwJzAwLjAiTiA3OcKwMjQnMDAuMCJF!5e0!3m2!1sen!2sin!4v1600000000000"}
-                width="100%"
-                height="100%"
-                className="w-full h-full min-h-[240px] border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
-
-          </div>
-
-        </div>
-
-      </motion.section>
+          default:
+            return null;
+        }
+      })}
 
     </motion.div>
   );

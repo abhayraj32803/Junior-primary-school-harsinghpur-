@@ -1,25 +1,45 @@
 import React, { useState } from 'react';
 import { useSchool } from '../../context/SchoolContext';
+import { useAuth } from '../../context/AuthContext';
 import { SchoolSettings } from '../../types';
 import { 
-  Settings, 
   Save, 
   RefreshCw, 
   CheckCircle2, 
-  ShieldAlert, 
   Building, 
   Award, 
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  Database,
+  CloudUpload,
+  Wifi,
+  WifiOff,
+  ShieldCheck
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
 export const AdminSettings: React.FC = () => {
-  const { settings, updateSettings, resetToSeedData } = useSchool();
+  const { 
+    settings, 
+    updateSettings, 
+    resetToDefaultSeedData,
+    firebaseStatus,
+    lastFirestoreSyncAt,
+    refreshFirestoreConnection,
+    syncAllDataToFirestore,
+    students,
+    teachers,
+    notices,
+    donations
+  } = useSchool();
+  const { currentUser, loginWithGoogle } = useAuth();
   const [formData, setFormData] = useState<SchoolSettings>({ ...settings });
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isCheckingConn, setIsCheckingConn] = useState(false);
+  const [isSyncingDb, setIsSyncingDb] = useState(false);
+  const [dbFeedback, setDbFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   React.useEffect(() => {
     if (settings) {
@@ -36,10 +56,62 @@ export const AdminSettings: React.FC = () => {
 
   const handleConfirmReset = async () => {
     setIsResetting(true);
-    await resetToSeedData();
+    await resetToDefaultSeedData();
     setIsResetting(false);
     setIsResetModalOpen(false);
     setFormData({ ...settings });
+  };
+
+  const handleTestFirestore = async () => {
+    setIsCheckingConn(true);
+    setDbFeedback(null);
+    const diag = await refreshFirestoreConnection();
+    setIsCheckingConn(false);
+    if (diag.status === 'connected') {
+      setDbFeedback({
+        type: 'success',
+        text: `Firebase Firestore सफलतापूर्वक जुड़ा हुआ है! (${diag.latencyMs ?? 0} ms)`
+      });
+    } else {
+      setDbFeedback({
+        type: 'error',
+        text: diag.errorMessage || 'Firestore से कनेक्शन की जांच पूरी नहीं हो सकी।'
+      });
+    }
+  };
+
+  const handleConnectGoogleAdmin = async () => {
+    setDbFeedback(null);
+    const res = await loginWithGoogle(undefined, 'admin');
+    if (res.success) {
+      setDbFeedback({
+        type: 'success',
+        text: `Firebase Auth (${res.user?.email}) सक्रिय हो गया है! अब आप डेटाबेस में लाइव सिंक कर सकते हैं।`
+      });
+    } else {
+      setDbFeedback({
+        type: 'error',
+        text: res.error || 'Google Auth कनेक्ट करने में समस्या आई।'
+      });
+    }
+  };
+
+  const handleSyncToFirestore = async () => {
+    setIsSyncingDb(true);
+    setDbFeedback(null);
+    const res = await syncAllDataToFirestore();
+    setIsSyncingDb(false);
+    if (res.success) {
+      setDbFeedback({
+        type: 'success',
+        text: `सफलतापूर्वक ${res.syncedCollections} collections (${res.totalDocs} records) Firebase Firestore में सिंक हो गए!`
+      });
+    } else {
+      setDbFeedback({
+        type: 'error',
+        text: res.error || 'Firestore सिंक असफल रहा।'
+      });
+    }
   };
 
   return (
@@ -68,6 +140,124 @@ export const AdminSettings: React.FC = () => {
           <span className="font-bold">Institutional settings successfully updated and saved!</span>
         </div>
       )}
+
+      {/* Firebase Cloud Firestore Connection & Sync Panel */}
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-start gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              firebaseStatus.status === 'connected'
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-amber-100 text-amber-700'
+            }`}>
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2 flex-wrap">
+                <span>Firebase Cloud Firestore Database</span>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold border ${
+                  firebaseStatus.status === 'connected'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : firebaseStatus.status === 'offline'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                }`}>
+                  {firebaseStatus.status === 'connected' ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                  {firebaseStatus.status === 'connected' ? 'Connected (Live)' : firebaseStatus.status.toUpperCase()}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Project: <span className="font-mono font-semibold text-slate-700">{firebaseStatus.projectId}</span> • DB:{' '}
+                <span className="font-mono font-semibold text-slate-700">{firebaseStatus.databaseId}</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleTestFirestore}
+              disabled={isCheckingConn}
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isCheckingConn ? 'animate-spin' : ''}`} />
+              <span>Test Connection</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSyncToFirestore}
+              disabled={isSyncingDb}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <CloudUpload className="w-3.5 h-3.5" />
+              <span>{isSyncingDb ? 'Syncing...' : 'Sync All Data to Firestore'}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="text-slate-500">Students Cached</div>
+            <div className="text-lg font-black text-slate-900">{students.length}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="text-slate-500">Faculty Records</div>
+            <div className="text-lg font-black text-slate-900">{teachers.length}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="text-slate-500">Notices & Circulars</div>
+            <div className="text-lg font-black text-slate-900">{notices.length}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="text-slate-500">Donations Ledger</div>
+            <div className="text-lg font-black text-slate-900">{donations.length}</div>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <ShieldCheck className={`w-4 h-4 shrink-0 ${currentUser ? 'text-emerald-600' : 'text-amber-600'}`} />
+            <div className="min-w-0">
+              <div className="font-bold text-slate-900 truncate">
+                {currentUser
+                  ? `Firebase Auth Connected: ${currentUser.email || currentUser.uid}`
+                  : 'Local Admin Session Active (Firebase Auth not linked yet)'}
+              </div>
+              <div className="text-[11px] text-slate-500">
+                {lastFirestoreSyncAt
+                  ? `Last Firestore Sync: ${new Date(lastFirestoreSyncAt).toLocaleString()}`
+                  : 'Click "Sync All Data to Firestore" after signing in with Google to seed your cloud database.'}
+              </div>
+            </div>
+          </div>
+
+          {!currentUser && (
+            <button
+              type="button"
+              onClick={handleConnectGoogleAdmin}
+              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-2xs shrink-0 cursor-pointer"
+            >
+              Link Google Admin Auth
+            </button>
+          )}
+        </div>
+
+        {dbFeedback && (
+          <div className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+            dbFeedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}>
+            {dbFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{dbFeedback.text}</span>
+          </div>
+        )}
+      </div>
 
       {/* Main Settings Form */}
       <form onSubmit={handleSubmit} className="space-y-6">

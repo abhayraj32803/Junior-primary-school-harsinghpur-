@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSchool } from '../../../context/SchoolContext';
 import { useAuth } from '../../../context/AuthContext';
-import { 
-  fetchSecureRazorpayConfig, 
-  saveSecureRazorpayConfig, 
-  testSecureRazorpayConnection,
-  SecureRazorpayVaultData 
-} from '../../../utils/razorpay';
+import {
+  fetchSecureCashfreeConfig,
+  saveSecureCashfreeConfig,
+  testSecureCashfreeConnection,
+  SecureCashfreeVaultData
+} from '../../../utils/cashfree';
 import {
   Shield,
   ShieldCheck,
@@ -22,19 +22,18 @@ import {
   Zap,
   ExternalLink,
   Info,
-  Check,
   Building2,
-  FileCheck
+  FileCheck,
+  Globe
 } from 'lucide-react';
 
-export const AdminRazorpaySecureSettings: React.FC = () => {
+export const AdminCashfreeSettings: React.FC = () => {
   const { language, settings, updatePaymentConfig, addAuditLog } = useSchool();
   const { currentUser, role, sessionToken } = useAuth();
 
-  // Security & Permission check: Only super admins are permitted
-  const isSuperAdmin = role === 'admin' || 
-    currentUser?.email === 'ngoaarya159@gmail.com' || 
-    currentUser?.email === 'admin@school.gov.in';
+  const isSuperAdmin =
+    role === 'admin' ||
+    currentUser?.email === 'ngoaarya159@gmail.com';
 
   // Vault state from server
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -43,103 +42,100 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  // Credentials form state
-  const [keyId, setKeyId] = useState<string>('');
+  // Masked Vault Indicators
+  const [hasExistingAppId, setHasExistingAppId] = useState<boolean>(false);
+  const [maskedAppId, setMaskedAppId] = useState<string>('');
+  const [newAppId, setNewAppId] = useState<string>('');
+  const [isChangingAppId, setIsChangingAppId] = useState<boolean>(false);
+
   const [hasExistingSecret, setHasExistingSecret] = useState<boolean>(false);
-  const [maskedSecret, setMaskedSecret] = useState<string>('');
-  const [newKeySecret, setNewKeySecret] = useState<string>('');
+  const [maskedSecretKey, setMaskedSecretKey] = useState<string>('');
+  const [newSecretKey, setNewSecretKey] = useState<string>('');
   const [isChangingSecret, setIsChangingSecret] = useState<boolean>(false);
   const [showNewSecret, setShowNewSecret] = useState<boolean>(false);
+
+  const [environment, setEnvironment] = useState<'sandbox' | 'production'>('sandbox');
   const [isEnabled, setIsEnabled] = useState<boolean>(true);
   const [merchantName, setMerchantName] = useState<string>('');
-  const [taxExemptionNumber, setTaxExemptionNumber] = useState<string>('');
+  const [minAmount, setMinAmount] = useState<number>(100);
+  const [taxExemptionNumber, setTaxExemptionNumber] = useState<string>('80G-DEL-2024-00129');
   const [lastUpdated, setLastUpdated] = useState<string>('');
-  const [updatedBy, setUpdatedBy] = useState<string>('');
 
-  // Test connection state
   const [testResult, setTestResult] = useState<{
     success: boolean;
     message?: string;
-    mode?: string;
+    environment?: string;
     error?: string;
   } | null>(null);
 
-  // Load secure configuration on mount
   useEffect(() => {
     loadSecureConfig();
-  }, [currentUser]);
+  }, [currentUser, sessionToken]);
 
   const loadSecureConfig = async () => {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const data: SecureRazorpayVaultData = await fetchSecureRazorpayConfig({
+      const data: SecureCashfreeVaultData = await fetchSecureCashfreeConfig({
         token: sessionToken || undefined,
-        adminEmail: currentUser?.email,
+        adminEmail: currentUser?.email || undefined,
         userRole: role || undefined
       });
 
       if (data.success) {
-        setKeyId(data.keyId || '');
-        setHasExistingSecret(data.hasKeySecret);
-        setMaskedSecret(data.maskedKeySecret || (data.hasKeySecret ? '••••••••••••••••' : ''));
+        setHasExistingAppId(data.hasAppId);
+        setMaskedAppId(data.maskedAppId || '');
+        setHasExistingSecret(data.hasSecretKey);
+        setMaskedSecretKey(data.maskedSecretKey || '');
+        setEnvironment(data.environment === 'production' ? 'production' : 'sandbox');
         setIsEnabled(data.isEnabled !== false);
         setMerchantName(data.merchantName || settings.schoolName || 'Composite JHS Harsinghpur Gova');
+        setMinAmount(data.minAmount || 100);
         setTaxExemptionNumber(data.taxExemptionNumber || '80G-DEL-2024-00129');
         setLastUpdated(data.lastUpdated || '');
-        setUpdatedBy(data.updatedBy || '');
-      } else {
-        // Fallback to existing public key in settings if available
-        if (settings.paymentConfig?.keyId) {
-          setKeyId(settings.paymentConfig.keyId);
-        }
-        if (data.error) {
-          setErrorMessage(data.error);
-        }
+      } else if (data.error) {
+        setErrorMessage(data.error);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to communicate with secure server vault.');
+      setErrorMessage(err?.message || 'Failed to communicate with Cashfree secure server vault.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Test live connection with Razorpay using server vault
   const handleTestConnection = async () => {
     setIsTesting(true);
     setTestResult(null);
     setErrorMessage('');
 
     try {
-      const res = await testSecureRazorpayConnection({
-        keyId: keyId.trim() || undefined,
-        keySecret: (isChangingSecret && newKeySecret.trim()) ? newKeySecret.trim() : undefined,
-        adminEmail: currentUser?.email,
+      const res = await testSecureCashfreeConnection({
+        appId: (isChangingAppId || !hasExistingAppId) && newAppId.trim() ? newAppId.trim() : undefined,
+        secretKey: (isChangingSecret || !hasExistingSecret) && newSecretKey.trim() ? newSecretKey.trim() : undefined,
+        environment,
+        adminEmail: currentUser?.email || undefined,
         userRole: role || undefined,
         sessionToken: sessionToken || undefined
       });
-
       setTestResult(res);
     } catch (err: any) {
       setTestResult({
         success: false,
-        error: err.message || 'Failed to run Razorpay connection probe.'
+        error: err?.message || 'Failed to verify Cashfree API credentials.'
       });
     } finally {
       setIsTesting(false);
     }
   };
 
-  // Save updated credentials to the secure backend vault
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!keyId.trim()) {
-      setErrorMessage('Razorpay Key ID is required.');
+    if (!hasExistingAppId && !newAppId.trim()) {
+      setErrorMessage('Cashfree App ID (Client ID) is required.');
       return;
     }
-
-    if (!hasExistingSecret && !newKeySecret.trim()) {
-      setErrorMessage('Razorpay Key Secret is required for initial configuration.');
+    if (!hasExistingSecret && !newSecretKey.trim()) {
+      setErrorMessage('Cashfree Secret Key (Client Secret) is required.');
       return;
     }
 
@@ -148,69 +144,67 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
     setErrorMessage('');
 
     try {
-      const isLive = keyId.trim().startsWith('rzp_live_');
       const payload = {
-        keyId: keyId.trim(),
-        keySecret: (isChangingSecret && newKeySecret.trim()) ? newKeySecret.trim() : undefined,
+        appId: (isChangingAppId || !hasExistingAppId) && newAppId.trim() ? newAppId.trim() : undefined,
+        secretKey: (isChangingSecret || !hasExistingSecret) && newSecretKey.trim() ? newSecretKey.trim() : undefined,
+        environment,
         isEnabled,
-        isLiveMode: isLive,
         merchantName: merchantName.trim() || settings.schoolName,
+        minAmount: Number(minAmount) >= 1 ? Math.round(Number(minAmount)) : 100,
         taxExemptionNumber: taxExemptionNumber.trim(),
         adminEmail: currentUser?.email || 'Super Admin',
         userRole: role || undefined,
         sessionToken: sessionToken || undefined
       };
 
-      const res = await saveSecureRazorpayConfig(payload);
+      const res = await saveSecureCashfreeConfig(payload);
 
       if (res.success) {
         setSaveSuccess(true);
+        setIsChangingAppId(false);
         setIsChangingSecret(false);
-        setNewKeySecret('');
-        
-        // Refresh state from response
+        setNewAppId('');
+        setNewSecretKey('');
+
         if (res.config) {
-          setHasExistingSecret(res.config.hasKeySecret);
-          setMaskedSecret(res.config.maskedKeySecret);
+          setHasExistingAppId(res.config.hasAppId);
+          setMaskedAppId(res.config.maskedAppId);
+          setHasExistingSecret(res.config.hasSecretKey);
+          setMaskedSecretKey(res.config.maskedSecretKey);
           setLastUpdated(res.config.lastUpdated);
         }
 
-        // Sync public, non-sensitive metadata (ONLY Key ID, status, and merchant name) to SchoolContext
-        // NOTE: keySecret is explicitly OMITTED to protect it from exposure in Firestore/client state!
+        // Sync ONLY non-sensitive metadata to SchoolContext / Firestore (NEVER keys!)
         await updatePaymentConfig({
           ...settings.paymentConfig,
           enabled: isEnabled,
           isEnabled,
-          keyId: keyId.trim(),
-          keySecret: '', // Strictly omitted from client/Firestore storage!
+          environment,
           merchantName: merchantName.trim() || settings.schoolName,
+          minAmount: Number(minAmount) >= 1 ? Math.round(Number(minAmount)) : 100,
           taxExemptionNumber: taxExemptionNumber.trim()
         });
 
-        // Add audit trail entry
         if (addAuditLog) {
-          await addAuditLog({
-            action: 'UPDATE_PAYMENT_GATEWAY_CREDENTIALS',
-            category: 'SECURITY',
-            details: `Updated Razorpay API Key ID (${keyId.trim().substring(0, 10)}...) and vault credentials. Mode: ${isLive ? 'LIVE' : 'TEST'}`,
-            performedBy: currentUser?.email || currentUser?.displayName || 'Super Admin',
-            userRole: role || 'admin',
-            timestamp: new Date().toISOString()
-          });
+          await addAuditLog(
+            'UPDATE_CASHFREE_CREDENTIALS',
+            'PaymentGateway',
+            'cashfree',
+            `Updated Cashfree PG configuration (${environment.toUpperCase()} mode, Enabled: ${isEnabled})`
+          );
         }
 
         setTimeout(() => setSaveSuccess(false), 5000);
       } else {
-        setErrorMessage(res.error || 'Failed to update credentials in server vault.');
+        setErrorMessage(res.error || 'Failed to save Cashfree credentials in server vault.');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred while saving.');
+      setErrorMessage(err?.message || 'Unexpected error while saving Cashfree vault configuration.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Unauthorized Super Admin fallback
   if (!isSuperAdmin) {
     return (
       <div className="bg-white p-8 rounded-3xl border border-rose-200 shadow-sm space-y-4 text-center max-w-xl mx-auto my-8">
@@ -221,86 +215,96 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
           {language === 'hi' ? 'प्रतिबंधित क्षेत्र - केवल सुपर एडमिन' : 'Access Restricted: Super Admin Only'}
         </h3>
         <p className="text-sm text-slate-600 leading-relaxed">
-          {language === 'hi' 
-            ? 'वित्तीय सुरक्षा के लिए Razorpay API Key व Secret प्रबंधन केवल अधिकृत सुपर एडमिन द्वारा ही किया जा सकता है। कृपया अपने मुख्य प्रशासक से संपर्क करें।'
-            : 'For financial security and compliance, Razorpay payment gateway credentials can only be inspected or modified by designated Super Administrators.'}
+          {language === 'hi'
+            ? 'वित्तीय सुरक्षा के लिए Cashfree App ID और Secret Key प्रबंधन केवल अधिकृत सुपर एडमिन द्वारा ही किया जा सकता है।'
+            : 'For financial security, Cashfree payment gateway credentials can only be viewed or updated by designated Super Administrators.'}
         </p>
-        <div className="pt-2 text-xs font-mono text-slate-400 bg-slate-50 py-2 rounded-xl border border-slate-200">
-          Current User: {currentUser?.email || 'Guest'} | Role: {role || 'Standard'}
-        </div>
       </div>
     );
   }
 
+  const webhookEndpoint =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/api/cashfree/webhook`
+      : '/api/cashfree/webhook';
+
   return (
     <div className="space-y-6">
-      {/* Header Banner with Security Badges */}
+      {/* Header Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-md border border-indigo-900/50 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-[11px] font-bold tracking-wide uppercase flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>End-to-End Server Vault</span>
+                <span>Cashfree PG v3 Server Vault</span>
               </span>
               <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg text-[11px] font-bold tracking-wide flex items-center gap-1">
                 <Lock className="w-3 h-3" />
-                <span>Zero Frontend Exposure</span>
+                <span>Zero Browser Key Exposure</span>
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
               <Key className="w-6 h-6 text-amber-400" />
-              <span>{language === 'hi' ? 'रेज़रपे सिक्योर एपीआई एवं गेटवे वॉल्ट' : 'Razorpay Secure Gateway & API Key Vault'}</span>
+              <span>{language === 'hi' ? 'कैशफ्री पेमेंट गेटवे सिक्योर वॉल्ट' : 'Cashfree Payment Gateway Secure Vault'}</span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
               {language === 'hi'
-                ? 'यहाँ सुपर एडमिन सुरक्षित रूप से Razorpay Key ID और Key Secret अपडेट कर सकते हैं। यह संवेदनशील डेटा केवल बैकएंड सर्वर वॉल्ट में सुरक्षित रहता है एवं कभी भी ब्राउज़र में एक्सपोज़ नहीं होता।'
-                : 'Super Admins can dynamically update the active Razorpay Key ID and Key Secret here. Sensitive secrets are stored strictly in the isolated server vault and never leaked to the client.'}
+                ? 'यहाँ सुपर एडमिन सुरक्षित रूप से Cashfree App ID और Secret Key दर्ज कर सकते हैं। सभी API कुंजियाँ केवल बैकएंड सर्वर वॉल्ट में सुरक्षित रहती हैं और कभी भी ब्राउज़र या पब्लिक Firestore में नहीं भेजी जातीं।'
+                : 'Configure your Cashfree Payments App ID and Secret Key here. All credentials remain strictly inside the isolated server vault and are never sent to the browser or Firestore.'}
             </p>
           </div>
 
           <div className="flex flex-col sm:items-end gap-2 shrink-0">
-            <div className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-2 ${
-              keyId.startsWith('rzp_live_')
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                : keyId.startsWith('rzp_test_')
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-slate-700/50 text-slate-300 border-slate-600'
-            }`}>
+            <div
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-2 ${
+                !hasExistingAppId || !hasExistingSecret
+                  ? 'bg-slate-700/60 text-slate-300 border-slate-600'
+                  : environment === 'production'
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+              }`}
+            >
               <Zap className="w-3.5 h-3.5" />
-              <span>{keyId.startsWith('rzp_live_') ? 'Production (Live Mode)' : keyId.startsWith('rzp_test_') ? 'Sandbox (Test Mode)' : 'Unconfigured'}</span>
+              <span>
+                {!hasExistingAppId || !hasExistingSecret
+                  ? 'Keys Required'
+                  : environment === 'production'
+                  ? 'Production (Live Mode)'
+                  : 'Sandbox (Test Mode)'}
+              </span>
             </div>
             {lastUpdated && (
               <span className="text-[10px] text-slate-400">
-                Last Vault Sync: {new Date(lastUpdated).toLocaleDateString()} {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Last Sync: {new Date(lastUpdated).toLocaleDateString()} {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
           </div>
         </div>
 
-        {/* Security Architecture Guarantees */}
+        {/* Security Architecture Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-indigo-900/60 text-xs">
           <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60">
             <Server className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-slate-200 block">Server-Side Storage</span>
-              <span className="text-[11px] text-slate-400">Keys reside on isolated container filesystem (`data/secure_razorpay.json`).</span>
+              <span className="font-bold text-slate-200 block">Isolated Server Vault</span>
+              <span className="text-[11px] text-slate-400">App ID & Secret Key are kept strictly server-side (`process.env` / vault).</span>
             </div>
           </div>
 
           <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60">
             <Shield className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-slate-200 block">Cryptographic Verification</span>
-              <span className="text-[11px] text-slate-400">HMAC-SHA256 signature verification executes strictly in the backend runtime.</span>
+              <span className="font-bold text-slate-200 block">Webhook & API Verification</span>
+              <span className="text-[11px] text-slate-400">Order status & HMAC-SHA256 webhook signatures verified on backend.</span>
             </div>
           </div>
 
           <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60">
             <FileCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-slate-200 block">Section 80G Compliant</span>
-              <span className="text-[11px] text-slate-400">Official tax deduction receipts automatically tagged with registration IDs.</span>
+              <span className="font-bold text-slate-200 block">Official Cashfree PG v3 SDK</span>
+              <span className="text-[11px] text-slate-400">Instant UPI, Cards, NetBanking & Wallets checkout with 80G receipts.</span>
             </div>
           </div>
         </div>
@@ -311,9 +315,9 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 flex items-center gap-3 animate-in fade-in">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
           <div>
-            <span className="font-bold text-sm block">Credentials successfully encrypted & stored in server vault!</span>
+            <span className="font-bold text-sm block">Cashfree API credentials saved securely in server vault!</span>
             <span className="text-emerald-700">
-              New transactions and donation checkouts will immediately use these updated keys. Secret was successfully omitted from client Firestore.
+              Donation checkout now uses Cashfree {environment.toUpperCase()} PG v3. Secret credentials were omitted from Firestore.
             </span>
           </div>
         </div>
@@ -323,24 +327,24 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-center gap-3 animate-in fade-in">
           <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
           <div>
-            <span className="font-bold text-sm block">Gateway Configuration Notice</span>
+            <span className="font-bold text-sm block">Cashfree Vault Notice</span>
             <span className="text-rose-700">{errorMessage}</span>
           </div>
         </div>
       )}
 
-      {/* Main Settings Form */}
+      {/* Main Cashfree Config Form */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
               <Lock className="w-4 h-4 text-amber-600" />
-              <span>{language === 'hi' ? 'रेज़रपे एपीआई कुंजी व सीक्रेट क्रेडेंशियल्स' : 'Razorpay API Key & Secret Credentials'}</span>
+              <span>{language === 'hi' ? 'Cashfree API कुंजी व सेटिंग्स' : 'Cashfree App ID, Secret Key & Environment'}</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               {language === 'hi'
-                ? 'Razorpay Dashboard (Settings -> API Keys) से प्राप्त Key ID व Key Secret यहाँ दर्ज करें।'
-                : 'Enter your live or test keys generated in your Razorpay Dashboard (Settings -> API Keys).'}
+                ? 'Cashfree Merchant Dashboard (Developers -> API Keys) से App ID और Secret Key यहाँ दर्ज करें।'
+                : 'Enter your App ID and Secret Key from Cashfree Merchant Dashboard (Developers -> Payment Gateway -> API Keys).'}
             </p>
           </div>
 
@@ -351,53 +355,85 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
               onChange={(e) => setIsEnabled(e.target.checked)}
               className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
             />
-            <span>{language === 'hi' ? 'सार्वजनिक डोनेशन पोर्टल सक्रिय रखें' : 'Online Donation Portal Active'}</span>
+            <span>{language === 'hi' ? 'ऑनलाइन भुगतान पोर्टल सक्रिय रखें' : 'Cashfree Checkout Active'}</span>
           </label>
         </div>
 
         {isLoading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-500">
             <RefreshCw className="w-6 h-6 animate-spin text-amber-600" />
-            <span className="text-xs font-medium">Connecting to secure server vault...</span>
+            <span className="text-xs font-medium">Loading Cashfree server vault...</span>
           </div>
         ) : (
           <form onSubmit={handleSaveConfig} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Key ID Field */}
+              {/* App ID Field */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <span>Razorpay Key ID</span>
+                    <span>Cashfree App ID (Client ID)</span>
                     <span className="text-rose-500">*</span>
                   </label>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                    keyId.startsWith('rzp_live_')
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : keyId.startsWith('rzp_test_')
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-slate-100 text-slate-500 border-slate-200'
-                  }`}>
-                    {keyId.startsWith('rzp_live_') ? 'LIVE KEY' : keyId.startsWith('rzp_test_') ? 'TEST KEY' : 'FORMAT: rzp_...'}
-                  </span>
+                  {hasExistingAppId && !isChangingAppId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsChangingAppId(true);
+                        setNewAppId('');
+                      }}
+                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>{language === 'hi' ? 'App ID बदलें' : 'Replace App ID'}</span>
+                    </button>
+                  )}
+                  {isChangingAppId && hasExistingAppId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsChangingAppId(false);
+                        setNewAppId('');
+                      }}
+                      className="text-[11px] font-medium text-slate-500 hover:text-slate-700 cursor-pointer"
+                    >
+                      Keep Existing
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  required
-                  placeholder="rzp_test_... or rzp_live_..."
-                  value={keyId}
-                  onChange={(e) => setKeyId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500 transition-colors"
-                />
+
+                {!isChangingAppId && hasExistingAppId ? (
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      disabled
+                      value={maskedAppId}
+                      className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-xl text-xs font-mono text-slate-500 select-none cursor-not-allowed"
+                    />
+                    <div className="absolute right-3 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                      <span>Vault Protected</span>
+                    </div>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    required={!hasExistingAppId}
+                    placeholder="Paste Cashfree App ID (e.g. TEST10... or PROD...)"
+                    value={newAppId}
+                    onChange={(e) => setNewAppId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500 transition-colors"
+                  />
+                )}
                 <span className="text-[11px] text-slate-500 block">
-                  Public identifier passed to checkout modal during payment session creation.
+                  Stored exclusively in backend server vault; never sent to browser.
                 </span>
               </div>
 
-              {/* Key Secret Field with Server-Side Masking */}
+              {/* Secret Key Field */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <span>Razorpay Key Secret</span>
+                    <span>Cashfree Secret Key (Client Secret)</span>
                     <span className="text-rose-500">*</span>
                   </label>
 
@@ -406,12 +442,12 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setIsChangingSecret(true);
-                        setNewKeySecret('');
+                        setNewSecretKey('');
                       }}
                       className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer flex items-center gap-1"
                     >
                       <RefreshCw className="w-3 h-3" />
-                      <span>{language === 'hi' ? 'नया सीक्रेट बदलें' : 'Replace Secret'}</span>
+                      <span>{language === 'hi' ? 'Secret बदलें' : 'Replace Secret'}</span>
                     </button>
                   )}
 
@@ -420,11 +456,11 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setIsChangingSecret(false);
-                        setNewKeySecret('');
+                        setNewSecretKey('');
                       }}
                       className="text-[11px] font-medium text-slate-500 hover:text-slate-700 cursor-pointer"
                     >
-                      {language === 'hi' ? 'रद्द करें (मौजूदा रखें)' : 'Keep Existing Secret'}
+                      Keep Existing Secret
                     </button>
                   )}
                 </div>
@@ -434,7 +470,7 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
                     <input
                       type="text"
                       disabled
-                      value={maskedSecret}
+                      value={maskedSecretKey}
                       className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-xl text-xs font-mono text-slate-500 select-none cursor-not-allowed"
                     />
                     <div className="absolute right-3 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
@@ -447,9 +483,9 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
                     <input
                       type={showNewSecret ? 'text' : 'password'}
                       required={!hasExistingSecret}
-                      placeholder={hasExistingSecret ? 'Enter new Key Secret to replace existing' : 'Paste Razorpay Key Secret'}
-                      value={newKeySecret}
-                      onChange={(e) => setNewKeySecret(e.target.value)}
+                      placeholder={hasExistingSecret ? 'Enter new Cashfree Secret Key' : 'Paste Cashfree Secret Key (cfsk_ma_...)'}
+                      value={newSecretKey}
+                      onChange={(e) => setNewSecretKey(e.target.value)}
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500 pr-10"
                     />
                     <button
@@ -462,19 +498,62 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
                     </button>
                   </div>
                 )}
-
                 <span className="text-[11px] text-slate-500 block">
-                  {isChangingSecret 
-                    ? 'Note: Upon saving, this secret will be securely encrypted into the backend vault.'
-                    : 'The secret is never transmitted to the frontend and is kept strictly in the server vault.'}
+                  Used strictly on server for order creation, payment status verification, and webhook HMAC signatures.
                 </span>
               </div>
 
-              {/* Merchant / Institution Name */}
+              {/* Environment Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Gateway Environment</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEnvironment('sandbox')}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
+                      environment === 'sandbox'
+                        ? 'bg-amber-50 border-amber-500 text-amber-900 ring-2 ring-amber-500/20'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Sandbox (Test)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEnvironment('production')}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
+                      environment === 'production'
+                        ? 'bg-emerald-50 border-emerald-600 text-emerald-900 ring-2 ring-emerald-500/20'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Production (Live)
+                  </button>
+                </div>
+              </div>
+
+              {/* Minimum Amount */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span>Minimum Contribution Amount (₹)</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(Number(e.target.value) || 100)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500"
+                />
+              </div>
+
+              {/* Merchant Name */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                  <span>College Merchant Name (Modal Display)</span>
+                  <span>Institution Display Name</span>
                 </label>
                 <input
                   type="text"
@@ -483,16 +562,13 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
                   placeholder="Composite Junior High School Harsinghpur Gova"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500"
                 />
-                <span className="text-[11px] text-slate-500 block">
-                  Institutional title shown at the top of the Razorpay checkout overlay.
-                </span>
               </div>
 
-              {/* 80G Tax Exemption Registration */}
+              {/* 80G Registration Number */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <FileCheck className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Section 80G Tax Exemption Certificate Number</span>
+                  <span>Section 80G Certificate Number</span>
                 </label>
                 <input
                   type="text"
@@ -501,63 +577,55 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
                   placeholder="e.g. 80G-DEL-2024-00129"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono uppercase text-slate-900 focus:bg-white focus:outline-hidden focus:border-amber-500"
                 />
-                <span className="text-[11px] text-slate-500 block">
-                  Printed on official donor receipts for Indian Income Tax exemption eligibility.
-                </span>
               </div>
             </div>
 
-            {/* Test Connection Probe Diagnostic Box */}
+            {/* Test Connection Result */}
             {testResult && (
-              <div className={`p-4 rounded-2xl border text-xs space-y-1.5 animate-in fade-in ${
-                testResult.success
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                  : 'bg-rose-50 border-rose-200 text-rose-900'
-              }`}>
+              <div
+                className={`p-4 rounded-2xl border text-xs space-y-1 animate-in fade-in ${
+                  testResult.success
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-rose-50 border-rose-200 text-rose-900'
+                }`}
+              >
                 <div className="flex items-center gap-2 font-bold text-sm">
                   {testResult.success ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   ) : (
                     <AlertTriangle className="w-4 h-4 text-rose-600" />
                   )}
-                  <span>{testResult.success ? 'Razorpay API Handshake Successful!' : 'Connection Handshake Failed'}</span>
-                  {testResult.mode && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-emerald-300 font-mono font-bold">
-                      {testResult.mode} MODE
+                  <span>{testResult.success ? 'Cashfree API Connection Verified!' : 'Cashfree Authentication Failed'}</span>
+                  {testResult.environment && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-emerald-300 font-mono font-bold uppercase">
+                      {testResult.environment}
                     </span>
                   )}
                 </div>
-                <p className="text-xs">
-                  {testResult.message || testResult.error}
-                </p>
-                {testResult.success && (
-                  <p className="text-[11px] text-emerald-700">
-                    A test verification order was successfully generated and acknowledged by Razorpay API servers.
-                  </p>
-                )}
+                <p>{testResult.message || testResult.error}</p>
               </div>
             )}
 
-            {/* Actions Bar */}
+            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={handleTestConnection}
-                  disabled={isTesting || (!keyId && !hasExistingSecret)}
+                  disabled={isTesting}
                   className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
-                  <span>{isTesting ? 'Testing Connection...' : 'Test API Connection'}</span>
+                  <span>{isTesting ? 'Testing Cashfree API...' : 'Test Cashfree Connection'}</span>
                 </button>
 
                 <a
-                  href="https://dashboard.razorpay.com/app/keys"
+                  href="https://merchant.cashfree.com/merchants/pg/developers/api-keys"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3 py-2.5 text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 underline underline-offset-2"
                 >
-                  <span>Razorpay Keys Docs</span>
+                  <span>Cashfree Dashboard Keys</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
@@ -570,12 +638,12 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
                 {isSaving ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Encrypting & Storing in Vault...</span>
+                    <span>Saving to Server Vault...</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>{language === 'hi' ? 'सुरक्षित वॉल्ट में सेव करें' : 'Save to Secure Vault'}</span>
+                    <span>{language === 'hi' ? 'Cashfree वॉल्ट में सेव करें' : 'Save to Cashfree Vault'}</span>
                   </>
                 )}
               </button>
@@ -584,21 +652,21 @@ export const AdminRazorpaySecureSettings: React.FC = () => {
         )}
       </div>
 
-      {/* Security Best Practices Card */}
+      {/* Webhook & Required Details Checklist */}
       <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-3">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
           <Info className="w-4 h-4 text-indigo-600" />
-          <span>Security & Compliance Checklist for College Administration</span>
+          <span>Cashfree Integration & Webhook Checklist</span>
         </h4>
         <ul className="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
           <li>
-            <strong>Test Mode First:</strong> Always verify transactions using test keys (<code className="font-mono text-slate-800 font-bold">rzp_test_...</code>) before entering live credentials.
+            <strong>Required Credentials:</strong> Enter your Cashfree <strong>App ID</strong> (`x-client-id`) and <strong>Secret Key</strong> (`x-client-secret`) above (or set `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_ENV` in server environment Secrets).
           </li>
           <li>
-            <strong>Rotation:</strong> If you suspect any credential compromise, regenerate the Key Secret in your Razorpay Dashboard and immediately update it here.
+            <strong>Webhook URL:</strong> Configure <code className="font-mono text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">{webhookEndpoint}</code> in your Cashfree Merchant Dashboard (Developers → Webhooks) for server-side payment confirmations.
           </li>
           <li>
-            <strong>Zero Frontend Leakage:</strong> This portal securely routes orders and HMAC verification through the backend. Key Secrets are never stored in browser localStorage, cookies, or public Firestore collections.
+            <strong>Zero Frontend Exposure:</strong> Neither App ID nor Secret Key is stored in browser storage or public Firestore; all Cashfree PG v3 calls and HMAC signature checks run exclusively on the server.
           </li>
         </ul>
       </div>

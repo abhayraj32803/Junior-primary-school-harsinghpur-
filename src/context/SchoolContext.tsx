@@ -30,7 +30,7 @@ import {
   PromotionDecision,
   PromotionBatchSummary,
   DonationRecord,
-  RazorpayPaymentConfig
+  CashfreePaymentConfig
 } from '../types';
 import { 
   initialClasses, 
@@ -62,13 +62,23 @@ import {
 } from '../data/seedData';
 import { 
   db, 
+  auth,
   collection, 
   doc, 
   getDocs, 
   setDoc, 
   updateDoc, 
-  deleteDoc 
+  deleteDoc,
+  writeBatch,
+  query,
+  where,
+  onSnapshot,
+  checkFirestoreConnection,
+  subscribeFirestoreConnection,
+  getFirestoreConnectionStatus,
+  FirestoreConnectionDiagnostics
 } from '../lib/firebase';
+import { handleFirestoreError, OperationType } from '../lib/firestoreErrors';
 import { useAuth } from './AuthContext';
 
 interface SchoolContextType {
@@ -104,6 +114,10 @@ interface SchoolContextType {
   verificationLogs: VerificationLog[];
   donations: DonationRecord[];
   loading: boolean;
+  firebaseStatus: FirestoreConnectionDiagnostics;
+  lastFirestoreSyncAt: string | null;
+  refreshFirestoreConnection: () => Promise<FirestoreConnectionDiagnostics>;
+  syncAllDataToFirestore: () => Promise<{ success: boolean; syncedCollections: number; totalDocs: number; error?: string }>;
 
   // Verification & Logs Actions
   addVerificationLog: (log: Omit<VerificationLog, 'id' | 'updatedAt'>) => Promise<string>;
@@ -214,11 +228,12 @@ interface SchoolContextType {
   addAuditLog: (action: string, entity: string, entityId?: string, details?: string) => Promise<void>;
   updateSettings: (newSettings: Partial<SchoolSettings>) => Promise<void>;
   resetToDefaultSeedData: () => Promise<void>;
+  resetToSeedData: () => Promise<void>;
 
-  // College Donations & Razorpay Actions
+  // School Donations & Cashfree Payment Gateway Actions
   addDonationRecord: (record: Omit<DonationRecord, 'id' | 'createdAt'>) => Promise<DonationRecord>;
   updateDonationRecord: (id: string, updates: Partial<DonationRecord>) => Promise<void>;
-  updatePaymentConfig: (newConfig: Partial<RazorpayPaymentConfig>) => Promise<void>;
+  updatePaymentConfig: (newConfig: Partial<CashfreePaymentConfig>) => Promise<void>;
 }
 
 const SchoolContext = createContext<SchoolContextType | undefined>(undefined);
@@ -353,7 +368,15 @@ function saveLocal<T>(key: string, data: T) {
 }
 
 export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser, authReady } = useAuth();
+  const [firebaseStatus, setFirebaseStatus] = useState<FirestoreConnectionDiagnostics>(() => getFirestoreConnectionStatus());
+  const [lastFirestoreSyncAt, setLastFirestoreSyncAt] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(LOCAL_STORAGE_PREFIX + 'last_firestore_sync');
+    } catch {
+      return null;
+    }
+  });
 
   const [language, setLanguage] = useState<'hi' | 'en'>(() => {
     const saved = localStorage.getItem('sms_gov_lang');
@@ -417,106 +440,342 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { saveLocal('verificationLogs', verificationLogs); }, [verificationLogs]);
   useEffect(() => { saveLocal('donations', donations); }, [donations]);
 
-  // Initial Firestore Data Hydration
+  // Subscribe to live Firestore connection diagnostics
   useEffect(() => {
+    return subscribeFirestoreConnection(setFirebaseStatus);
+  }, []);
+
+  const refreshFirestoreConnection = async () => {
+    const diag = await checkFirestoreConnection();
+    setFirebaseStatus(diag);
+    return diag;
+  };
+
+  // Phase 1: Real-time Firestore onSnapshot listeners for public school collections (allow read: if true)
+  useEffect(() => {
+    if (!db) return;
     let isMounted = true;
-    const hydrateFromFirestore = async () => {
-      if (!db) return;
-      setLoading(true);
+    setLoading(true);
+    const unsubscribers: Array<() => void> = [];
 
-      // Fetch teachers from Firestore (public)
-      try {
-        const tchSnap = await getDocs(collection(db, 'teachers'));
-        if (!tchSnap.empty && isMounted) {
-          const remoteTch: Teacher[] = [];
-          tchSnap.forEach(d => remoteTch.push(d.data() as Teacher));
-          if (remoteTch.length > 0) {
-            setTeachers(prev => {
-              const map = new Map(prev.map(t => [t.id, t]));
-              remoteTch.forEach(t => map.set(t.id, t));
-              return Array.from(map.values());
-            });
-          }
-        }
-      } catch (e) {
-        // Teacher fetch fallback to local/seed
-      }
-
-      // Fetch notices from Firestore (public)
-      try {
-        const notSnap = await getDocs(collection(db, 'notices'));
-        if (!notSnap.empty && isMounted) {
-          const remoteNot: Notice[] = [];
-          notSnap.forEach(d => remoteNot.push(d.data() as Notice));
-          if (remoteNot.length > 0) {
-            setNotices(prev => {
-              const map = new Map(prev.map(n => [n.id, n]));
-              remoteNot.forEach(n => map.set(n.id, n));
-              return Array.from(map.values());
-            });
-          }
-        }
-      } catch (e) {
-        // Notice fetch fallback
-      }
-
-      // Fetch settings from Firestore (public)
-      try {
-        const setSnap = await getDocs(collection(db, 'settings'));
-        if (!setSnap.empty && isMounted) {
-          const cfg = setSnap.docs.find(d => d.id === 'school_config');
-          if (cfg) {
-            setSettings(prev => ({ ...prev, ...(cfg.data() as SchoolSettings) }));
-          }
-        }
-      } catch (e) {
-        // Settings fetch fallback
-      }
-
-      // Fetch students from Firestore (if permission granted / authorized)
-      try {
-        const stuSnap = await getDocs(collection(db, 'students'));
-        if (!stuSnap.empty && isMounted) {
-          const remoteStu: Student[] = [];
-          stuSnap.forEach(d => remoteStu.push(d.data() as Student));
-          if (remoteStu.length > 0) {
-            setStudents(prev => {
-              const map = new Map(prev.map(s => [s.id, s]));
-              remoteStu.forEach(s => map.set(s.id, s));
-              return Array.from(map.values());
-            });
-          }
-        }
-      } catch (e) {
-        // Student fetch fallback for guest/unauthorized state
-      }
-
-      // Fetch donations from Firestore (public receipts / admin ledger)
-      try {
-        const donSnap = await getDocs(collection(db, 'donations'));
-        if (!donSnap.empty && isMounted) {
-          const remoteDon: DonationRecord[] = [];
-          donSnap.forEach(d => remoteDon.push(d.data() as DonationRecord));
-          if (remoteDon.length > 0) {
-            setDonations(prev => {
-              const map = new Map<string, DonationRecord>(prev.map(d => [d.id, d]));
-              remoteDon.forEach(d => map.set(d.id, d));
-              return Array.from(map.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            });
-          }
-        }
-      } catch (e) {
-        // Donation fetch fallback
-      }
-
-      if (isMounted) setLoading(false);
+    const mergeById = <T extends { id: string }>(prev: T[], incoming: T[]): T[] => {
+      if (incoming.length === 0) return prev;
+      const map = new Map<string, T>(prev.map(item => [item.id, item]));
+      incoming.forEach(item => {
+        if (item && item.id) map.set(item.id, item);
+      });
+      return Array.from(map.values());
     };
 
-    hydrateFromFirestore();
+    const attachPublicListener = <T extends { id: string }>(
+      collectionName: string,
+      onData: (items: T[]) => void
+    ) => {
+      const unsub = onSnapshot(
+        collection(db, collectionName),
+        (snap) => {
+          if (!isMounted || snap.empty) return;
+          const items: T[] = [];
+          snap.forEach(d => items.push({ id: d.id, ...(d.data() as any) } as T));
+          onData(items);
+          setLastFirestoreSyncAt(new Date().toISOString());
+        },
+        (err) => {
+          if (err?.code === 'permission-denied') {
+            handleFirestoreError(err, OperationType.LIST, collectionName);
+          } else {
+            console.warn(`Firestore public listener (${collectionName}) notice:`, err?.code || err?.message);
+          }
+        }
+      );
+      unsubscribers.push(unsub);
+    };
+
+    // Settings (school_config / config)
+    unsubscribers.push(
+      onSnapshot(
+        collection(db, 'settings'),
+        (snap) => {
+          if (!isMounted) return;
+          if (!snap.empty) {
+            const cfg = snap.docs.find(d => d.id === 'school_config') || snap.docs.find(d => d.id === 'config');
+            if (cfg) {
+              setSettings(prev => ({ ...prev, ...(cfg.data() as SchoolSettings) }));
+              setLastFirestoreSyncAt(new Date().toISOString());
+            }
+          }
+          setLoading(false);
+        },
+        (err) => {
+          if (isMounted) setLoading(false);
+          if (err?.code === 'permission-denied') {
+            handleFirestoreError(err, OperationType.LIST, 'settings');
+          }
+        }
+      )
+    );
+
+    attachPublicListener<Teacher>('teachers', (items) => setTeachers(prev => mergeById(prev, items)));
+    attachPublicListener<SchoolClass>('classes', (items) => setClasses(prev => mergeById(prev, items)));
+    attachPublicListener<Section>('sections', (items) => setSections(prev => mergeById(prev, items)));
+    attachPublicListener<Subject>('subjects', (items) => setSubjects(prev => mergeById(prev, items)));
+    attachPublicListener<Examination>('examinations', (items) => setExaminations(prev => mergeById(prev, items)));
+    attachPublicListener<TimetableItem>('timetable', (items) => setTimetable(prev => mergeById(prev, items)));
+    attachPublicListener<Notice>('notices', (items) =>
+      setNotices(prev =>
+        mergeById(prev, items).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      )
+    );
+    attachPublicListener<FacilityItem>('facilities', (items) => setFacilities(prev => mergeById(prev, items)));
+    attachPublicListener<GovernmentScheme>('governmentSchemes', (items) => setGovernmentSchemes(prev => mergeById(prev, items)));
+    attachPublicListener<GalleryItem>('gallery', (items) =>
+      setGallery(prev =>
+        mergeById(prev, items).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      )
+    );
+    attachPublicListener<PublicDocument>('publicDocuments', (items) => setPublicDocuments(prev => mergeById(prev, items)));
+
+    const fallbackTimer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 1500);
+
     return () => {
       isMounted = false;
+      clearTimeout(fallbackTimer);
+      unsubscribers.forEach(unsub => unsub());
     };
   }, []);
+
+  // Phase 2: Real-time Firestore onSnapshot listeners for protected collections
+  // Strictly gated behind authReady && currentUser to prevent unauthenticated permission errors
+  useEffect(() => {
+    if (!db || !authReady || !currentUser?.uid) return;
+    let isMounted = true;
+    const unsubscribers: Array<() => void> = [];
+    const role = userProfile?.role;
+
+    const mergeById = <T extends { id: string }>(prev: T[], incoming: T[]): T[] => {
+      if (incoming.length === 0) return prev;
+      const map = new Map<string, T>(prev.map(item => [item.id, item]));
+      incoming.forEach(item => {
+        if (item && item.id) map.set(item.id, item);
+      });
+      return Array.from(map.values());
+    };
+
+    const handleProtectedError = (err: any, path: string) => {
+      if (!auth.currentUser) return;
+      if (err?.code === 'permission-denied') {
+        console.warn(`Firestore protected listener (${path}) permission notice:`, err.message);
+      } else {
+        console.warn(`Firestore listener (${path}) notice:`, err?.code || err?.message);
+      }
+    };
+
+    if (role === 'admin' || role === 'teacher') {
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'students'),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: Student[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setStudents(prev => mergeById(prev, remote));
+            setLastFirestoreSyncAt(new Date().toISOString());
+          },
+          (err) => handleProtectedError(err, 'students')
+        )
+      );
+
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'attendance'),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: AttendanceRecord[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setAttendance(prev => mergeById(prev, remote));
+          },
+          (err) => handleProtectedError(err, 'attendance')
+        )
+      );
+
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'marks'),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: Mark[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setMarks(prev => mergeById(prev, remote));
+          },
+          (err) => handleProtectedError(err, 'marks')
+        )
+      );
+
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'submissions'),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: Submission[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setSubmissions(prev => mergeById(prev, remote));
+          },
+          (err) => handleProtectedError(err, 'submissions')
+        )
+      );
+
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'documents'),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: StudentDocument[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setDocuments(prev => mergeById(prev, remote));
+          },
+          (err) => handleProtectedError(err, 'documents')
+        )
+      );
+    } else if (role === 'student') {
+      // Student-scoped queries conforming to firestore.rules
+      unsubscribers.push(
+        onSnapshot(
+          query(collection(db, 'students'), where('uid', '==', currentUser.uid)),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: Student[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setStudents(prev => mergeById(prev, remote));
+          },
+          (err) => handleProtectedError(err, 'students (student)')
+        )
+      );
+
+      if (userProfile?.classNumber) {
+        unsubscribers.push(
+          onSnapshot(
+            query(collection(db, 'attendance'), where('classNumber', '==', Number(userProfile.classNumber))),
+            (snap) => {
+              if (!isMounted || snap.empty) return;
+              const remote: AttendanceRecord[] = [];
+              snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+              setAttendance(prev => mergeById(prev, remote));
+            },
+            (err) => handleProtectedError(err, 'attendance (student)')
+          )
+        );
+      }
+
+      const stuTargetId = userProfile?.linkedEntityId || currentUser.uid;
+      unsubscribers.push(
+        onSnapshot(
+          query(collection(db, 'marks'), where('studentId', '==', stuTargetId)),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: Mark[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setMarks(prev => mergeById(prev, remote));
+          },
+          (err) => handleProtectedError(err, 'marks (student)')
+        )
+      );
+
+      unsubscribers.push(
+        onSnapshot(
+          query(collection(db, 'submissions'), where('studentId', '==', currentUser.uid)),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: Submission[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setSubmissions(prev => mergeById(prev, remote));
+          },
+          (err) => handleProtectedError(err, 'submissions (student)')
+        )
+      );
+    }
+
+    // All signed-in users can read homework & teacherAssignments
+    unsubscribers.push(
+      onSnapshot(
+        collection(db, 'homework'),
+        (snap) => {
+          if (!isMounted || snap.empty) return;
+          const remote: Homework[] = [];
+          snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+          setHomeworkList(prev => mergeById(prev, remote));
+        },
+        (err) => handleProtectedError(err, 'homework')
+      )
+    );
+
+    unsubscribers.push(
+      onSnapshot(
+        collection(db, 'teacherAssignments'),
+        (snap) => {
+          if (!isMounted || snap.empty) return;
+          const remote: TeacherAssignment[] = [];
+          snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+          setTeacherAssignments(prev => mergeById(prev, remote));
+        },
+        (err) => handleProtectedError(err, 'teacherAssignments')
+      )
+    );
+
+    // Admin-only collections: donations list, auditLogs, verificationLogs
+    if (role === 'admin') {
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'donations'),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: DonationRecord[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setDonations(prev =>
+              mergeById(prev, remote).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            );
+          },
+          (err) => handleProtectedError(err, 'donations')
+        )
+      );
+
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'auditLogs'),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: AuditLog[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setAuditLogs(prev =>
+              mergeById(prev, remote).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            );
+          },
+          (err) => handleProtectedError(err, 'auditLogs')
+        )
+      );
+
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'verificationLogs'),
+          (snap) => {
+            if (!isMounted || snap.empty) return;
+            const remote: VerificationLog[] = [];
+            snap.forEach(d => remote.push({ id: d.id, ...(d.data() as any) }));
+            setVerificationLogs(prev =>
+              mergeById(prev, remote).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            );
+          },
+          (err) => handleProtectedError(err, 'verificationLogs')
+        )
+      );
+    }
+
+    return () => {
+      isMounted = false;
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, [authReady, currentUser?.uid, userProfile?.role, userProfile?.classNumber, userProfile?.linkedEntityId]);
 
   // Ensure logged-in student's registered profile is seamlessly present and synced in students collection state
   useEffect(() => {
@@ -995,6 +1254,13 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const newClass: SchoolClass = { ...data, id, createdAt: new Date().toISOString() };
     setClasses(prev => [...prev, newClass]);
     await addAuditLog('ADD_CLASS', 'Class', id, `Created ${newClass.name}`);
+    try {
+      await setDoc(doc(db, 'classes', id), newClass);
+    } catch (e) {
+      if (auth.currentUser) {
+        handleFirestoreError(e, OperationType.WRITE, `classes/${id}`);
+      }
+    }
     return id;
   };
 
@@ -1565,7 +1831,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (e) {}
   };
 
-  // College Donations & Razorpay Payment Gateway Actions
+  // School Donations & Cashfree Payment Gateway Actions
   const addDonationRecord = async (data: Omit<DonationRecord, 'id' | 'createdAt'>): Promise<DonationRecord> => {
     const newId = `don-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const currentYear = new Date().getFullYear();
@@ -1610,9 +1876,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const updatePaymentConfig = async (newConfig: Partial<RazorpayPaymentConfig>): Promise<void> => {
-    const currentConfig: RazorpayPaymentConfig = settings.paymentConfig || initialSettings.paymentConfig!;
-    const mergedConfig: RazorpayPaymentConfig = {
+  const updatePaymentConfig = async (newConfig: Partial<CashfreePaymentConfig>): Promise<void> => {
+    const currentConfig: CashfreePaymentConfig = settings.paymentConfig || initialSettings.paymentConfig!;
+    const mergedConfig: CashfreePaymentConfig = {
       ...currentConfig,
       ...newConfig,
       lastUpdated: new Date().toISOString(),
@@ -1627,8 +1893,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await addAuditLog(
       'UPDATE_PAYMENT_CONFIG',
       'PaymentGateway',
-      'razorpay',
-      `Updated Razorpay configuration: Key ID ${mergedConfig.keyId ? `(...${mergedConfig.keyId.slice(-6)})` : 'empty'}, Mode: ${mergedConfig.isLiveMode ? 'LIVE' : 'TEST'}, Enabled: ${mergedConfig.enabled}`
+      'cashfree',
+      `Updated Cashfree configuration: Environment ${mergedConfig.environment || 'sandbox'}, Enabled: ${mergedConfig.enabled}`
     );
 
     try {
@@ -1747,6 +2013,93 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (e) {}
   };
 
+  const syncAllDataToFirestore = async (): Promise<{
+    success: boolean;
+    syncedCollections: number;
+    totalDocs: number;
+    error?: string;
+  }> => {
+    if (!auth.currentUser) {
+      return {
+        success: false,
+        syncedCollections: 0,
+        totalDocs: 0,
+        error: 'Firestore में डेटा सिंक करने के लिए कृपया पहले Google (Admin खाते) से Firebase Auth में लॉगिन करें।',
+      };
+    }
+
+    try {
+      const collectionsToSync: Array<{ name: string; docs: Array<{ id: string; data: any }> }> = [
+        {
+          name: 'settings',
+          docs: [
+            { id: 'school_config', data: settings },
+            { id: 'config', data: settings },
+          ],
+        },
+        { name: 'classes', docs: classes.map(c => ({ id: c.id, data: c })) },
+        { name: 'sections', docs: sections.map(s => ({ id: s.id, data: s })) },
+        { name: 'subjects', docs: subjects.map(s => ({ id: s.id, data: s })) },
+        { name: 'teachers', docs: teachers.map(t => ({ id: t.id, data: t })) },
+        { name: 'teacherAssignments', docs: teacherAssignments.map(a => ({ id: a.id, data: a })) },
+        { name: 'students', docs: students.map(s => ({ id: s.id, data: s })) },
+        { name: 'examinations', docs: examinations.map(e => ({ id: e.id, data: e })) },
+        { name: 'timetable', docs: timetable.map(t => ({ id: t.id, data: t })) },
+        { name: 'notices', docs: notices.map(n => ({ id: n.id, data: n })) },
+        { name: 'facilities', docs: facilities.map(f => ({ id: f.id, data: f })) },
+        { name: 'governmentSchemes', docs: governmentSchemes.map(g => ({ id: g.id, data: g })) },
+        { name: 'gallery', docs: gallery.map(g => ({ id: g.id, data: g })) },
+        { name: 'publicDocuments', docs: publicDocuments.map(p => ({ id: p.id, data: p })) },
+        { name: 'donations', docs: donations.map(d => ({ id: d.id, data: d })) },
+        { name: 'attendance', docs: attendance.map(a => ({ id: a.id, data: a })) },
+        { name: 'marks', docs: marks.map(m => ({ id: m.id, data: m })) },
+        { name: 'homework', docs: homeworkList.map(h => ({ id: h.id, data: h })) },
+        { name: 'submissions', docs: submissions.map(s => ({ id: s.id, data: s })) },
+        { name: 'documents', docs: documents.map(d => ({ id: d.id, data: d })) },
+      ];
+
+      let batch = writeBatch(db);
+      let opCount = 0;
+      let totalDocs = 0;
+      let syncedCollections = 0;
+
+      for (const col of collectionsToSync) {
+        if (col.docs.length === 0) continue;
+        syncedCollections++;
+        for (const entry of col.docs) {
+          if (!entry.id) continue;
+          const cleanId = String(entry.id).replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 128);
+          batch.set(doc(db, col.name, cleanId), { ...entry.data, id: cleanId }, { merge: true });
+          opCount++;
+          totalDocs++;
+          if (opCount >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            opCount = 0;
+          }
+        }
+      }
+
+      if (opCount > 0) {
+        await batch.commit();
+      }
+
+      const syncedAt = new Date().toISOString();
+      setLastFirestoreSyncAt(syncedAt);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_PREFIX + 'last_firestore_sync', syncedAt);
+      } catch {
+        // ignore
+      }
+      await refreshFirestoreConnection();
+      await addAuditLog('FIRESTORE_FULL_SYNC', 'Database', 'all', `Synchronized ${totalDocs} documents across ${syncedCollections} Firestore collections.`);
+      return { success: true, syncedCollections, totalDocs };
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      return { success: false, syncedCollections: 0, totalDocs: 0, error: msg };
+    }
+  };
+
   const resetToDefaultSeedData = async () => {
     setStudents(initialStudents);
     setTeachers(initialTeachers);
@@ -1826,6 +2179,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         verificationLogs,
         donations,
         loading,
+        firebaseStatus,
+        lastFirestoreSyncAt,
+        refreshFirestoreConnection,
+        syncAllDataToFirestore,
 
         addVerificationLog,
         updateSchoolSettingsWithAudit,
@@ -1895,6 +2252,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addAuditLog,
         updateSettings,
         resetToDefaultSeedData,
+        resetToSeedData: resetToDefaultSeedData,
 
         addDonationRecord,
         updateDonationRecord,

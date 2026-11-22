@@ -6,19 +6,21 @@ import {
   TrendingUp, 
   History,
   CreditCard,
-  Key
+  Key,
+  Mail
 } from 'lucide-react';
 import { AdminSettings } from '../AdminSettings';
 import { AdminUsers } from '../AdminUsers';
 import { AdminReports } from '../AdminReports';
 import { AdminAuditLogs } from '../AdminAuditLogs';
 import { AdminDonations } from '../AdminDonations';
-import { AdminRazorpaySecureSettings } from '../settings/AdminRazorpaySecureSettings';
+import { AdminCashfreeSettings } from '../settings/AdminCashfreeSettings';
+import { AdminSmtpSettings } from '../settings/AdminSmtpSettings';
 import { AdminPageHeader } from '../ui/AdminPageHeader';
 import { AdminTabNav, TabItem } from '../ui/AdminTabNav';
 import { HubViewSkeleton } from '../../common/SkeletonLoading';
 
-export type GovernanceSubTab = 'settings' | 'razorpay-vault' | 'donations' | 'users' | 'reports' | 'audit';
+export type GovernanceSubTab = 'settings' | 'cashfree-vault' | 'smtp-settings' | 'donations' | 'users' | 'reports' | 'audit';
 
 interface AdminGovernanceHubProps {
   initialSubTab?: GovernanceSubTab;
@@ -41,7 +43,7 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
   }, [initialSubTab]);
 
   if (loading || isLoading) {
-    return <HubViewSkeleton subTabCount={6} type="table" />;
+    return <HubViewSkeleton subTabCount={7} type="table" />;
   }
 
   const subTabs: TabItem<GovernanceSubTab>[] = [
@@ -51,9 +53,14 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
       icon: Settings
     },
     {
-      id: 'razorpay-vault',
-      label: language === 'hi' ? 'रेज़रपे सिक्योर वॉल्ट' : 'Razorpay Secure Vault',
+      id: 'cashfree-vault',
+      label: language === 'hi' ? 'Cashfree पेमेंट वॉल्ट' : 'Cashfree Gateway Vault',
       icon: Key
+    },
+    {
+      id: 'smtp-settings',
+      label: language === 'hi' ? 'SMTP ईमेल सर्वर' : 'SMTP Email Server',
+      icon: Mail
     },
     {
       id: 'donations',
@@ -86,7 +93,7 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
         badge={language === 'hi' ? 'प्रशासन व सुरक्षा' : 'Governance & Security'}
         badgeVariant="rose"
         title={language === 'hi' ? 'प्रशासन, दान प्रबंधन व सेटिंग्स' : 'Governance, Donations & System Settings'}
-        description={language === 'hi' ? 'विद्यालय संस्थागत सेटिंग्स, रेज़रपे गेटवे एपीआई, कॉलेज दान उद्देश्य, शिक्षक/छात्र लॉगिन नियंत्रण एवं पूर्ण ऑडिट ट्रेल लॉग।' : 'Configure school metadata, manage Razorpay API keys & donation causes, control user access, and inspect the security audit trail.'}
+        description={language === 'hi' ? 'विद्यालय संस्थागत सेटिंग्स, Cashfree पेमेंट गेटवे, SMTP ईमेल सर्वर, कॉलेज दान उद्देश्य, शिक्षक/छात्र लॉगिन नियंत्रण एवं पूर्ण ऑडिट ट्रेल लॉग।' : 'Configure school metadata, manage Cashfree payment gateway & SMTP email server, control user access, and inspect the security audit trail.'}
       />
 
       {/* Sub Navigation Tabs */}
@@ -101,8 +108,9 @@ export const AdminGovernanceHub: React.FC<AdminGovernanceHubProps> = ({
       {/* Sub Tab Content */}
       <div className="pt-1">
         {activeSubTab === 'settings' && <AdminSettings />}
-        {activeSubTab === 'razorpay-vault' && <AdminRazorpaySecureSettings />}
-        {activeSubTab === 'donations' && <AdminDonations onNavigateToVault={() => setActiveSubTab('razorpay-vault')} />}
+        {activeSubTab === 'cashfree-vault' && <AdminCashfreeSettings />}
+        {activeSubTab === 'smtp-settings' && <AdminSmtpSettings />}
+        {activeSubTab === 'donations' && <AdminDonations onNavigateToVault={() => setActiveSubTab('cashfree-vault')} />}
         {activeSubTab === 'users' && <AdminUsers />}
         {activeSubTab === 'reports' && <AdminReports />}
         {activeSubTab === 'audit' && <AdminAuditLogs />}

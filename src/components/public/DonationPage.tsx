@@ -1,8 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../../context/SchoolContext';
 import { DonationRecord, DonationReasonConfig } from '../../types';
-import { createRupayexOrder, checkRupayexOrderStatus } from '../../utils/rupayex';
+import {
+  createCashfreeOrder,
+  openCashfreeCheckout,
+  verifyCashfreeOrderStatus,
+  CashfreeVerificationResponse
+} from '../../utils/cashfree';
 import { DonationReceiptModal } from './DonationReceiptModal';
+import { useScreenSize } from '../../hooks/useScreenSize';
 import { 
   Heart, 
   ShieldCheck, 
@@ -35,6 +41,7 @@ const PRESET_AMOUNTS = [100, 500, 1100, 2100, 5100, 11000];
 
 export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
   const { settings, donations, addDonationRecord, language } = useSchool();
+  const { isMobile, isSmallMobile } = useScreenSize();
 
   const paymentConfig = settings.paymentConfig;
   const isEnabled = paymentConfig?.isEnabled !== false;
@@ -114,57 +121,119 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
   const [completedDonation, setCompletedDonation] = useState<DonationRecord | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
-  // Check URL callback on mount (if user returned after completing payment on gateway)
+  // Helper: Build & persist verified donation record without undefined fields
+  const saveVerifiedDonation = async (
+    orderId: string,
+    verRes: CashfreeVerificationResponse,
+    pendingData?: Partial<DonationRecord> | null
+  ): Promise<DonationRecord> => {
+    const existing = donations.find((d) => d.cashfreeOrderId === orderId);
+    if (existing) {
+      return existing;
+    }
+
+    const payload: Omit<DonationRecord, 'id' | 'createdAt'> = {
+      receiptNumber: pendingData?.receiptNumber || `DON-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+      donorName: pendingData?.donorName || 'Well-Wisher',
+      donorEmail: pendingData?.donorEmail || '',
+      donorPhone: pendingData?.donorPhone || '',
+      amount: verRes.amount || pendingData?.amount || 100,
+      currency: 'INR',
+      reasonId: pendingData?.reasonId || 'college-development',
+      reasonLabelEn: pendingData?.reasonLabelEn || 'General School Development Fund',
+      reasonLabelHi: pendingData?.reasonLabelHi || 'सामान्य विद्यालय विकास कोष',
+      isAnonymous: Boolean(pendingData?.isAnonymous),
+      paymentGateway: 'cashfree',
+      cashfreeOrderId: orderId,
+      status: 'SUCCESS',
+      is80GClaimed: Boolean(pendingData?.is80GClaimed || pendingData?.panNumber),
+      recordedBy: 'public_gateway'
+    };
+
+    if (pendingData?.customReason) payload.customReason = pendingData.customReason;
+    if (pendingData?.panNumber) payload.panNumber = pendingData.panNumber;
+    if (pendingData?.donorAddress) payload.donorAddress = pendingData.donorAddress;
+    if (pendingData?.notes) payload.notes = pendingData.notes;
+    if (verRes.cfOrderId || pendingData?.cashfreeCfOrderId) {
+      payload.cashfreeCfOrderId = verRes.cfOrderId || pendingData?.cashfreeCfOrderId;
+    }
+    if (verRes.cfPaymentId) payload.cashfreePaymentId = verRes.cfPaymentId;
+    if (verRes.paymentMethod) payload.cashfreePaymentMethod = verRes.paymentMethod;
+    if (verRes.bankReference) payload.cashfreeBankReference = verRes.bankReference;
+
+    const savedRecord = await addDonationRecord(payload);
+    try {
+      localStorage.removeItem(`pending_donation_${orderId}`);
+    } catch {
+      // ignore storage errors
+    }
+    return savedRecord;
+  };
+
+  // Check URL callback on mount (if Cashfree redirected back via return_url ?order_id=...)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const orderIdParam = params.get('order_id');
     if (orderIdParam) {
-      checkRupayexOrderStatus(orderIdParam).then(async (res) => {
+      let isActive = true;
+      setStatusMessage({
+        type: 'info',
+        text: language === 'hi'
+          ? `भुगतान स्थिति की जांच की जा रही है (Order: ${orderIdParam})...`
+          : `Verifying Cashfree payment status (Order: ${orderIdParam})...`
+      });
+
+      verifyCashfreeOrderStatus(orderIdParam).then(async (res) => {
+        if (!isActive) return;
+
+        let pendingData: Partial<DonationRecord> | null = null;
+        try {
+          const saved = localStorage.getItem(`pending_donation_${orderIdParam}`);
+          if (saved) pendingData = JSON.parse(saved);
+        } catch {
+          pendingData = null;
+        }
+
+        const cleanUrl = `${window.location.pathname}?page=donation`;
+
         if (res.success && res.paymentStatus === 'SUCCESS') {
-          let pendingData: Partial<DonationRecord> | null = null;
-          try {
-            const saved = localStorage.getItem(`pending_donation_${orderIdParam}`);
-            if (saved) pendingData = JSON.parse(saved);
-          } catch (e) {}
+          const savedRec = await saveVerifiedDonation(orderIdParam, res, pendingData);
+          if (!isActive) return;
+          setCompletedDonation(savedRec);
+          setIsReceiptModalOpen(true);
 
-          const existing = donations.find(d => d.rupayexOrderId === orderIdParam);
-          if (existing) {
-            setCompletedDonation(existing);
-            setIsReceiptModalOpen(true);
-          } else {
-            const newRec: DonationRecord = {
-              id: pendingData?.id || `don_${Date.now()}`,
-              receiptNumber: pendingData?.receiptNumber || `DON-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
-              donorName: pendingData?.donorName || 'Well-Wisher',
-              donorEmail: pendingData?.donorEmail || '',
-              donorPhone: pendingData?.donorPhone || '',
-              amount: res.amount || pendingData?.amount || 100,
-              currency: 'INR',
-              reasonId: pendingData?.reasonId || 'college-development',
-              reasonLabelEn: pendingData?.reasonLabelEn || 'General School Development Fund',
-              reasonLabelHi: pendingData?.reasonLabelHi || 'सामान्य विद्यालय विकास कोष',
-              customReason: pendingData?.customReason,
-              panNumber: pendingData?.panNumber,
-              donorAddress: pendingData?.donorAddress,
-              isAnonymous: pendingData?.isAnonymous || false,
-              paymentGateway: 'rupayex',
-              rupayexOrderId: orderIdParam,
-              rupayexUtr: res.utr || undefined,
-              status: 'SUCCESS',
-              createdAt: new Date().toISOString()
-            };
-            await addDonationRecord(newRec);
-            setCompletedDonation(newRec);
-            setIsReceiptModalOpen(true);
-          }
-
-          // Clean URL param without page reload
-          window.history.replaceState({}, document.title, window.location.pathname);
+          setStatusMessage({
+            type: 'success',
+            text: language === 'hi'
+              ? 'आपका दान भुगतान सफलतापूर्वक सत्यापित हो गया है! आधिकारिक 80G रसीद तैयार है।'
+              : 'Your contribution payment is verified! Your official 80G receipt is ready.'
+          });
+          window.history.replaceState({}, document.title, cleanUrl);
+        } else if (res.success && res.paymentStatus === 'PENDING') {
+          setStatusMessage({
+            type: 'info',
+            text: language === 'hi'
+              ? `भुगतान अभी प्रक्रियाधीन (Pending) है। कृपया कुछ क्षण बाद रसीद संख्या से जांचें (Order: ${orderIdParam})।`
+              : `Payment is currently pending verification (Order: ${orderIdParam}).`
+          });
+          window.history.replaceState({}, document.title, cleanUrl);
+        } else {
+          setStatusMessage({
+            type: 'error',
+            text: res.error || (language === 'hi'
+              ? 'भुगतान सत्यापित नहीं हो सका या रद्द कर दिया गया। कृपया पुनः प्रयास करें।'
+              : 'Payment could not be verified or was cancelled. Please try again.')
+          });
+          window.history.replaceState({}, document.title, cleanUrl);
         }
       });
+
+      return () => {
+        isActive = false;
+      };
     }
-  }, [donations, addDonationRecord]);
+  }, [donations, addDonationRecord, language]);
 
   // Receipt lookup state
   const [receiptLookupQuery, setReceiptLookupQuery] = useState('');
@@ -198,17 +267,28 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
     }
   };
 
-  // Process Online Donation via Payment Gateway
+  // Process Online Donation directly via Cashfree Payment Gateway (PG v3)
   const handleInitiateDonation = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage(null);
 
-    if (amount < 100) {
+    if (!isEnabled) {
       setStatusMessage({
         type: 'error',
-        text: language === 'hi' 
-          ? 'ऑनलाइन सहयोग हेतु न्यूनतम राशि ₹100 है। कृपया ₹100 या अधिक राशि दर्ज करें।' 
-          : 'Minimum contribution amount is ₹100. Please select ₹100 or higher.'
+        text: language === 'hi'
+          ? 'ऑनलाइन भुगतान सेवा अस्थायी रूप से बंद है। कृपया बाद में पुनः प्रयास करें।'
+          : 'Online payment gateway is currently paused by administration.'
+      });
+      return;
+    }
+
+    const minAllowed = paymentConfig?.minAmount || 100;
+    if (amount < minAllowed) {
+      setStatusMessage({
+        type: 'error',
+        text: language === 'hi'
+          ? `ऑनलाइन सहयोग हेतु न्यूनतम राशि ₹${minAllowed} है। कृपया ₹${minAllowed} या अधिक राशि दर्ज करें।`
+          : `Minimum contribution amount is ₹${minAllowed}. Please enter ₹${minAllowed} or higher.`
       });
       return;
     }
@@ -221,76 +301,124 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
       return;
     }
 
+    const phoneDigits = donorPhone.replace(/\D/g, '');
+    if (donorPhone.trim() && phoneDigits.length < 10) {
+      setStatusMessage({
+        type: 'error',
+        text: language === 'hi'
+          ? 'कृपया 10 अंकों का सही मोबाइल नंबर दर्ज करें (या खाली छोड़ दें)।'
+          : 'Please enter a valid 10-digit mobile number (or leave blank).'
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setStatusMessage({
       type: 'info',
-      text: language === 'hi' ? 'सुरक्षित पेमेंट गेटवे खोला जा रहा है, कृपया प्रतीक्षा करें...' : 'Opening secure payment gateway, please wait...'
+      text: language === 'hi' ? 'Cashfree सुरक्षित पेमेंट गेटवे खोला जा रहा है, कृपया प्रतीक्षा करें...' : 'Opening Cashfree secure checkout, please wait...'
     });
 
     try {
       const reasonLabel = language === 'hi' ? selectedReasonObj?.labelHi : selectedReasonObj?.labelEn;
-      const receiptNumber = `RCPT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
-      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://primaryschoolharsinghpur.netlify.app';
+      const receiptNumber = `DON-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
 
-      // 1. Create order on Payment Gateway
-      const orderRes = await createRupayexOrder({
+      // 1. Create order on backend (keys remain strictly server-side)
+      const orderRes = await createCashfreeOrder({
         amount,
-        donorName: isAnonymous ? 'Anonymous Donor' : donorName.trim(),
+        donorName: isAnonymous ? 'Anonymous Well-Wisher' : donorName.trim(),
         donorEmail: donorEmail.trim(),
-        donorPhone: donorPhone.trim(),
+        donorPhone: phoneDigits.slice(-10),
         reason: `${reasonLabel}${customReasonText ? ` (${customReasonText})` : ''}`,
         receiptNumber,
-        redirectUrl: `${currentOrigin}/?order_id=${receiptNumber}`
+        returnUrl: currentOrigin ? `${currentOrigin}/?page=donation` : undefined
       });
 
-      if (orderRes.success && orderRes.paymentUrl && orderRes.orderId) {
-        const pendingRec: DonationRecord = {
-          id: `don_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          receiptNumber,
-          donorName: isAnonymous ? 'Anonymous Well-Wisher' : donorName.trim(),
-          donorEmail: donorEmail.trim() || undefined,
-          donorPhone: donorPhone.trim() || undefined,
-          amount,
-          currency: 'INR',
-          reasonId: selectedReasonId,
-          reasonLabelEn: selectedReasonObj?.labelEn || 'School Fund',
-          reasonLabelHi: selectedReasonObj?.labelHi || 'विद्यालय विकास कोष',
-          customReason: customReasonText.trim() || undefined,
-          panNumber: panNumber.trim().toUpperCase() || undefined,
-          donorAddress: donorAddress.trim() || undefined,
-          isAnonymous,
-          paymentGateway: 'rupayex',
-          rupayexOrderId: orderRes.orderId,
-          rupayexPaymentUrl: orderRes.paymentUrl,
-          status: 'PENDING',
-          createdAt: new Date().toISOString(),
-          is80GClaimed: !!panNumber.trim(),
-          notes: message.trim() || undefined
-        };
+      if (!orderRes.success || !orderRes.paymentSessionId || !orderRes.orderId) {
+        throw new Error(orderRes.error || 'Failed to initialize Cashfree payment gateway.');
+      }
 
-        // 1. Record pending donation
-        await addDonationRecord(pendingRec);
+      const pendingMeta: Partial<DonationRecord> = {
+        receiptNumber: orderRes.receiptNumber || receiptNumber,
+        donorName: isAnonymous ? 'Anonymous Well-Wisher' : donorName.trim(),
+        donorEmail: donorEmail.trim() || '',
+        donorPhone: phoneDigits.slice(-10) || '',
+        amount: orderRes.amount || amount,
+        currency: 'INR',
+        reasonId: selectedReasonId,
+        reasonLabelEn: selectedReasonObj?.labelEn || 'School Fund',
+        reasonLabelHi: selectedReasonObj?.labelHi || 'विद्यालय विकास कोष',
+        customReason: customReasonText.trim() || undefined,
+        panNumber: panNumber.trim().toUpperCase() || undefined,
+        donorAddress: donorAddress.trim() || undefined,
+        isAnonymous,
+        paymentGateway: 'cashfree',
+        cashfreeOrderId: orderRes.orderId,
+        cashfreeCfOrderId: orderRes.cfOrderId,
+        is80GClaimed: !!panNumber.trim(),
+        notes: message.trim() || undefined
+      };
 
-        // 2. Persist to localStorage for automatic receipt generation on return
-        try {
-          localStorage.setItem(`pending_donation_${orderRes.orderId}`, JSON.stringify(pendingRec));
-        } catch (e) {}
+      // Cache donor metadata locally so both modal completion & redirect return generate a complete receipt
+      try {
+        localStorage.setItem(`pending_donation_${orderRes.orderId}`, JSON.stringify(pendingMeta));
+      } catch {
+        // ignore storage quota errors
+      }
 
-        setStatusMessage({
-          type: 'info',
-          text: language === 'hi' 
-            ? 'पेमेंट गेटवे पर पुनः निर्देशित किया जा रहा है...' 
-            : 'Redirecting to payment gateway...'
-        });
+      // 2. Open Cashfree Checkout modal immediately with zero intermediate screens
+      const checkoutRes = await openCashfreeCheckout({
+        paymentSessionId: orderRes.paymentSessionId,
+        environment: orderRes.environment || 'sandbox',
+        redirectTarget: '_modal'
+      });
 
-        // 3. IMMEDIATELY redirect directly to the payment gateway without any intermediate screen!
-        window.location.href = orderRes.paymentUrl;
+      if (checkoutRes?.redirect) {
+        // Browser is redirecting to bank/gateway page and will return to ?order_id=...
         return;
       }
 
-      throw new Error(orderRes.error || 'Failed to initialize payment gateway.');
+      // 3. Modal finished or was dismissed -> Verify authoritative status with Cashfree via our backend
+      const verRes = await verifyCashfreeOrderStatus(orderRes.orderId);
+
+      if (verRes.success && verRes.paymentStatus === 'SUCCESS') {
+        const savedRec = await saveVerifiedDonation(orderRes.orderId, verRes, pendingMeta);
+        setCompletedDonation(savedRec);
+        setIsReceiptModalOpen(true);
+        setIsProcessing(false);
+        setStatusMessage({
+          type: 'success',
+          text: language === 'hi'
+            ? 'आपका दान भुगतान सफलतापूर्वक सत्यापित हो गया है! आधिकारिक 80G रसीद तैयार है।'
+            : 'Your contribution payment is verified! Your official 80G receipt is ready.'
+        });
+        return;
+      }
+
+      setIsProcessing(false);
+
+      if (checkoutRes?.error?.message) {
+        setStatusMessage({
+          type: 'error',
+          text: checkoutRes.error.message
+        });
+      } else if (verRes.success && verRes.paymentStatus === 'PENDING') {
+        setStatusMessage({
+          type: 'info',
+          text: language === 'hi'
+            ? 'भुगतान पूरा नहीं हुआ या अभी प्रतीक्षारत है। यदि राशि कट गई हो तो कुछ समय बाद रसीद संख्या से जांचें।'
+            : 'Payment was not completed or is pending confirmation. Please retry or check receipt status shortly.'
+        });
+      } else {
+        setStatusMessage({
+          type: 'error',
+          text: verRes.error || (language === 'hi'
+            ? 'भुगतान पूरा नहीं हो सका या रद्द कर दिया गया। कृपया पुनः प्रयास करें।'
+            : 'Payment was cancelled or could not be completed. Please try again.')
+        });
+      }
     } catch (err: any) {
-      console.error('[DONATION] Error initializing payment:', err);
+      console.error('[DONATION] Error initializing Cashfree payment:', err);
       setIsProcessing(false);
       setStatusMessage({
         type: 'error',
@@ -299,7 +427,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
     }
   };
 
-  // Lookup existing receipt by Receipt Number or Payment Reference
+  // Lookup existing receipt by Receipt Number or Cashfree Reference
   const handleLookupReceipt = (e: React.FormEvent) => {
     e.preventDefault();
     setLookupError('');
@@ -308,10 +436,10 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
     if (!clean) return;
 
     const found = donations.find(
-      d => d.receiptNumber.toLowerCase() === clean || 
-           (d.rupayexOrderId && d.rupayexOrderId.toLowerCase() === clean) ||
-           (d.rupayexUtr && d.rupayexUtr.toLowerCase() === clean) ||
-           (d.razorpayPaymentId && d.razorpayPaymentId.toLowerCase() === clean)
+      d => d.receiptNumber.toLowerCase() === clean ||
+           (d.cashfreeOrderId && d.cashfreeOrderId.toLowerCase() === clean) ||
+           (d.cashfreePaymentId && d.cashfreePaymentId.toLowerCase() === clean) ||
+           (d.cashfreeBankReference && d.cashfreeBankReference.toLowerCase() === clean)
     );
 
     if (found) {
@@ -320,8 +448,8 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
       setReceiptLookupQuery('');
     } else {
       setLookupError(
-        language === 'hi' 
-          ? 'इस रसीद संख्या से कोई पावती नहीं मिली। कृपया सही रसीद संख्या दर्ज करें।' 
+        language === 'hi'
+          ? 'इस रसीद संख्या से कोई पावती नहीं मिली। कृपया सही रसीद संख्या दर्ज करें।'
           : 'No receipt found with this Receipt Number.'
       );
     }
@@ -347,9 +475,9 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
+    <div className={`${isSmallMobile ? 'space-y-4 pb-8' : 'space-y-6 pb-12'} animate-in fade-in duration-300 w-full max-w-full overflow-x-hidden`}>
       {/* 1. Dignified, High-Trust Header Banner (No Clutter, No Gateway Tech-Jargon) */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] text-white p-6 sm:p-8 border border-slate-800 shadow-xl">
+      <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] text-white ${isMobile ? 'p-4 sm:p-6' : 'p-6 sm:p-8'} border border-slate-800 shadow-xl`}>
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-72 h-72 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 -mb-16 w-52 h-52 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
@@ -476,7 +604,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
 
             {/* Step 2: Choose Amount (Clear Presets & Custom Input) */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <label className="text-xs font-bold text-slate-800">
                   2. {language === 'hi' ? 'सहयोग राशि (₹)' : 'Select Amount (INR)'}
                 </label>
@@ -521,7 +649,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
 
             {/* Step 3: Donor Details (Clean, Fast, Unintimidating) */}
             <div className="space-y-3 pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="text-xs font-bold text-slate-800">
                   3. {language === 'hi' ? 'सहयोगी / दानी का विवरण' : 'Donor Information'}
                 </label>
@@ -716,21 +844,21 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
 
             {/* Bank Details Strip */}
             <div className="text-xs space-y-1.5 pt-1 text-slate-300">
-              <div className="flex justify-between border-b border-slate-800 pb-1">
+              <div className="flex flex-wrap justify-between gap-2 border-b border-slate-800 pb-1">
                 <span className="text-slate-400">{language === 'hi' ? 'खाताधारक:' : 'Account:'}</span>
                 <span className="font-bold text-right text-white">विद्यालय प्रबंधन समिति (SMC)</span>
               </div>
-              <div className="flex justify-between border-b border-slate-800 pb-1">
+              <div className="flex flex-wrap justify-between gap-2 border-b border-slate-800 pb-1">
                 <span className="text-slate-400">{language === 'hi' ? 'विद्यालय:' : 'School:'}</span>
                 <span className="font-medium text-right text-slate-200">कंपोजिट जू.हा. स्कूल हरसिंहपुर गोवा</span>
               </div>
-              <div className="flex justify-between border-b border-slate-800 pb-1">
+              <div className="flex flex-wrap justify-between gap-2 border-b border-slate-800 pb-1">
                 <span className="text-slate-400">{language === 'hi' ? 'UDISE कोड:' : 'UDISE Code:'}</span>
                 <span className="font-mono font-bold text-amber-400">{settings.schoolCode || '09290205902'}</span>
               </div>
-              <div className="flex justify-between pt-0.5">
+              <div className="flex flex-wrap justify-between gap-2 pt-0.5">
                 <span className="text-slate-400">{language === 'hi' ? 'स्थान / ब्लॉक:' : 'Location / Block:'}</span>
-                <span className="font-medium text-slate-200">
+                <span className="font-medium text-right text-slate-200">
                   {language === 'hi' 
                     ? `${settings.village || 'हरसिंहपुर गोवा'}, ${settings.block || 'शमसाबाद'}, ${settings.district || 'फर्रुखाबाद'}` 
                     : `${settings.village || 'Harsinghpur Gova'}, ${settings.block || 'Shamsabad'}, ${settings.district || 'Farrukhabad'}`}
@@ -740,7 +868,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
           </div>
 
           {/* 2. Lookup Previous Donation Receipt */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-2xs space-y-3">
+          <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-amber-600" />
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
@@ -753,17 +881,17 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onNavigate }) => {
                 : 'Enter your Receipt Number to download or print your official receipt.'}
             </p>
 
-            <form onSubmit={handleLookupReceipt} className="flex gap-2">
+            <form onSubmit={handleLookupReceipt} className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 placeholder={language === 'hi' ? 'रसीद संख्या (जैसे RCPT-2026-...)' : 'Receipt Number (e.g. RCPT-...)'}
                 value={receiptLookupQuery}
                 onChange={(e) => setReceiptLookupQuery(e.target.value)}
-                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:border-amber-500 font-mono"
+                className="w-full min-w-0 flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:border-amber-500 font-mono"
               />
               <button
                 type="submit"
-                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
               >
                 {language === 'hi' ? 'खोजें' : 'Search'}
               </button>

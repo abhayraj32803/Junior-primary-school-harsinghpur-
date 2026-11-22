@@ -1,22 +1,38 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
-import Razorpay from 'razorpay';
-import { createServer as createViteServer } from 'vite';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
-const PORT = 3000;
+const PORT = process.env.NGINX_PORT
+  ? Number(process.env.DEFAULT_APP_PORT || 3000)
+  : Number(process.env.PORT || 3000);
 
-app.use(express.json());
+// CORS middleware so live frontend (AI Studio Shared URL, custom domain) can reach /api/* cleanly
+app.use((req: Request, res: Response, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Email, X-User-Role, X-Firebase-Id-Token, Accept');
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
+
+app.use(express.json({
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf.toString('utf8');
+  }
+}));
 
 // Server Secret for Secure HMAC hashing of OTPs and Session Tokens
 const OTP_SECRET = process.env.OTP_SECRET || 'sms_gov_in_secure_otp_salt_v4_composite_jhs_farrukhabad_up';
@@ -141,53 +157,157 @@ function maskEmailAddress(email: string): string {
 }
 
 // -------------------------------------------------------------
-// Email Service Abstraction Layer (Nodemailer Transporter)
+// Email Service Abstraction Layer (Secure SMTP Vault + Nodemailer)
 // -------------------------------------------------------------
+interface SecureSmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  fromName: string;
+  fromEmail: string;
+  isEnabled: boolean;
+  lastUpdated: string;
+  updatedBy: string;
+}
+
+const SMTP_DATA_DIR = path.join(process.cwd(), 'data');
+const SECURE_SMTP_FILE = path.join(SMTP_DATA_DIR, 'secure_smtp.json');
+
+function initSecureSmtpVault(): SecureSmtpConfig {
+  const envHost = (process.env.SMTP_HOST || '').trim();
+  const envPort = parseInt(process.env.SMTP_PORT || '587', 10) || 587;
+  const envUser = (process.env.SMTP_USER || '').trim();
+  const envPass = (process.env.SMTP_PASS || '').trim();
+  const envSecure = process.env.SMTP_SECURE === 'true' || envPort === 465;
+  const envFromRaw = (process.env.SMTP_FROM || '').trim();
+
+  try {
+    if (!fs.existsSync(SMTP_DATA_DIR)) {
+      fs.mkdirSync(SMTP_DATA_DIR, { recursive: true });
+    }
+    if (fs.existsSync(SECURE_SMTP_FILE)) {
+      const raw = fs.readFileSync(SECURE_SMTP_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return {
+        host: parsed.host || envHost,
+        port: Number(parsed.port) || envPort,
+        secure: typeof parsed.secure === 'boolean' ? parsed.secure : envSecure,
+        user: parsed.user || envUser,
+        pass: parsed.pass || envPass,
+        fromName: parsed.fromName || 'Composite JHS Harsinghpur Gova',
+        fromEmail: parsed.fromEmail || parsed.user || envUser || 'no-reply@harsinghpur-gova.gov.in',
+        isEnabled: parsed.isEnabled !== false,
+        lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+        updatedBy: parsed.updatedBy || 'Super Admin'
+      };
+    }
+  } catch (err) {
+    console.error('[SMTP-VAULT] Error loading secure_smtp.json:', err);
+  }
+
+  return {
+    host: envHost,
+    port: envPort,
+    secure: envSecure,
+    user: envUser,
+    pass: envPass,
+    fromName: 'Composite JHS Harsinghpur Gova',
+    fromEmail: envUser || (envFromRaw.includes('<') ? envFromRaw.split('<')[1].replace('>', '').trim() : envFromRaw) || 'no-reply@harsinghpur-gova.gov.in',
+    isEnabled: true,
+    lastUpdated: new Date().toISOString(),
+    updatedBy: 'System Environment Default'
+  };
+}
+
+let secureSmtpVault: SecureSmtpConfig = initSecureSmtpVault();
 let mailTransporter: nodemailer.Transporter | null = null;
+let mailTransporterSignature = '';
 
-async function getTransporter(): Promise<nodemailer.Transporter> {
-  if (mailTransporter) return mailTransporter;
+function persistSecureSmtpVault(config: SecureSmtpConfig): void {
+  try {
+    if (!fs.existsSync(SMTP_DATA_DIR)) {
+      fs.mkdirSync(SMTP_DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(SECURE_SMTP_FILE, JSON.stringify(config, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[SMTP-VAULT] Failed to persist secure_smtp.json:', err);
+  }
+  secureSmtpVault = { ...config };
+  mailTransporter = null;
+  mailTransporterSignature = '';
+}
 
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+function isRealSmtpConfigured(): boolean {
+  return Boolean(
+    secureSmtpVault.isEnabled &&
+    secureSmtpVault.host &&
+    secureSmtpVault.user &&
+    secureSmtpVault.pass
+  );
+}
 
-  if (host && user && pass) {
+async function getTransporter(): Promise<{ transporter: nodemailer.Transporter; mode: 'smtp' | 'ethereal' | 'stream' }> {
+  const host = (secureSmtpVault.host || process.env.SMTP_HOST || '').trim();
+  const port = Number(secureSmtpVault.port || process.env.SMTP_PORT || 587);
+  const user = (secureSmtpVault.user || process.env.SMTP_USER || '').trim();
+  const pass = (secureSmtpVault.pass || process.env.SMTP_PASS || '').trim();
+  const secure = secureSmtpVault.secure || port === 465;
+
+  if (secureSmtpVault.isEnabled && host && user && pass) {
+    const sig = `${host}:${port}:${secure}:${user}:${pass.length}`;
+    if (mailTransporter && mailTransporterSignature === sig) {
+      return { transporter: mailTransporter, mode: 'smtp' };
+    }
     mailTransporter = nodemailer.createTransport({
       host,
       port,
       secure,
       auth: { user, pass },
+      connectionTimeout: 12000,
+      greetingTimeout: 12000,
+      socketTimeout: 15000,
       tls: {
         rejectUnauthorized: false
       }
     });
-    console.log(`[Email Service] Configured SMTP Transport`);
-  } else {
-    try {
-      const testAccount = await nodemailer.createTestAccount();
-      mailTransporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass
-        }
-      });
-      console.log(`[Email Service] Active Fallback Mailer`);
-    } catch (e) {
-      mailTransporter = nodemailer.createTransport({
+    mailTransporterSignature = sig;
+    console.log(`[Email Service] Configured Live SMTP Transport (${host}:${port}, secure=${secure})`);
+    return { transporter: mailTransporter, mode: 'smtp' };
+  }
+
+  // Fallback to Ethereal in non-configured environments (never cache failed fallback forever)
+  try {
+    if (mailTransporter && mailTransporterSignature === 'ethereal') {
+      return { transporter: mailTransporter, mode: 'ethereal' };
+    }
+    const testAccount = await nodemailer.createTestAccount();
+    mailTransporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass
+      }
+    });
+    mailTransporterSignature = 'ethereal';
+    console.log(`[Email Service] Active Ethereal Fallback Mailer`);
+    return { transporter: mailTransporter, mode: 'ethereal' };
+  } catch (e) {
+    console.warn('[Email Service] Ethereal unavailable, using local stream buffer fallback');
+    return {
+      transporter: nodemailer.createTransport({
         streamTransport: true,
         newline: 'unix',
         buffer: true
-      });
-    }
+      }),
+      mode: 'stream'
+    };
   }
-
-  return mailTransporter;
 }
 
 // Dispatch Professional OTP Email without ANY Clickable Links
@@ -196,11 +316,13 @@ async function dispatchOtpEmail(
   purpose: OtpPurpose,
   code: string,
   meta?: { username?: string; schoolName?: string }
-): Promise<boolean> {
+): Promise<{ sent: boolean; mode: 'smtp' | 'ethereal' | 'stream'; error?: string }> {
   const cleanEmail = to.trim().toLowerCase();
   const school = meta?.schoolName || 'Composite Junior High School Harsinghpur Gova';
   const displayName = meta?.username || 'User';
-  const fromAddress = process.env.SMTP_FROM || `"Composite JHS School Portal" <no-reply@harsinghpur-gova.gov.in>`;
+  const configuredFrom = secureSmtpVault.fromEmail || secureSmtpVault.user || 'no-reply@harsinghpur-gova.gov.in';
+  const fromName = secureSmtpVault.fromName || 'Composite JHS School Portal';
+  const fromAddress = process.env.SMTP_FROM || `"${fromName}" <${configuredFrom}>`;
 
   const isRegistration = purpose === 'EMAIL_VERIFICATION';
   const emailTitle = isRegistration 
@@ -304,7 +426,7 @@ async function dispatchOtpEmail(
   `;
 
   try {
-    const transporter = await getTransporter();
+    const { transporter, mode } = await getTransporter();
     const mailOptions = {
       from: fromAddress,
       to: cleanEmail,
@@ -314,11 +436,21 @@ async function dispatchOtpEmail(
     };
 
     await transporter.sendMail(mailOptions);
-    return true;
-  } catch (error) {
+    if (mode === 'stream') {
+      return { sent: false, mode, error: 'SMTP credentials are not configured on the live server.' };
+    }
+    return { sent: true, mode };
+  } catch (error: any) {
     console.error('[Email Service] Mail delivery error:', error);
     authMetrics.suspiciousActivityCount += 1;
-    return false;
+    // Reset cached transporter in case auth/connection went stale
+    mailTransporter = null;
+    mailTransporterSignature = '';
+    return {
+      sent: false,
+      mode: isRealSmtpConfigured() ? 'smtp' : 'ethereal',
+      error: error?.message || 'SMTP mail delivery failed.'
+    };
   }
 }
 
@@ -440,20 +572,26 @@ app.post('/api/auth/send-otp', async (req: Request, res: Response): Promise<void
       authMetrics.passwordResetRequestsCount += 1;
     }
 
-    // Dispatch live email in background
-    const emailSent = await dispatchOtpEmail(cleanEmail, validPurpose, plainOtp, {
+    // Dispatch live email
+    const emailResult = await dispatchOtpEmail(cleanEmail, validPurpose, plainOtp, {
       username: username?.trim() || cleanEmail,
       schoolName
     });
 
-    console.log(`[AUTH-SERVER] ✅ [OTP-DISPATCHED] Purpose=${validPurpose} | Email=${cleanEmail} | MailSuccess=${emailSent} | ExpiresIn=300s | Duration=${Date.now() - reqStart}ms`);
+    console.log(`[AUTH-SERVER] ✅ [OTP-DISPATCHED] Purpose=${validPurpose} | Email=${cleanEmail} | Mode=${emailResult.mode} | MailSuccess=${emailResult.sent} | ExpiresIn=300s | Duration=${Date.now() - reqStart}ms`);
 
     // Check if live SMTP was successfully executed
-    const isLiveConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && emailSent);
+    const isLiveConfigured = Boolean(isRealSmtpConfigured() && emailResult.sent);
+
+    if (isRealSmtpConfigured() && !emailResult.sent) {
+      console.error(`[AUTH-SERVER] ❌ [SMTP-DELIVERY-FAILED] ${emailResult.error}`);
+    }
 
     // Prepare response message
     let userMessage = validPurpose === 'PASSWORD_RESET'
-      ? 'If an account exists for this email, a verification code has been sent.'
+      ? (isLiveConfigured
+          ? 'आपके ईमेल पते पर 6-अंकों का पासवर्ड रीसेट कोड भेज दिया गया है।'
+          : 'If an account exists for this email, a verification code has been prepared.')
       : `Verification code sent to your email. Valid for 5 minutes.`;
 
     if (!isLiveConfigured && validPurpose === 'EMAIL_VERIFICATION') {
@@ -465,8 +603,10 @@ app.post('/api/auth/send-otp', async (req: Request, res: Response): Promise<void
       message: userMessage,
       expiresAt,
       cooldownSeconds: 45,
-      devOtp: plainOtp,
-      isLiveEmailConfigured: isLiveConfigured
+      devOtp: isLiveConfigured ? undefined : plainOtp,
+      isLiveEmailConfigured: isLiveConfigured,
+      smtpMode: emailResult.mode,
+      smtpError: emailResult.sent ? undefined : emailResult.error
     });
   } catch (error: any) {
     console.error('[AUTH-SERVER] ❌ [OTP-ERROR] Internal error:', error);
@@ -1197,153 +1337,116 @@ app.get('/api/verify-id-card', (req: Request, res: Response): void => {
 });
 
 // -------------------------------------------------------------
-// 9. Razorpay Payment Gateway Endpoints for College Donations
+// 9. Cashfree Payment Gateway (PG v3) Secure Server-Side Vault & Endpoints
 // -------------------------------------------------------------
-// SECURE SERVER-SIDE VAULT FOR RAZORPAY GATEWAY CREDENTIALS
-// Note: Sensitive key secrets are stored exclusively in this server vault
+// Sensitive App ID & Secret Key are stored exclusively in server memory/env/vault
 // and NEVER exposed to the frontend or written to public Firestore.
 // -------------------------------------------------------------
-interface SecureRazorpayConfig {
-  keyId: string;
-  keySecret: string;
+export interface SecureCashfreeConfig {
+  appId: string;
+  secretKey: string;
+  environment: 'sandbox' | 'production';
   isEnabled: boolean;
-  isLiveMode: boolean;
   merchantName: string;
-  currency: string;
+  minAmount: number;
   taxExemptionNumber: string;
   lastUpdated: string;
   updatedBy: string;
 }
 
 const SECURE_DATA_DIR = path.join(process.cwd(), 'data');
-const SECURE_CONFIG_FILE = path.join(SECURE_DATA_DIR, 'secure_razorpay.json');
+const SECURE_CASHFREE_FILE = path.join(SECURE_DATA_DIR, 'secure_cashfree.json');
+const CASHFREE_API_VERSION = '2023-08-01';
 
-function initSecureRazorpayVault(): SecureRazorpayConfig {
+// Clean up any legacy gateway vault files if they exist
+try {
+  for (const legacyFile of ['secure_razorpay.json', 'secure_rupayex.json']) {
+    const legacyPath = path.join(SECURE_DATA_DIR, legacyFile);
+    if (fs.existsSync(legacyPath)) {
+      fs.unlinkSync(legacyPath);
+    }
+  }
+} catch {
+  // ignore cleanup error
+}
+
+function normalizeCashfreeEnv(raw?: string): 'sandbox' | 'production' {
+  return String(raw || '').toLowerCase().trim() === 'production' ? 'production' : 'sandbox';
+}
+
+function getCashfreeApiBaseUrl(env: 'sandbox' | 'production'): string {
+  return env === 'production' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+}
+
+function initSecureCashfreeVault(): SecureCashfreeConfig {
+  const envAppId = (process.env.CASHFREE_APP_ID || '').trim();
+  const envSecret = (process.env.CASHFREE_SECRET_KEY || '').trim();
+  const envMode = normalizeCashfreeEnv(process.env.CASHFREE_ENV);
+
   try {
     if (!fs.existsSync(SECURE_DATA_DIR)) {
       fs.mkdirSync(SECURE_DATA_DIR, { recursive: true });
     }
 
-    if (fs.existsSync(SECURE_CONFIG_FILE)) {
-      const raw = fs.readFileSync(SECURE_CONFIG_FILE, 'utf-8');
+    if (fs.existsSync(SECURE_CASHFREE_FILE)) {
+      const raw = fs.readFileSync(SECURE_CASHFREE_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
       return {
-        keyId: parsed.keyId || process.env.RAZORPAY_KEY_ID || '',
-        keySecret: parsed.keySecret || process.env.RAZORPAY_KEY_SECRET || '',
+        appId: (parsed.appId || envAppId || '').trim(),
+        secretKey: (parsed.secretKey || envSecret || '').trim(),
+        environment: parsed.environment ? normalizeCashfreeEnv(parsed.environment) : envMode,
         isEnabled: parsed.isEnabled !== false,
-        isLiveMode: !!parsed.isLiveMode,
         merchantName: parsed.merchantName || 'Composite JHS Harsinghpur Gova',
-        currency: 'INR',
+        minAmount: typeof parsed.minAmount === 'number' && parsed.minAmount >= 1 ? parsed.minAmount : 100,
         taxExemptionNumber: parsed.taxExemptionNumber || '80G-DEL-2024-00129',
         lastUpdated: parsed.lastUpdated || new Date().toISOString(),
         updatedBy: parsed.updatedBy || 'Super Admin'
       };
     }
   } catch (err) {
-    console.error('[RAZORPAY-VAULT] Error loading server config file:', err);
+    console.error('[CASHFREE-VAULT] Error loading secure_cashfree.json:', err);
   }
 
   return {
-    keyId: process.env.RAZORPAY_KEY_ID || '',
-    keySecret: process.env.RAZORPAY_KEY_SECRET || '',
+    appId: envAppId,
+    secretKey: envSecret,
+    environment: envMode,
     isEnabled: true,
-    isLiveMode: false,
     merchantName: 'Composite JHS Harsinghpur Gova',
-    currency: 'INR',
+    minAmount: 100,
     taxExemptionNumber: '80G-DEL-2024-00129',
     lastUpdated: new Date().toISOString(),
     updatedBy: 'System Environment Default'
   };
 }
 
-let secureRazorpayVault: SecureRazorpayConfig = initSecureRazorpayVault();
+let secureCashfreeVault: SecureCashfreeConfig = initSecureCashfreeVault();
+const cashfreeOrderMetaStore = new Map<string, {
+  orderId: string;
+  amount: number;
+  receiptNumber: string;
+  createdAt: string;
+  status: string;
+  cfPaymentId?: string;
+  bankReference?: string;
+  paymentMethod?: string;
+}>();
 
-function persistSecureRazorpayVault(config: SecureRazorpayConfig): void {
+function isCashfreeConfigured(vault: SecureCashfreeConfig = secureCashfreeVault): boolean {
+  return Boolean(vault.appId && vault.secretKey);
+}
+
+function persistSecureCashfreeVault(config: SecureCashfreeConfig): void {
   try {
     if (!fs.existsSync(SECURE_DATA_DIR)) {
       fs.mkdirSync(SECURE_DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(SECURE_CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
-    secureRazorpayVault = { ...config };
-    console.log(`[RAZORPAY-VAULT] 🔐 Vault updated successfully. KeyID: ${config.keyId ? config.keyId.substring(0, 10) + '...' : 'None'} | Mode: ${config.isLiveMode ? 'LIVE' : 'TEST'} | Enabled: ${config.isEnabled}`);
+    fs.writeFileSync(SECURE_CASHFREE_FILE, JSON.stringify(config, null, 2), 'utf-8');
   } catch (err) {
-    console.error('[RAZORPAY-VAULT] Failed to persist secure config file:', err);
+    console.error('[CASHFREE-VAULT] Failed to persist secure_cashfree.json:', err);
   }
-}
-
-// -------------------------------------------------------------
-// RUPAYEX UPI GATEWAY VAULT & CONFIGURATION
-// -------------------------------------------------------------
-export interface SecureRupayexConfig {
-  apiToken: string;
-  instanceId: string;
-  apiBaseUrl: string;
-  webhookUrl: string;
-  isEnabled: boolean;
-  merchantName: string;
-  minAmount: number;
-  lastUpdated: string;
-  updatedBy: string;
-}
-
-const SECURE_RUPAYEX_FILE = path.join(SECURE_DATA_DIR, 'secure_rupayex.json');
-
-function initSecureRupayexVault(): SecureRupayexConfig {
-  const defaultApiToken = process.env.RUPAYEX_API_TOKEN || 'd73d8f7f9956c111058f7ae2548412bf';
-  const defaultInstanceId = process.env.RUPAYEX_INSTANCE_ID || 'I87obdcq6v1784696233';
-  const defaultApiBaseUrl = process.env.RUPAYEX_BASE_URL || 'https://rupayex.net/api';
-  const defaultWebhookUrl = process.env.RUPAYEX_WEBHOOK_URL || 'https://primaryschoolharsinghpur.netlify.app/';
-
-  try {
-    if (!fs.existsSync(SECURE_DATA_DIR)) {
-      fs.mkdirSync(SECURE_DATA_DIR, { recursive: true });
-    }
-
-    if (fs.existsSync(SECURE_RUPAYEX_FILE)) {
-      const raw = fs.readFileSync(SECURE_RUPAYEX_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      return {
-        apiToken: parsed.apiToken || defaultApiToken,
-        instanceId: parsed.instanceId || defaultInstanceId,
-        apiBaseUrl: parsed.apiBaseUrl || defaultApiBaseUrl,
-        webhookUrl: parsed.webhookUrl || defaultWebhookUrl,
-        isEnabled: parsed.isEnabled !== false,
-        merchantName: parsed.merchantName || 'कंपोजिट जू.हा. स्कूल हरसिंहपुर गोवा',
-        minAmount: parsed.minAmount || 100,
-        lastUpdated: parsed.lastUpdated || new Date().toISOString(),
-        updatedBy: parsed.updatedBy || 'Super Admin'
-      };
-    }
-  } catch (err) {
-    console.error('[RUPAYEX-VAULT] Error reading config file:', err);
-  }
-
-  return {
-    apiToken: defaultApiToken,
-    instanceId: defaultInstanceId,
-    apiBaseUrl: defaultApiBaseUrl,
-    webhookUrl: defaultWebhookUrl,
-    isEnabled: true,
-    merchantName: 'कंपोजिट जू.हा. स्कूल हरसिंहपुर गोवा',
-    minAmount: 100,
-    lastUpdated: new Date().toISOString(),
-    updatedBy: 'System Environment Default'
-  };
-}
-
-let secureRupayexVault: SecureRupayexConfig = initSecureRupayexVault();
-
-function persistSecureRupayexVault(config: SecureRupayexConfig): void {
-  try {
-    if (!fs.existsSync(SECURE_DATA_DIR)) {
-      fs.mkdirSync(SECURE_DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(SECURE_RUPAYEX_FILE, JSON.stringify(config, null, 2), 'utf-8');
-    secureRupayexVault = { ...config };
-    console.log(`[RUPAYEX-VAULT] 🔐 Vault updated successfully. Instance: ${config.instanceId} | Enabled: ${config.isEnabled}`);
-  } catch (err) {
-    console.error('[RUPAYEX-VAULT] Failed to persist secure config file:', err);
-  }
+  secureCashfreeVault = { ...config };
+  console.log(`[CASHFREE-VAULT] 🔐 Vault updated. Env: ${config.environment.toUpperCase()} | Enabled: ${config.isEnabled} | Configured: ${isCashfreeConfigured(config)}`);
 }
 
 function maskSecret(secret: string): string {
@@ -1353,622 +1456,829 @@ function maskSecret(secret: string): string {
   return '••••••••••••••••' + lastFour;
 }
 
-function verifyAdminAuthorization(req: Request): boolean {
-  // 1. Check Bearer token or session token
-  const authHeader = req.headers['authorization'] || '';
-  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : '';
-  const token = bearerToken || (req.body?.sessionToken as string) || (req.query?.sessionToken as string);
+// Google SecureToken public x509 cert cache for Firebase ID Token verification
+let firebaseCertsCache: { certs: Record<string, string>; expiresAt: number } | null = null;
+const ADMIN_ALLOWLIST_EMAILS = ['ngoaarya159@gmail.com'];
 
-  if (token) {
-    const tokenHash = hashSessionToken(token);
+function getFirebaseProjectId(): string {
+  try {
+    const cfgPath = path.join(process.cwd(), 'firebase-applet-config.json');
+    if (fs.existsSync(cfgPath)) {
+      const parsed = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
+      if (parsed?.projectId) return String(parsed.projectId);
+    }
+  } catch {
+    // ignore
+  }
+  return 'gen-lang-client-0870597145';
+}
+
+async function getFirebasePublicCerts(): Promise<Record<string, string>> {
+  if (firebaseCertsCache && Date.now() < firebaseCertsCache.expiresAt) {
+    return firebaseCertsCache.certs;
+  }
+  const res = await fetch('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
+  if (!res.ok) {
+    throw new Error('Failed to fetch Firebase verification certificates');
+  }
+  const certs = (await res.json()) as Record<string, string>;
+  firebaseCertsCache = { certs, expiresAt: Date.now() + 60 * 60 * 1000 };
+  return certs;
+}
+
+async function verifyFirebaseAdminIdToken(idToken: string): Promise<boolean> {
+  try {
+    const parts = idToken.split('.');
+    if (parts.length !== 3) return false;
+    const [headerB64, payloadB64, sigB64] = parts;
+    const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8'));
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+    if (header.alg !== 'RS256' || !header.kid) return false;
+
+    const projectId = getFirebaseProjectId();
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (payload.aud !== projectId) return false;
+    if (payload.iss !== `https://securetoken.google.com/${projectId}`) return false;
+    if (typeof payload.exp !== 'number' || payload.exp <= nowSec) return false;
+    if (!payload.sub || typeof payload.sub !== 'string') return false;
+
+    const email = String(payload.email || '').toLowerCase().trim();
+    if (!ADMIN_ALLOWLIST_EMAILS.includes(email) || payload.email_verified !== true) {
+      return false;
+    }
+
+    const certs = await getFirebasePublicCerts();
+    const cert = certs[header.kid];
+    if (!cert) return false;
+
+    const verifier = crypto.createVerify('RSA-SHA256');
+    verifier.update(`${headerB64}.${payloadB64}`);
+    verifier.end();
+    const sigBuf = Buffer.from(sigB64, 'base64url');
+    return verifier.verify(cert, sigBuf);
+  } catch {
+    return false;
+  }
+}
+
+async function verifyAdminAuthorization(req: Request): Promise<boolean> {
+  // 1. Check server-issued Bearer session token from authSessionsStore
+  const authHeader = (req.headers['authorization'] as string) || '';
+  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : '';
+  const sessionCandidate = bearerToken || (req.body?.sessionToken as string) || (req.query?.sessionToken as string);
+
+  if (sessionCandidate && !sessionCandidate.includes('.')) {
+    const tokenHash = hashSessionToken(sessionCandidate);
     const session = authSessionsStore.get(tokenHash);
     if (session && session.role === 'admin' && Date.now() <= session.expiresAt) {
       return true;
     }
   }
 
-  // 2. Check admin email
-  const adminEmail = (req.headers['x-admin-email'] as string || req.body?.adminEmail as string || '').toLowerCase().trim();
-  const allowedAdmins = ['ngoaarya159@gmail.com', 'admin@school.gov.in'];
-  if (allowedAdmins.includes(adminEmail)) {
-    return true;
-  }
+  // 2. Cryptographically verify Firebase Admin ID Token if provided
+  const firebaseToken =
+    (req.headers['x-firebase-id-token'] as string) ||
+    (bearerToken.includes('.') ? bearerToken : '') ||
+    (req.body?.firebaseIdToken as string) ||
+    '';
 
-  // 3. Check role parameter if accompanied by authenticated state
-  if (req.body?.userRole === 'admin' || req.headers['x-user-role'] === 'admin') {
-    return true;
+  if (firebaseToken) {
+    const valid = await verifyFirebaseAdminIdToken(firebaseToken.trim());
+    if (valid) return true;
   }
 
   return false;
 }
 
 // -------------------------------------------------------------
-// ADMIN SECURE ENDPOINTS: RAZORPAY CREDENTIALS MANAGEMENT
+// ADMIN SECURE ENDPOINTS: CASHFREE CREDENTIALS MANAGEMENT
 // -------------------------------------------------------------
-app.get('/api/admin/razorpay-secure-config', (req: Request, res: Response): void => {
-  if (!verifyAdminAuthorization(req)) {
-    res.status(403).json({ success: false, error: 'Unauthorized: Super Admin credentials required.' });
+app.get('/api/admin/cashfree-secure-config', async (req: Request, res: Response): Promise<void> => {
+  if (!(await verifyAdminAuthorization(req))) {
+    res.status(403).json({ success: false, error: 'Unauthorized: Verified Super Admin session required.' });
     return;
   }
 
   res.json({
     success: true,
-    keyId: secureRazorpayVault.keyId,
-    hasKeySecret: !!secureRazorpayVault.keySecret,
-    maskedKeySecret: maskSecret(secureRazorpayVault.keySecret),
-    isEnabled: secureRazorpayVault.isEnabled,
-    isLiveMode: secureRazorpayVault.isLiveMode,
-    merchantName: secureRazorpayVault.merchantName,
-    currency: secureRazorpayVault.currency,
-    taxExemptionNumber: secureRazorpayVault.taxExemptionNumber,
-    lastUpdated: secureRazorpayVault.lastUpdated,
-    updatedBy: secureRazorpayVault.updatedBy
+    hasAppId: Boolean(secureCashfreeVault.appId),
+    maskedAppId: maskSecret(secureCashfreeVault.appId),
+    hasSecretKey: Boolean(secureCashfreeVault.secretKey),
+    maskedSecretKey: maskSecret(secureCashfreeVault.secretKey),
+    environment: secureCashfreeVault.environment,
+    isEnabled: secureCashfreeVault.isEnabled,
+    isConfigured: isCashfreeConfigured(),
+    merchantName: secureCashfreeVault.merchantName,
+    minAmount: secureCashfreeVault.minAmount,
+    taxExemptionNumber: secureCashfreeVault.taxExemptionNumber,
+    lastUpdated: secureCashfreeVault.lastUpdated,
+    updatedBy: secureCashfreeVault.updatedBy
   });
 });
 
-app.post('/api/admin/razorpay-secure-config', (req: Request, res: Response): void => {
-  if (!verifyAdminAuthorization(req)) {
-    res.status(403).json({ success: false, error: 'Unauthorized: Super Admin credentials required.' });
+app.post('/api/admin/cashfree-secure-config', async (req: Request, res: Response): Promise<void> => {
+  if (!(await verifyAdminAuthorization(req))) {
+    res.status(403).json({ success: false, error: 'Unauthorized: Verified Super Admin session required.' });
     return;
   }
 
-  const {
-    keyId,
-    keySecret,
-    isEnabled,
-    isLiveMode,
-    merchantName,
-    taxExemptionNumber,
-    adminEmail
-  } = req.body;
-
-  const cleanKeyId = typeof keyId === 'string' ? keyId.trim() : secureRazorpayVault.keyId;
-  let cleanKeySecret = secureRazorpayVault.keySecret;
-
-  // Only update secret if user provided a new real secret (not masked with dots or empty)
-  if (typeof keySecret === 'string' && keySecret.trim() && !keySecret.includes('••••')) {
-    cleanKeySecret = keySecret.trim();
-  }
-
-  const updatedConfig: SecureRazorpayConfig = {
-    keyId: cleanKeyId,
-    keySecret: cleanKeySecret,
-    isEnabled: isEnabled !== undefined ? !!isEnabled : secureRazorpayVault.isEnabled,
-    isLiveMode: isLiveMode !== undefined ? !!isLiveMode : cleanKeyId.startsWith('rzp_live_'),
-    merchantName: typeof merchantName === 'string' && merchantName.trim() ? merchantName.trim() : secureRazorpayVault.merchantName,
-    currency: 'INR',
-    taxExemptionNumber: typeof taxExemptionNumber === 'string' ? taxExemptionNumber.trim() : secureRazorpayVault.taxExemptionNumber,
-    lastUpdated: new Date().toISOString(),
-    updatedBy: adminEmail || 'Super Admin'
-  };
-
-  persistSecureRazorpayVault(updatedConfig);
-
-  res.json({
-    success: true,
-    message: 'Razorpay API credentials securely updated in server-side vault.',
-    config: {
-      keyId: updatedConfig.keyId,
-      hasKeySecret: !!updatedConfig.keySecret,
-      maskedKeySecret: maskSecret(updatedConfig.keySecret),
-      isEnabled: updatedConfig.isEnabled,
-      isLiveMode: updatedConfig.isLiveMode,
-      merchantName: updatedConfig.merchantName,
-      currency: updatedConfig.currency,
-      taxExemptionNumber: updatedConfig.taxExemptionNumber,
-      lastUpdated: updatedConfig.lastUpdated
-    }
-  });
-});
-
-app.post('/api/admin/razorpay-test-connection', async (req: Request, res: Response): Promise<void> => {
-  if (!verifyAdminAuthorization(req)) {
-    res.status(403).json({ success: false, error: 'Unauthorized: Super Admin credentials required.' });
-    return;
-  }
-
-  try {
-    const { keyId, keySecret } = req.body;
-
-    // Use passed keys or fallback to server vault keys
-    let testKeyId = (typeof keyId === 'string' && keyId.trim()) ? keyId.trim() : secureRazorpayVault.keyId;
-    let testKeySecret = (typeof keySecret === 'string' && keySecret.trim() && !keySecret.includes('••••'))
-      ? keySecret.trim()
-      : secureRazorpayVault.keySecret;
-
-    if (!testKeyId || !testKeySecret) {
-      res.status(400).json({
-        success: false,
-        error: 'Both Razorpay Key ID and Key Secret must be provided or configured in the server vault.'
-      });
-      return;
-    }
-
-    const rzp = new Razorpay({
-      key_id: testKeyId,
-      key_secret: testKeySecret
-    });
-
-    const testOrder = await (rzp.orders as any).create({
-      amount: 100, // 1 INR test probe
-      currency: 'INR',
-      receipt: `test_${Date.now()}`.substring(0, 30),
-      notes: { purpose: 'Admin Super Verification Probe' }
-    });
-
-    res.json({
-      success: true,
-      message: 'Razorpay API credentials verified and active with Razorpay servers!',
-      testOrderId: testOrder.id,
-      mode: testKeyId.startsWith('rzp_live_') ? 'LIVE' : 'TEST'
-    });
-  } catch (error: any) {
-    console.error('[RAZORPAY-VAULT] ❌ Connection test failed:', error);
-    res.status(400).json({
-      success: false,
-      error: error?.error?.description || error?.message || 'Failed to authenticate with Razorpay. Please verify Key ID and Key Secret.'
-    });
-  }
-});
-
-// -------------------------------------------------------------
-// PUBLIC RAZORPAY GATEWAY ENDPOINTS (Create Order & Verify Signature)
-// -------------------------------------------------------------
-app.post('/api/razorpay/create-order', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { amount, currency, receipt, donorName, donorEmail, donorPhone, reason } = req.body;
-
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount < 1) {
-      res.status(400).json({ success: false, error: 'Valid donation amount (minimum ₹1) is required.' });
-      return;
-    }
-
-    if (!secureRazorpayVault.isEnabled) {
-      res.status(403).json({ success: false, error: 'Donation gateway is currently disabled by administration.' });
-      return;
-    }
-
-    const keyId = secureRazorpayVault.keyId;
-    const keySecret = secureRazorpayVault.keySecret;
-
-    // If keys are not configured yet, support seamless test simulation order
-    if (!keyId || !keySecret || keyId === 'rzp_test_placeholder' || keySecret === 'placeholder') {
-      console.warn('[RAZORPAY-SERVER] ⚠️ Razorpay keys not configured in vault. Creating simulation order.');
-      const demoOrderId = `order_sim_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
-      res.json({
-        success: true,
-        orderId: demoOrderId,
-        amount: Math.round(numAmount * 100),
-        currency: currency || 'INR',
-        keyId: keyId || 'rzp_test_demo_mode',
-        isSimulation: true,
-        message: 'Simulation order generated. Configure your active Razorpay Key ID and Key Secret in Admin Settings to process live transactions.'
-      });
-      return;
-    }
-
-    // Real Razorpay instance with server vault API keys
-    const rzp = new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret
-    });
-
-    const options = {
-      amount: Math.round(numAmount * 100), // amount in lowest denomination (paise)
-      currency: currency || 'INR',
-      receipt: (receipt || `rcpt_${Date.now()}`).substring(0, 40),
-      notes: {
-        donorName: (donorName || 'Anonymous Donor').substring(0, 50),
-        donorEmail: (donorEmail || '').substring(0, 50),
-        donorPhone: (donorPhone || '').substring(0, 20),
-        reason: (reason || 'College Development Fund').substring(0, 100)
-      }
-    };
-
-    const order = await (rzp.orders as any).create(options);
-    console.log(`[RAZORPAY-SERVER] ✅ Razorpay Order Created: ${order.id} for ₹${numAmount}`);
-
-    res.json({
-      success: true,
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      keyId,
-      isSimulation: false
-    });
-  } catch (error: any) {
-    console.error('[RAZORPAY-SERVER] ❌ Razorpay Order creation error:', error);
-    res.status(500).json({
-      success: false,
-      error: error?.error?.description || error?.message || 'Failed to create Razorpay payment order. Please check Razorpay credentials in Admin Settings.'
-    });
-  }
-});
-
-app.post('/api/razorpay/verify-payment', (req: Request, res: Response): void => {
   try {
     const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      isSimulation
+      appId,
+      secretKey,
+      environment,
+      isEnabled,
+      merchantName,
+      minAmount,
+      taxExemptionNumber,
+      adminEmail
     } = req.body;
 
-    if (!razorpay_order_id || !razorpay_payment_id) {
-      res.status(400).json({ success: false, error: 'Order ID and Payment ID are required.' });
-      return;
+    let cleanAppId = secureCashfreeVault.appId;
+    if (typeof appId === 'string' && appId.trim() && !appId.includes('••••')) {
+      cleanAppId = appId.trim();
     }
 
-    if (isSimulation || razorpay_order_id.startsWith('order_sim_')) {
-      console.log(`[RAZORPAY-SERVER] ⚡ Verified simulation payment: ${razorpay_payment_id}`);
-      res.json({
-        success: true,
-        verified: true,
-        isSimulation: true,
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id
+    let cleanSecretKey = secureCashfreeVault.secretKey;
+    if (typeof secretKey === 'string' && secretKey.trim() && !secretKey.includes('••••')) {
+      cleanSecretKey = secretKey.trim();
+    }
+
+    const updatedConfig: SecureCashfreeConfig = {
+      appId: cleanAppId,
+      secretKey: cleanSecretKey,
+      environment: environment ? normalizeCashfreeEnv(environment) : secureCashfreeVault.environment,
+      isEnabled: isEnabled !== undefined ? Boolean(isEnabled) : secureCashfreeVault.isEnabled,
+      merchantName: typeof merchantName === 'string' && merchantName.trim() ? merchantName.trim() : secureCashfreeVault.merchantName,
+      minAmount: typeof minAmount === 'number' && minAmount >= 1 ? Math.round(minAmount) : (secureCashfreeVault.minAmount || 100),
+      taxExemptionNumber: typeof taxExemptionNumber === 'string' ? taxExemptionNumber.trim() : secureCashfreeVault.taxExemptionNumber,
+      lastUpdated: new Date().toISOString(),
+      updatedBy: typeof adminEmail === 'string' && adminEmail.trim() ? adminEmail.trim() : 'Super Admin'
+    };
+
+    persistSecureCashfreeVault(updatedConfig);
+
+    res.json({
+      success: true,
+      message: 'Cashfree API credentials securely stored in server-side vault.',
+      config: {
+        hasAppId: Boolean(updatedConfig.appId),
+        maskedAppId: maskSecret(updatedConfig.appId),
+        hasSecretKey: Boolean(updatedConfig.secretKey),
+        maskedSecretKey: maskSecret(updatedConfig.secretKey),
+        environment: updatedConfig.environment,
+        isEnabled: updatedConfig.isEnabled,
+        isConfigured: isCashfreeConfigured(updatedConfig),
+        merchantName: updatedConfig.merchantName,
+        minAmount: updatedConfig.minAmount,
+        taxExemptionNumber: updatedConfig.taxExemptionNumber,
+        lastUpdated: updatedConfig.lastUpdated
+      }
+    });
+  } catch (error: any) {
+    console.error('[CASHFREE-VAULT] ❌ Error saving config:', error);
+    res.status(500).json({ success: false, error: 'Failed to save Cashfree vault configuration.' });
+  }
+});
+
+app.post('/api/admin/cashfree-test-connection', async (req: Request, res: Response): Promise<void> => {
+  if (!(await verifyAdminAuthorization(req))) {
+    res.status(403).json({ success: false, error: 'Unauthorized: Verified Super Admin session required.' });
+    return;
+  }
+
+  try {
+    const { appId, secretKey, environment } = req.body;
+    const testAppId = (typeof appId === 'string' && appId.trim() && !appId.includes('••••'))
+      ? appId.trim()
+      : secureCashfreeVault.appId;
+    const testSecretKey = (typeof secretKey === 'string' && secretKey.trim() && !secretKey.includes('••••'))
+      ? secretKey.trim()
+      : secureCashfreeVault.secretKey;
+    const testEnv = environment ? normalizeCashfreeEnv(environment) : secureCashfreeVault.environment;
+
+    if (!testAppId || !testSecretKey) {
+      res.status(400).json({
+        success: false,
+        error: 'Both Cashfree App ID and Secret Key are required to test the API connection.'
       });
       return;
     }
 
-    const keySecret = secureRazorpayVault.keySecret || process.env.RAZORPAY_KEY_SECRET || '';
-    if (!keySecret) {
-      res.status(400).json({ success: false, error: 'Razorpay Key Secret is required to verify cryptographic signature.' });
+    const baseUrl = getCashfreeApiBaseUrl(testEnv);
+    const probeUrl = `${baseUrl}/orders/PROBE_CHECK_${Date.now()}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    let apiRes: globalThis.Response;
+    try {
+      apiRes = await fetch(probeUrl, {
+        method: 'GET',
+        headers: {
+          'x-client-id': testAppId,
+          'x-client-secret': testSecretKey,
+          'x-api-version': CASHFREE_API_VERSION,
+          'Accept': 'application/json'
+        },
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    const rawText = await apiRes.text();
+    let parsed: any = {};
+    try {
+      parsed = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      parsed = {};
+    }
+
+    // 401/403 means invalid App ID, Secret Key, or wrong Environment (Sandbox vs Production)
+    if (apiRes.status === 401 || apiRes.status === 403) {
+      res.status(400).json({
+        success: false,
+        error: parsed?.message || `Cashfree rejected these credentials in ${testEnv.toUpperCase()} mode. Check your App ID, Secret Key, and Environment.`
+      });
       return;
     }
 
-    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const expectedSignature = crypto
-      .createHmac('sha256', keySecret)
-      .update(body)
-      .digest('hex');
-
-    const isMatch = safeCompare(expectedSignature, razorpay_signature || '');
-    if (!isMatch) {
-      console.warn(`[RAZORPAY-SERVER] ❌ Payment signature mismatch for Order: ${razorpay_order_id}`);
-      res.status(400).json({ success: false, verified: false, error: 'Invalid payment signature. Verification failed.' });
+    // 200 or 404 (order_not_found) proves Cashfree authenticated our client credentials cleanly
+    if (apiRes.ok || apiRes.status === 404) {
+      res.json({
+        success: true,
+        message: `Successfully authenticated with Cashfree ${testEnv.toUpperCase()} PG servers!`,
+        environment: testEnv
+      });
       return;
     }
 
-    console.log(`[RAZORPAY-SERVER] ✅ Cryptographic signature verified successfully for Order: ${razorpay_order_id}`);
-    res.json({
-      success: true,
-      verified: true,
-      orderId: razorpay_order_id,
-      paymentId: razorpay_payment_id
-    });
-  } catch (error: any) {
-    console.error('[RAZORPAY-SERVER] ❌ Payment verification error:', error);
-    res.status(500).json({ success: false, error: 'Payment verification failed.' });
-  }
-});
-
-app.post('/api/razorpay/test-keys', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { keyId, keySecret } = req.body;
-    const cleanKeyId = (keyId || secureRazorpayVault.keyId || process.env.RAZORPAY_KEY_ID || '').trim();
-    const cleanKeySecret = (keySecret || secureRazorpayVault.keySecret || process.env.RAZORPAY_KEY_SECRET || '').trim();
-
-    if (!cleanKeyId || !cleanKeySecret) {
-      res.status(400).json({ success: false, error: 'Both Key ID and Key Secret are required.' });
-      return;
-    }
-
-    const rzp = new Razorpay({
-      key_id: cleanKeyId,
-      key_secret: cleanKeySecret
-    });
-
-    // Test credentials by creating a test order
-    const testOrder = await (rzp.orders as any).create({
-      amount: 100, // 1 INR in paise
-      currency: 'INR',
-      receipt: `test_${Date.now()}`.substring(0, 30),
-      notes: { test: 'API Key Verification' }
-    });
-
-    res.json({
-      success: true,
-      message: 'Razorpay API credentials verified successfully with Razorpay servers!',
-      testOrderId: testOrder.id,
-      keyMode: cleanKeyId.startsWith('rzp_live_') ? 'LIVE' : 'TEST'
-    });
-  } catch (error: any) {
-    console.error('[RAZORPAY-SERVER] ❌ Razorpay key test failed:', error);
     res.status(400).json({
       success: false,
-      error: error?.error?.description || error?.message || 'Invalid Razorpay Key ID or Secret. Authentication failed.'
+      error: parsed?.message || `Unexpected response from Cashfree (${apiRes.status}).`
+    });
+  } catch (error: any) {
+    console.error('[CASHFREE-VAULT] ❌ Connection test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error?.message || 'Network error while connecting to Cashfree servers.'
     });
   }
 });
 
 // -------------------------------------------------------------
-// RUPAYEX UPI GATEWAY ENDPOINTS (Create Order, Status & Webhook)
+// PUBLIC CASHFREE PAYMENT GATEWAY ENDPOINTS (PG v3)
 // -------------------------------------------------------------
-
-// Public Config check
-app.get('/api/rupayex/config', (req: Request, res: Response) => {
+app.get('/api/cashfree/config', (_req: Request, res: Response): void => {
   res.json({
     success: true,
-    isEnabled: secureRupayexVault.isEnabled,
-    merchantName: secureRupayexVault.merchantName,
-    minAmount: secureRupayexVault.minAmount || 100,
-    webhookUrl: secureRupayexVault.webhookUrl
+    isEnabled: secureCashfreeVault.isEnabled,
+    isConfigured: isCashfreeConfigured(),
+    environment: secureCashfreeVault.environment,
+    merchantName: secureCashfreeVault.merchantName,
+    minAmount: secureCashfreeVault.minAmount || 100
   });
 });
 
-// Create Order on Rupayex Gateway
-app.post('/api/rupayex/create-order', async (req: Request, res: Response): Promise<void> => {
+app.post('/api/cashfree/create-order', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { amount, donorName, donorEmail, donorPhone, reason, customReason, receiptNumber, redirectUrl } = req.body;
+    const {
+      amount,
+      donorName,
+      donorEmail,
+      donorPhone,
+      reason,
+      receiptNumber,
+      returnUrl
+    } = req.body;
 
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount < 1) {
-      res.status(400).json({ success: false, error: 'Valid donation amount is required.' });
+    const numAmount = Number(parseFloat(amount).toFixed(2));
+    if (isNaN(numAmount) || numAmount < 1 || numAmount > 10000000) {
+      res.status(400).json({ success: false, error: 'Valid donation amount between ₹1 and ₹1,00,00,000 is required.' });
       return;
     }
 
-    if (!secureRupayexVault.isEnabled) {
-      res.status(403).json({ success: false, error: 'Rupayex payment gateway is currently disabled by administration.' });
+    if (!secureCashfreeVault.isEnabled) {
+      res.status(403).json({ success: false, error: 'Online donation gateway is currently disabled by administration.' });
       return;
     }
 
-    const minAllowed = secureRupayexVault.minAmount || 100;
+    const minAllowed = secureCashfreeVault.minAmount || 100;
     if (numAmount < minAllowed) {
       res.status(400).json({
         success: false,
-        error: `Rupayex UPI gateway minimum contribution amount is ₹${minAllowed}.`
+        error: `Minimum online contribution amount is ₹${minAllowed}.`
       });
       return;
     }
 
-    const orderId = (req.body.orderId || req.body.order_id || `ORD_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`).toString().trim();
-    let effectiveRedirect = redirectUrl || secureRupayexVault.webhookUrl || 'https://primaryschoolharsinghpur.netlify.app/';
-    if (!effectiveRedirect.includes('order_id=')) {
-      effectiveRedirect += effectiveRedirect.includes('?') ? `&order_id=${encodeURIComponent(orderId)}` : `?order_id=${encodeURIComponent(orderId)}`;
+    if (!isCashfreeConfigured()) {
+      res.status(503).json({
+        success: false,
+        code: 'GATEWAY_NOT_CONFIGURED',
+        error: 'Cashfree Payment Gateway credentials (App ID & Secret Key) are not configured yet. Please ask the Administrator to add Cashfree API keys in Governance -> Payment Gateway Vault.'
+      });
+      return;
     }
 
-    const targetUrl = `${secureRupayexVault.apiBaseUrl.replace(/\/+$/, '')}/create-order`;
+    // Generate Cashfree-compliant unique order_id (alphanumeric, _ and -, max 45 chars)
+    const orderId = `CF_ORD_${Date.now()}_${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    const customerId = `donor_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
 
-    const postPayload = {
+    // Cashfree PG v3 requires a 10-digit customer_phone
+    const rawDigits = String(donorPhone || '').replace(/\D/g, '');
+    const cleanPhone = rawDigits.length >= 10 ? rawDigits.slice(-10) : '9999999999';
+    const cleanName = String(donorName || 'Well Wisher').replace(/[^\p{L}\p{N}\s.'-]/gu, '').trim().slice(0, 80) || 'Well Wisher';
+    const cleanEmail = typeof donorEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donorEmail.trim())
+      ? donorEmail.trim().slice(0, 100)
+      : undefined;
+
+    // Resolve safe HTTPS/origin return URL
+    const forwardedProto = (req.headers['x-forwarded-proto'] as string)?.split(',')[0]?.trim() || 'https';
+    const forwardedHost = (req.headers['x-forwarded-host'] as string)?.split(',')[0]?.trim();
+    const requestOrigin =
+      (typeof req.headers.origin === 'string' && /^https?:\/\//i.test(req.headers.origin) ? req.headers.origin : '') ||
+      (forwardedHost ? `${forwardedProto}://${forwardedHost}` : '') ||
+      (process.env.APP_URL && /^https?:\/\//i.test(process.env.APP_URL) ? process.env.APP_URL.replace(/\/+$/, '') : '');
+
+    let safeReturnBase = requestOrigin;
+    if (typeof returnUrl === 'string' && /^https?:\/\//i.test(returnUrl.trim())) {
+      try {
+        const parsedReturn = new URL(returnUrl.trim());
+        const parsedOrigin = requestOrigin ? new URL(requestOrigin) : null;
+        if (!parsedOrigin || parsedReturn.origin === parsedOrigin.origin) {
+          safeReturnBase = parsedReturn.origin;
+        }
+      } catch {
+        // fallback to requestOrigin
+      }
+    }
+
+    const effectiveReturnUrl = safeReturnBase
+      ? `${safeReturnBase}/?page=donation&order_id=${encodeURIComponent(orderId)}`
+      : `https://cashfree.com/?order_id=${encodeURIComponent(orderId)}`;
+
+    const orderMeta: Record<string, string> = {
+      return_url: effectiveReturnUrl
+    };
+    if (safeReturnBase && safeReturnBase.startsWith('https://')) {
+      orderMeta.notify_url = `${safeReturnBase}/api/cashfree/webhook`;
+    }
+
+    const payload: Record<string, any> = {
       order_id: orderId,
-      amount: numAmount,
-      redirect_url: effectiveRedirect,
-      instance_id: secureRupayexVault.instanceId
+      order_amount: numAmount,
+      order_currency: 'INR',
+      customer_details: {
+        customer_id: customerId,
+        customer_name: cleanName,
+        customer_phone: cleanPhone,
+        ...(cleanEmail ? { customer_email: cleanEmail } : {})
+      },
+      order_meta: orderMeta,
+      order_note: String(reason || 'School Development Contribution').slice(0, 190)
     };
 
-    console.log(`[RUPAYEX-SERVER] 🚀 Creating order on Rupayex: ${orderId} for ₹${numAmount} (Instance: ${secureRupayexVault.instanceId})`);
+    const baseUrl = getCashfreeApiBaseUrl(secureCashfreeVault.environment);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const apiRes = await fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'x-api-token': secureRupayexVault.apiToken,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'CompositeJHS-ERP/1.0'
-      },
-      body: JSON.stringify(postPayload)
-    });
+    let apiRes: globalThis.Response;
+    try {
+      apiRes = await fetch(`${baseUrl}/orders`, {
+        method: 'POST',
+        headers: {
+          'x-client-id': secureCashfreeVault.appId,
+          'x-client-secret': secureCashfreeVault.secretKey,
+          'x-api-version': CASHFREE_API_VERSION,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
-    const responseData = await apiRes.json() as any;
+    const rawText = await apiRes.text();
+    let cfData: any = {};
+    try {
+      cfData = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      console.error('[CASHFREE-SERVER] ❌ Invalid JSON from Cashfree /orders:', rawText.slice(0, 300));
+      res.status(502).json({ success: false, error: 'Cashfree gateway returned an unexpected response. Please try again.' });
+      return;
+    }
 
-    if (!apiRes.ok || !responseData.status) {
-      console.error('[RUPAYEX-SERVER] ❌ Rupayex API error response:', responseData);
+    if (!apiRes.ok || !cfData.payment_session_id) {
+      console.error('[CASHFREE-SERVER] ❌ Cashfree order creation failed:', cfData);
       res.status(apiRes.status >= 400 && apiRes.status < 500 ? apiRes.status : 502).json({
         success: false,
-        error: responseData.message || 'Failed to create payment order on Rupayex gateway.'
+        error: cfData.message || 'Failed to initialize payment session with Cashfree.'
       });
       return;
     }
 
-    console.log(`[RUPAYEX-SERVER] ✅ Order created successfully: ${orderId} | PayURL: ${responseData.payment_url}`);
+    const finalReceipt = typeof receiptNumber === 'string' && receiptNumber.trim()
+      ? receiptNumber.trim().slice(0, 50)
+      : `DON-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+
+    cashfreeOrderMetaStore.set(orderId, {
+      orderId,
+      amount: Number(cfData.order_amount) || numAmount,
+      receiptNumber: finalReceipt,
+      createdAt: new Date().toISOString(),
+      status: cfData.order_status || 'ACTIVE'
+    });
+
+    console.log(`[CASHFREE-SERVER] ✅ Order created: ${orderId} (${secureCashfreeVault.environment}) | ₹${numAmount}`);
 
     res.json({
       success: true,
-      orderId: responseData.order_id || orderId,
-      paymentUrl: responseData.payment_url,
-      amount: responseData.amount || numAmount,
-      receiptNumber: receiptNumber || `RCPT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
-      message: responseData.message || 'Order created successfully'
+      orderId: cfData.order_id || orderId,
+      cfOrderId: cfData.cf_order_id ? String(cfData.cf_order_id) : undefined,
+      paymentSessionId: cfData.payment_session_id,
+      environment: secureCashfreeVault.environment,
+      amount: Number(cfData.order_amount) || numAmount,
+      currency: cfData.order_currency || 'INR',
+      receiptNumber: finalReceipt
     });
   } catch (error: any) {
-    console.error('[RUPAYEX-SERVER] ❌ Exception in create-order:', error);
+    console.error('[CASHFREE-SERVER] ❌ Exception creating Cashfree order:', error);
     res.status(500).json({
       success: false,
-      error: error?.message || 'Internal server error while connecting to Rupayex.'
+      error: error?.message || 'Internal server error while initiating Cashfree checkout.'
     });
   }
 });
 
-// Check Order Status on Rupayex Gateway (GET and POST support)
-const handleCheckOrderStatus = async (req: Request, res: Response): Promise<void> => {
+const handleCheckCashfreeOrderStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const orderId = (req.query.order_id as string || req.body?.order_id as string || '').trim();
-    if (!orderId) {
-      res.status(400).json({ success: false, error: 'Order ID is required.' });
+    const orderId = String(req.query.order_id || req.body?.order_id || req.body?.orderId || '').trim();
+    if (!orderId || !/^[a-zA-Z0-9_-]{4,64}$/.test(orderId)) {
+      res.status(400).json({ success: false, error: 'Valid Cashfree Order ID is required.' });
       return;
     }
 
-    const targetUrl = `${secureRupayexVault.apiBaseUrl.replace(/\/+$/, '')}/order-status?order_id=${encodeURIComponent(orderId)}&instance_id=${encodeURIComponent(secureRupayexVault.instanceId)}`;
+    if (!isCashfreeConfigured()) {
+      res.status(503).json({ success: false, error: 'Cashfree API credentials are not configured on the server.' });
+      return;
+    }
 
-    const apiRes = await fetch(targetUrl, {
-      method: 'GET',
-      headers: {
-        'x-api-token': secureRupayexVault.apiToken,
-        'Accept': 'application/json'
+    const baseUrl = getCashfreeApiBaseUrl(secureCashfreeVault.environment);
+    const headers = {
+      'x-client-id': secureCashfreeVault.appId,
+      'x-client-secret': secureCashfreeVault.secretKey,
+      'x-api-version': CASHFREE_API_VERSION,
+      'Accept': 'application/json'
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    let orderRes: globalThis.Response;
+    let paymentsRes: globalThis.Response | null = null;
+    try {
+      orderRes = await fetch(`${baseUrl}/orders/${encodeURIComponent(orderId)}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal
+      });
+      if (orderRes.ok) {
+        paymentsRes = await fetch(`${baseUrl}/orders/${encodeURIComponent(orderId)}/payments`, {
+          method: 'GET',
+          headers,
+          signal: controller.signal
+        }).catch(() => null);
       }
-    });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
-    const responseData = await apiRes.json() as any;
+    const orderText = await orderRes.text();
+    let orderData: any = {};
+    try {
+      orderData = orderText ? JSON.parse(orderText) : {};
+    } catch {
+      res.status(502).json({ success: false, error: 'Invalid response received from Cashfree verification API.' });
+      return;
+    }
 
-    if (!apiRes.ok || !responseData.status) {
-      res.status(apiRes.status).json({
+    if (!orderRes.ok) {
+      res.status(orderRes.status >= 400 && orderRes.status < 500 ? orderRes.status : 502).json({
         success: false,
-        error: responseData.message || 'Failed to fetch order status from Rupayex.'
+        error: orderData.message || 'Unable to verify order with Cashfree.'
       });
       return;
     }
 
+    let paymentsList: any[] = [];
+    if (paymentsRes && paymentsRes.ok) {
+      try {
+        const pJson = await paymentsRes.json();
+        if (Array.isArray(pJson)) paymentsList = pJson;
+      } catch {
+        paymentsList = [];
+      }
+    }
+
+    const successPayment = paymentsList.find((p) => String(p?.payment_status || '').toUpperCase() === 'SUCCESS');
+    const latestPayment = successPayment || paymentsList[0];
+
+    let paymentStatus: 'SUCCESS' | 'PENDING' | 'FAILED' = 'PENDING';
+    const orderStatusUpper = String(orderData.order_status || '').toUpperCase();
+    const latestStatusUpper = String(latestPayment?.payment_status || '').toUpperCase();
+
+    if (orderStatusUpper === 'PAID' || successPayment) {
+      paymentStatus = 'SUCCESS';
+    } else if (
+      orderStatusUpper === 'EXPIRED' ||
+      orderStatusUpper === 'TERMINATED' ||
+      latestStatusUpper === 'FAILED' ||
+      latestStatusUpper === 'USER_DROPPED' ||
+      latestStatusUpper === 'CANCELLED'
+    ) {
+      paymentStatus = 'FAILED';
+    }
+
+    const methodGroup = latestPayment?.payment_group
+      ? String(latestPayment.payment_group).replace(/_/g, ' ').toUpperCase()
+      : (latestPayment?.payment_method ? Object.keys(latestPayment.payment_method)[0]?.toUpperCase() : 'Online');
+
     res.json({
       success: true,
-      orderId: responseData.order_id,
-      amount: responseData.amount,
-      paymentStatus: responseData.payment_status, // "SUCCESS" | "PENDING" | "FAILED"
-      utr: responseData.utr || null,
-      method: responseData.method || 'UPI',
-      createdAt: responseData.created_at
+      verified: paymentStatus === 'SUCCESS',
+      orderId: orderData.order_id || orderId,
+      cfOrderId: orderData.cf_order_id ? String(orderData.cf_order_id) : undefined,
+      amount: Number(orderData.order_amount) || cashfreeOrderMetaStore.get(orderId)?.amount || 0,
+      currency: orderData.order_currency || 'INR',
+      orderStatus: orderData.order_status,
+      paymentStatus,
+      cfPaymentId: latestPayment?.cf_payment_id ? String(latestPayment.cf_payment_id) : undefined,
+      bankReference: latestPayment?.bank_reference || undefined,
+      paymentMethod: methodGroup,
+      paymentTime: latestPayment?.payment_completion_time || latestPayment?.payment_time || undefined
     });
   } catch (error: any) {
-    console.error('[RUPAYEX-SERVER] ❌ Error checking order status:', error);
+    console.error('[CASHFREE-SERVER] ❌ Error checking order status:', error);
     res.status(500).json({
       success: false,
-      error: error?.message || 'Error checking order status.'
+      error: error?.message || 'Failed to verify Cashfree payment status.'
     });
   }
 };
 
-app.get('/api/rupayex/order-status', handleCheckOrderStatus);
-app.post('/api/rupayex/order-status', handleCheckOrderStatus);
+app.get('/api/cashfree/order-status', handleCheckCashfreeOrderStatus);
+app.post('/api/cashfree/verify-payment', handleCheckCashfreeOrderStatus);
 
-// Webhook listener for Rupayex Payment Gateway
-app.all(['/api/rupayex/webhook', '/api/rupayex-webhook'], (req: Request, res: Response): void => {
-  console.log('[RUPAYEX-WEBHOOK] 🔔 Received webhook callback:', {
-    method: req.method,
-    query: req.query,
-    body: req.body,
-    headers: req.headers
-  });
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Webhook received and acknowledged successfully',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Admin: Get Rupayex Config
-app.get('/api/admin/rupayex-config', (req: Request, res: Response): void => {
-  res.json({
-    success: true,
-    config: {
-      isEnabled: secureRupayexVault.isEnabled,
-      apiToken: maskSecret(secureRupayexVault.apiToken),
-      instanceId: secureRupayexVault.instanceId,
-      apiBaseUrl: secureRupayexVault.apiBaseUrl,
-      webhookUrl: secureRupayexVault.webhookUrl,
-      merchantName: secureRupayexVault.merchantName,
-      minAmount: secureRupayexVault.minAmount || 100,
-      lastUpdated: secureRupayexVault.lastUpdated,
-      updatedBy: secureRupayexVault.updatedBy
-    }
-  });
-});
-
-// Admin: Save Rupayex Config
-app.post('/api/admin/rupayex-config', (req: Request, res: Response): void => {
+// Cashfree Official Webhook Listener (HMAC-SHA256 Raw Body Signature Verified)
+app.post('/api/cashfree/webhook', (req: Request, res: Response): void => {
   try {
-    const { apiToken, instanceId, apiBaseUrl, webhookUrl, isEnabled, merchantName, minAmount, updatedBy } = req.body;
+    const signature = String(req.headers['x-webhook-signature'] || '').trim();
+    const timestamp = String(req.headers['x-webhook-timestamp'] || '').trim();
+    const rawBody = (req as any).rawBody || JSON.stringify(req.body || {});
 
-    const newConfig: SecureRupayexConfig = {
-      apiToken: apiToken && !apiToken.includes('••••') ? apiToken.trim() : secureRupayexVault.apiToken,
-      instanceId: instanceId ? instanceId.trim() : secureRupayexVault.instanceId,
-      apiBaseUrl: apiBaseUrl ? apiBaseUrl.trim() : secureRupayexVault.apiBaseUrl,
-      webhookUrl: webhookUrl ? webhookUrl.trim() : secureRupayexVault.webhookUrl,
-      isEnabled: typeof isEnabled === 'boolean' ? isEnabled : secureRupayexVault.isEnabled,
-      merchantName: merchantName ? merchantName.trim() : secureRupayexVault.merchantName,
-      minAmount: typeof minAmount === 'number' && minAmount >= 1 ? minAmount : (secureRupayexVault.minAmount || 100),
-      lastUpdated: new Date().toISOString(),
-      updatedBy: updatedBy || 'Administrator'
-    };
-
-    persistSecureRupayexVault(newConfig);
-
-    res.json({
-      success: true,
-      message: 'Rupayex payment gateway configuration updated successfully.',
-      config: {
-        isEnabled: newConfig.isEnabled,
-        apiToken: maskSecret(newConfig.apiToken),
-        instanceId: newConfig.instanceId,
-        apiBaseUrl: newConfig.apiBaseUrl,
-        webhookUrl: newConfig.webhookUrl,
-        merchantName: newConfig.merchantName,
-        minAmount: newConfig.minAmount,
-        lastUpdated: newConfig.lastUpdated,
-        updatedBy: newConfig.updatedBy
-      }
-    });
-  } catch (error: any) {
-    console.error('[RUPAYEX-VAULT] ❌ Error saving config:', error);
-    res.status(500).json({ success: false, error: 'Failed to save Rupayex configuration.' });
-  }
-});
-
-// Admin: Test Connection to Rupayex API
-app.post('/api/admin/rupayex-test-connection', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { apiToken, instanceId, apiBaseUrl } = req.body;
-    const token = (apiToken && !apiToken.includes('••••') ? apiToken : secureRupayexVault.apiToken).trim();
-    const inst = (instanceId || secureRupayexVault.instanceId).trim();
-    const baseUrl = (apiBaseUrl || secureRupayexVault.apiBaseUrl).trim();
-
-    if (!token || !inst) {
-      res.status(400).json({ success: false, error: 'API Token and Instance ID are required.' });
+    if (!secureCashfreeVault.secretKey) {
+      res.status(503).json({ success: false, error: 'Gateway secret key not configured.' });
       return;
     }
 
-    const testOrderId = `TEST_${Date.now()}`;
-    const testUrl = `${baseUrl.replace(/\/+$/, '')}/order-status?order_id=${encodeURIComponent(testOrderId)}&instance_id=${encodeURIComponent(inst)}`;
+    if (!signature || !timestamp) {
+      res.status(400).json({ success: false, error: 'Missing webhook signature headers.' });
+      return;
+    }
 
-    const apiRes = await fetch(testUrl, {
-      method: 'GET',
-      headers: {
-        'x-api-token': token,
-        'Accept': 'application/json'
+    const expectedSignature = crypto
+      .createHmac('sha256', secureCashfreeVault.secretKey)
+      .update(timestamp + rawBody)
+      .digest('base64');
+
+    const sigBuf = Buffer.from(signature, 'utf8');
+    const expBuf = Buffer.from(expectedSignature, 'utf8');
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      console.warn('[CASHFREE-WEBHOOK] ❌ Invalid webhook signature rejected.');
+      res.status(401).json({ success: false, error: 'Invalid webhook signature.' });
+      return;
+    }
+
+    const eventType = req.body?.type || 'UNKNOWN';
+    const orderId = req.body?.data?.order?.order_id;
+    const paymentStatus = req.body?.data?.payment?.payment_status;
+    const cfPaymentId = req.body?.data?.payment?.cf_payment_id;
+    const bankReference = req.body?.data?.payment?.bank_reference;
+
+    if (orderId) {
+      const existing = cashfreeOrderMetaStore.get(orderId);
+      cashfreeOrderMetaStore.set(orderId, {
+        orderId,
+        amount: Number(req.body?.data?.order?.order_amount) || existing?.amount || 0,
+        receiptNumber: existing?.receiptNumber || orderId,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        status: paymentStatus || existing?.status || 'UPDATED',
+        cfPaymentId: cfPaymentId ? String(cfPaymentId) : existing?.cfPaymentId,
+        bankReference: bankReference || existing?.bankReference
+      });
+    }
+
+    console.log(`[CASHFREE-WEBHOOK] 🔔 Verified webhook event=${eventType} orderId=${orderId || 'N/A'} status=${paymentStatus || 'N/A'}`);
+
+    res.status(200).json({
+      success: true,
+      received: true,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('[CASHFREE-WEBHOOK] ❌ Error processing webhook:', error);
+    res.status(500).json({ success: false, error: 'Webhook processing error.' });
+  }
+});
+
+// -------------------------------------------------------------
+// ADMIN SECURE ENDPOINTS: SMTP EMAIL SERVER CONFIGURATION
+// -------------------------------------------------------------
+app.get('/api/admin/smtp-config', async (req: Request, res: Response): Promise<void> => {
+  if (!(await verifyAdminAuthorization(req))) {
+    res.status(403).json({ success: false, error: 'Unauthorized: Verified Super Admin session required.' });
+    return;
+  }
+
+  res.json({
+    success: true,
+    config: {
+      host: secureSmtpVault.host,
+      port: secureSmtpVault.port,
+      secure: secureSmtpVault.secure,
+      user: secureSmtpVault.user,
+      hasPassword: Boolean(secureSmtpVault.pass),
+      maskedPass: maskSecret(secureSmtpVault.pass),
+      fromName: secureSmtpVault.fromName,
+      fromEmail: secureSmtpVault.fromEmail,
+      isEnabled: secureSmtpVault.isEnabled,
+      isConfigured: isRealSmtpConfigured(),
+      lastUpdated: secureSmtpVault.lastUpdated,
+      updatedBy: secureSmtpVault.updatedBy
+    }
+  });
+});
+
+app.post('/api/admin/smtp-config', async (req: Request, res: Response): Promise<void> => {
+  if (!(await verifyAdminAuthorization(req))) {
+    res.status(403).json({ success: false, error: 'Unauthorized: Verified Super Admin session required.' });
+    return;
+  }
+
+  try {
+    const { host, port, secure, user, pass, fromName, fromEmail, isEnabled, adminEmail } = req.body;
+
+    const cleanHost = typeof host === 'string' ? host.trim() : secureSmtpVault.host;
+    const cleanPort = Number(port) || secureSmtpVault.port || 587;
+    const cleanUser = typeof user === 'string' ? user.trim() : secureSmtpVault.user;
+    let cleanPass = secureSmtpVault.pass;
+    if (typeof pass === 'string' && pass.trim() && !pass.includes('••••')) {
+      cleanPass = pass.trim();
+    }
+
+    const updated: SecureSmtpConfig = {
+      host: cleanHost,
+      port: cleanPort,
+      secure: typeof secure === 'boolean' ? secure : cleanPort === 465,
+      user: cleanUser,
+      pass: cleanPass,
+      fromName: typeof fromName === 'string' && fromName.trim() ? fromName.trim() : secureSmtpVault.fromName,
+      fromEmail: typeof fromEmail === 'string' && fromEmail.trim() ? fromEmail.trim() : (cleanUser || secureSmtpVault.fromEmail),
+      isEnabled: typeof isEnabled === 'boolean' ? isEnabled : secureSmtpVault.isEnabled,
+      lastUpdated: new Date().toISOString(),
+      updatedBy: adminEmail || 'Super Admin'
+    };
+
+    persistSecureSmtpVault(updated);
+
+    res.json({
+      success: true,
+      message: 'SMTP email server configuration updated successfully.',
+      config: {
+        host: updated.host,
+        port: updated.port,
+        secure: updated.secure,
+        user: updated.user,
+        hasPassword: Boolean(updated.pass),
+        maskedPass: maskSecret(updated.pass),
+        fromName: updated.fromName,
+        fromEmail: updated.fromEmail,
+        isEnabled: updated.isEnabled,
+        isConfigured: isRealSmtpConfigured(),
+        lastUpdated: updated.lastUpdated,
+        updatedBy: updated.updatedBy
       }
     });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error?.message || 'Failed to save SMTP configuration.' });
+  }
+});
 
-    const body = await apiRes.json() as any;
+app.post('/api/admin/smtp-test', async (req: Request, res: Response): Promise<void> => {
+  if (!(await verifyAdminAuthorization(req))) {
+    res.status(403).json({ success: false, error: 'Unauthorized: Verified Super Admin session required.' });
+    return;
+  }
 
-    if (apiRes.status === 401) {
-      res.status(401).json({
+  try {
+    const { host, port, secure, user, pass, fromName, fromEmail, testRecipient } = req.body;
+    const testHost = (typeof host === 'string' && host.trim()) ? host.trim() : secureSmtpVault.host;
+    const testPort = Number(port) || secureSmtpVault.port || 587;
+    const testSecure = typeof secure === 'boolean' ? secure : testPort === 465;
+    const testUser = (typeof user === 'string' && user.trim()) ? user.trim() : secureSmtpVault.user;
+    const testPass = (typeof pass === 'string' && pass.trim() && !pass.includes('••••')) ? pass.trim() : secureSmtpVault.pass;
+
+    if (!testHost || !testUser || !testPass) {
+      res.status(400).json({
         success: false,
-        error: 'Invalid Rupayex API Token. Server returned 401 Unauthorized.'
+        error: 'SMTP Host, Username/Email, and Password/App Password are required to test the SMTP connection.'
       });
       return;
     }
 
+    const testTransporter = nodemailer.createTransport({
+      host: testHost,
+      port: testPort,
+      secure: testSecure,
+      auth: { user: testUser, pass: testPass },
+      connectionTimeout: 12000,
+      greetingTimeout: 12000,
+      socketTimeout: 15000,
+      tls: { rejectUnauthorized: false }
+    });
+
+    await testTransporter.verify();
+
+    let sentTestEmail = false;
+    if (testRecipient && typeof testRecipient === 'string' && testRecipient.includes('@')) {
+      const senderEmail = (fromEmail && fromEmail.trim()) || testUser;
+      const senderName = (fromName && fromName.trim()) || 'Composite JHS School Portal';
+      await testTransporter.sendMail({
+        from: `"${senderName}" <${senderEmail}>`,
+        to: testRecipient.trim(),
+        subject: '✅ Live SMTP Verification Successful - Composite JHS Portal',
+        text: `Your SMTP email server (${testHost}:${testPort}) is verified and working in live mode!`,
+        html: `<div style="font-family:sans-serif;padding:20px;border:1px solid #e2e8f0;border-radius:12px;">
+          <h2 style="color:#0f172a;margin-top:0;">✅ Live SMTP Server Connected</h2>
+          <p style="color:#475569;">Your SMTP configuration (<strong>${testHost}:${testPort}</strong>) has been verified and is ready to deliver 6-digit OTPs and notifications on the live website.</p>
+        </div>`
+      });
+      sentTestEmail = true;
+    }
+
     res.json({
       success: true,
-      message: 'Successfully connected and verified with Rupayex payment gateway!',
-      status: apiRes.status,
-      response: body
+      sentTestEmail,
+      message: sentTestEmail
+        ? `SMTP server verified and test email delivered to ${testRecipient}!`
+        : `SMTP server handshake verified successfully (${testHost}:${testPort})!`
     });
   } catch (error: any) {
-    console.error('[RUPAYEX-VAULT] ❌ Test connection error:', error);
-    res.status(500).json({
+    console.error('[SMTP-VAULT] ❌ Test connection failed:', error);
+    res.status(400).json({
       success: false,
-      error: error?.message || 'Failed to connect to Rupayex API.'
+      error: error?.message || 'SMTP connection failed. Verify host, port, and App Password.'
     });
   }
 });
 
-// API Route: Health Check
-app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// API Route: Health Check (including live status of Cashfree PG & SMTP)
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    environment: process.env.NODE_ENV || 'development',
+    smtpConfigured: isRealSmtpConfigured(),
+    cashfreeEnabled: secureCashfreeVault.isEnabled,
+    cashfreeConfigured: isCashfreeConfigured(),
+    cashfreeEnvironment: secureCashfreeVault.environment,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API 404 JSON Fallback (Never return index.html for missing /api/* routes)
+app.all('/api/*', (req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    error: `API route not found: ${req.method} ${req.originalUrl}`
+  });
 });
 
 // Vite Middleware for Development / Static Hosting in Production
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
+  const distPath = path.join(process.cwd(), 'dist');
+  const isRunningBuiltBundle = typeof __filename !== 'undefined' && __filename.endsWith('server.cjs');
+  const isProduction = process.env.NODE_ENV === 'production' || (isRunningBuiltBundle && fs.existsSync(path.join(distPath, 'index.html')));
+
+  if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa'
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -1976,7 +2286,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`School Management System Server running on http://0.0.0.0:${PORT}`);
+    console.log(`School Management System Server running on http://0.0.0.0:${PORT} [mode=${isProduction ? 'production' : 'development'}]`);
   });
 }
 

@@ -759,15 +759,16 @@ export interface SchoolSettings {
   noticeTicker?: NoticeTickerConfig;
   // Homepage 6 Facilities Customization
   homepageFacilities?: HomepageFacilityItem[];
+  // Homepage Sections Customization & Dynamic Vertical Ordering
+  homepageSectionOrder?: string[];
+  homepageSectionVisibility?: Record<string, boolean>;
   // Cohesive Portal Theme Palette
   themePalette?: 'government_professional' | 'tricolor_vibrant' | 'royal_navy' | 'modern_emerald';
   // School Timings & Academic Calendar Configuration (Reflected on Contact, About & Public Pages)
   schoolTimings?: SchoolTimingsConfig;
   academicCalendar?: AcademicCalendarConfig;
-  // College & School Donations (Razorpay Gateway Configuration)
-  paymentConfig?: RazorpayPaymentConfig;
-  // Rupayex UPI Payment Gateway Configuration
-  rupayexConfig?: RupayexPaymentConfig;
+  // School & Institutional Donations (Cashfree Payment Gateway Configuration - No secrets stored here)
+  paymentConfig?: CashfreePaymentConfig;
 }
 
 export interface SchoolHolidayItem {
@@ -889,7 +890,7 @@ export interface NoticeTickerConfig {
 }
 
 // -------------------------------------------------------------
-// College Donation & Razorpay Payment Gateway Interfaces
+// School Donation & Cashfree Payment Gateway Interfaces
 // -------------------------------------------------------------
 
 export interface DonationReasonItem {
@@ -908,12 +909,10 @@ export interface DonationReasonItem {
 
 export type DonationReasonConfig = DonationReasonItem;
 
-export interface RazorpayPaymentConfig {
+export interface CashfreePaymentConfig {
   enabled: boolean;
   isEnabled?: boolean;
-  isLiveMode?: boolean; // true = Live Mode (rzp_live_...), false = Test Mode (rzp_test_...)
-  keyId: string; // Razorpay Key ID, e.g. rzp_test_xxxxx or rzp_live_xxxxx
-  keySecret?: string; // Stored securely on server/admin settings
+  environment?: 'sandbox' | 'production';
   merchantName: string;
   merchantNameHi?: string;
   currency: string; // 'INR'
@@ -928,21 +927,10 @@ export interface RazorpayPaymentConfig {
   reasons?: DonationReasonItem[];
   donationReasons?: DonationReasonItem[];
   allowCustomReason?: boolean;
-  upiId?: string; // optional fallback UPI VPA e.g. college.fund@sbi
-  upiQrCodeUrl?: string; // optional fallback UPI QR image
+  upiId?: string; // optional direct SMC UPI VPA e.g. school.smc@sbi
+  upiQrCodeUrl?: string;
   lastUpdated?: string;
   updatedBy?: string;
-}
-
-export interface RupayexPaymentConfig {
-  enabled: boolean;
-  isEnabled?: boolean;
-  apiToken: string;
-  instanceId: string;
-  apiBaseUrl: string;
-  webhookUrl: string;
-  merchantName?: string;
-  minAmount?: number;
 }
 
 export interface DonationRecord {
@@ -960,13 +948,12 @@ export interface DonationRecord {
   panNumber?: string;
   donorAddress?: string;
   isAnonymous?: boolean;
-  paymentGateway: 'rupayex' | 'razorpay' | 'upi_manual' | 'offline_cash' | 'cheque_dd';
-  razorpayPaymentId?: string;
-  razorpayOrderId?: string;
-  razorpaySignature?: string;
-  rupayexOrderId?: string;
-  rupayexPaymentUrl?: string;
-  rupayexUtr?: string;
+  paymentGateway: 'cashfree' | 'upi_manual' | 'offline_cash' | 'cheque_dd';
+  cashfreeOrderId?: string;
+  cashfreeCfOrderId?: string;
+  cashfreePaymentId?: string;
+  cashfreePaymentMethod?: string;
+  cashfreeBankReference?: string;
   status: 'SUCCESS' | 'PENDING' | 'FAILED';
   createdAt: string;
   is80GClaimed?: boolean;

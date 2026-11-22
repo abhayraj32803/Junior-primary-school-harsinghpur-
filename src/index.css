@@ -448,7 +448,7 @@ html, body, #root {
   }
 }
 
-/* Dynamic screen size adjustments based on data-device and screen width */
+/* Dynamic screen size adjustments based on data-device and data-screen-tier */
 [data-device="mobile"] {
   --container-px: 0.875rem;
 }
@@ -459,6 +459,25 @@ html, body, #root {
 
 [data-device="desktop"] {
   --container-px: 2rem;
+}
+
+/* Automatic card & grid protection on all mobile screens (< 768px) */
+[data-device="mobile"] section,
+[data-device="mobile"] main > div {
+  max-width: 100%;
+  min-width: 0;
+}
+
+[data-device="mobile"] .rounded-3xl {
+  border-radius: 1.25rem;
+}
+
+[data-screen-tier="xs"] {
+  --container-px: 0.625rem;
+}
+
+[data-screen-tier="xs"] .rounded-3xl {
+  border-radius: 1rem;
 }
 
 /* Automatic card and element sizing safeguards for very small phones (< 380px) */

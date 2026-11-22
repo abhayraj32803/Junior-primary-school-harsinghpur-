@@ -30,6 +30,7 @@ import {
   collection,
   query,
   where,
+  onSnapshot,
   updateDoc,
   deleteDoc,
   ref,
@@ -37,6 +38,7 @@ import {
   uploadString,
   getDownloadURL
 } from '../lib/firebase';
+import { handleFirestoreError, OperationType } from '../lib/firestoreErrors';
 import { getFriendlyAuthErrorMessage, normalizePhoneNumber, normalizeEmail, maskEmail } from '../utils/authErrorUtils';
 import { 
   sendStudentEmailVerificationCode, 
@@ -75,6 +77,7 @@ export interface AuthContextType {
   userProfile: UserProfile | null;
   role: UserRole | null;
   isAuthenticated: boolean;
+  authReady: boolean;
   loading: boolean;
   sessionToken: string | null;
   allUsers: UserProfile[];
@@ -87,7 +90,8 @@ export interface AuthContextType {
   // Authentication & Verification
   login: (role: UserRole, identifier: string, pass: string) => Promise<{ success: boolean; error?: string; mustChangePassword?: boolean }>;
   loginWithGoogle: (
-    details?: GoogleAuthDetails
+    details?: GoogleAuthDetails,
+    preferredRole?: UserRole
   ) => Promise<{ success: boolean; error?: string; user?: UserProfile; requiresApproval?: boolean }>;
   registerStudentWithAuth: (data: {
     fullName: string;
@@ -475,6 +479,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
+  const [authReady, setAuthReady] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Sync session token to localStorage and sessionStorage
@@ -547,63 +552,132 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [userProfile]);
 
-  // Load from Firestore on startup
+  // Real-time Firestore sync ONLY after Firebase Auth is ready & authenticated
   useEffect(() => {
-    const fetchRemoteData = async () => {
-      try {
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        if (!usersSnapshot.empty) {
-          const fetched: UserProfile[] = [];
-          usersSnapshot.forEach(docSnap => {
-            fetched.push(docSnap.data() as UserProfile);
-          });
-          if (fetched.length > 0) {
-            setAllUsers(prev => {
-              const map = new Map(prev.map(u => [u.username.toLowerCase(), u]));
-              fetched.forEach(f => {
-                if (f.username) map.set(f.username.toLowerCase(), f);
-                else map.set(f.uid, f);
+    if (!authReady || !currentUser?.uid) return;
+
+    const unsubscribers: Array<() => void> = [];
+
+    // 1. Real-time listener on the signed-in user's own profile document
+    const selfDocRef = doc(db, 'users', currentUser.uid);
+    unsubscribers.push(
+      onSnapshot(
+        selfDocRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as UserProfile;
+            setUserProfile(prev => (prev ? { ...prev, ...data } : data));
+          }
+        },
+        (err) => {
+          console.warn('Firestore user profile snapshot listener notice:', err?.code || err?.message);
+        }
+      )
+    );
+
+    // 2. Admin-only real-time listeners for users, registration requests & security logs
+    if (userProfile?.role === 'admin') {
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'users'),
+          (snap) => {
+            const fetched: UserProfile[] = [];
+            snap.forEach(docSnap => fetched.push(docSnap.data() as UserProfile));
+            if (fetched.length > 0) {
+              setAllUsers(prev => {
+                const map = new Map(prev.map(u => [u.uid || u.username.toLowerCase(), u]));
+                fetched.forEach(f => {
+                  map.set(f.uid || f.username.toLowerCase(), f);
+                });
+                return Array.from(map.values());
               });
-              return Array.from(map.values());
-            });
+            }
+          },
+          (err) => {
+            if (err?.code === 'permission-denied') {
+              handleFirestoreError(err, OperationType.LIST, 'users');
+            }
           }
-        }
-      } catch (err) {
-        // Firestore fallback
-      }
+        )
+      );
 
-      try {
-        const reqSnapshot = await getDocs(collection(db, 'registrationRequests'));
-        if (!reqSnapshot.empty) {
-          const fetchedReqs: RegistrationRequest[] = [];
-          reqSnapshot.forEach(docSnap => {
-            fetchedReqs.push(docSnap.data() as RegistrationRequest);
-          });
-          if (fetchedReqs.length > 0) {
-            setRegistrationRequests(fetchedReqs);
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'registrationRequests'),
+          (snap) => {
+            const fetchedReqs: RegistrationRequest[] = [];
+            snap.forEach(docSnap => fetchedReqs.push(docSnap.data() as RegistrationRequest));
+            if (fetchedReqs.length > 0) {
+              setRegistrationRequests(fetchedReqs);
+            }
+          },
+          (err) => {
+            if (err?.code === 'permission-denied') {
+              handleFirestoreError(err, OperationType.LIST, 'registrationRequests');
+            }
           }
-        }
-      } catch (err) {
-        // Fallback to local state
-      }
+        )
+      );
+
+      unsubscribers.push(
+        onSnapshot(
+          collection(db, 'securityLogs'),
+          (snap) => {
+            const fetchedLogs: SecurityLog[] = [];
+            snap.forEach(docSnap => fetchedLogs.push(docSnap.data() as SecurityLog));
+            if (fetchedLogs.length > 0) {
+              setSecurityLogs(
+                fetchedLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+              );
+            }
+          },
+          (err) => {
+            console.warn('SecurityLogs listener notice:', err?.code || err?.message);
+          }
+        )
+      );
+    }
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
     };
-
-    fetchRemoteData();
-  }, []);
+  }, [authReady, currentUser?.uid, userProfile?.role]);
 
   // Firebase auth state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setAuthReady(true);
       if (firebaseUser) {
         setCurrentUser(firebaseUser);
         try {
+          const emailLower = (firebaseUser.email || '').toLowerCase();
+          const isBootstrapAdmin = emailLower === 'ngoaarya159@gmail.com' && Boolean(firebaseUser.emailVerified);
+
           // 1. Try users collection by UID
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const userDoc = await getDoc(userDocRef);
           
           if (userDoc.exists()) {
             const data = userDoc.data() as UserProfile;
-            setUserProfile(data);
+            setUserProfile(isBootstrapAdmin ? { ...data, role: 'admin', status: 'active', isApproved: true } : data);
+          } else if (isBootstrapAdmin) {
+            const adminSeed = INITIAL_USERS.find(u => u.role === 'admin') || INITIAL_USERS[0];
+            const adminProfile: UserProfile = {
+              ...adminSeed,
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || adminSeed.name,
+              fullName: firebaseUser.displayName || adminSeed.name,
+              email: firebaseUser.email || emailLower,
+              emailVerified: true,
+              photoURL: firebaseUser.photoURL || adminSeed.photoURL,
+              role: 'admin',
+              status: 'active',
+              isApproved: true,
+              mustChangePassword: false,
+              lastLoginAt: new Date().toISOString(),
+            };
+            setUserProfile(adminProfile);
+            setDoc(doc(db, 'users', firebaseUser.uid), adminProfile, { merge: true }).catch(() => {});
           } else {
             // 2. Try students collection by UID
             const studentDocRef = doc(db, 'students', firebaseUser.uid);
@@ -647,7 +721,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setDoc(doc(db, 'users', firebaseUser.uid), convertedProfile, { merge: true }).catch(() => {});
             } else if (firebaseUser.email) {
               // 3. Fallback: match by email in allUsers
-              const emailLower = firebaseUser.email.toLowerCase();
               const memUser = allUsers.find(u => u.email && u.email.toLowerCase() === emailLower);
               if (memUser) {
                 setUserProfile(memUser);
@@ -1249,6 +1322,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : friendly || "गलत पासवर्ड दर्ज किया गया है। कृपया पासवर्ड जांचें या पासवर्ड रीसेट करें।" 
         };
       }
+    } else if (matched.email && !auth.currentUser) {
+      // Silently try establishing Firebase Auth token when local password matches
+      signInWithEmailAndPassword(auth, matched.email, cleanPass).catch(() => {});
     }
 
     // Login successful - clear failed attempts
@@ -1318,9 +1394,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Google Sign-In with Firebase Auth & Firestore Integration
-  // STRICT DIRECTIVE: When student logs in via Google, ALWAYS load their Old/Original account!
+  // Supports Admin (ngoaarya159@gmail.com), Teachers, and Students (preserving original accounts)
   const loginWithGoogle = async (
-    details?: GoogleAuthDetails
+    details?: GoogleAuthDetails,
+    preferredRole?: UserRole
   ): Promise<{ success: boolean; error?: string; user?: UserProfile; requiresApproval?: boolean }> => {
     try {
       console.log('[AUTH-CLIENT] 🌐 [GOOGLE-SIGNIN-INIT] Starting Google OAuth flow...');
@@ -1335,14 +1412,105 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const email = normalizeEmail(fbUser.email);
+      const isBootstrapAdmin = email === 'ngoaarya159@gmail.com' && Boolean(fbUser.emailVerified);
       const phoneFromDetails = normalizePhoneNumber(details?.phone || details?.mobile);
 
-      // Search for ANY existing student account by UID, Email, or Mobile number
-      let existingProfile = await findExistingAccountRecord({
+      // Search for ANY existing account by UID, Email, or Mobile number
+      const existingProfile = await findExistingAccountRecord({
         uid: fbUser.uid,
         email: email || undefined,
         phone: phoneFromDetails.length >= 7 ? phoneFromDetails : undefined
       });
+
+      // Handle Admin / Head Teacher Google Sign-In
+      if (isBootstrapAdmin || existingProfile?.role === 'admin') {
+        const adminSeed = INITIAL_USERS.find(u => u.role === 'admin') || INITIAL_USERS[0];
+        const adminProfile: UserProfile = {
+          ...(existingProfile || adminSeed),
+          uid: fbUser.uid,
+          username: existingProfile?.username || adminSeed.username || '8090538115',
+          name: fbUser.displayName || existingProfile?.name || adminSeed.name,
+          fullName: fbUser.displayName || existingProfile?.fullName || adminSeed.name,
+          email: fbUser.email || email,
+          emailVerified: Boolean(fbUser.emailVerified),
+          photoURL: fbUser.photoURL || existingProfile?.photoURL || adminSeed.photoURL,
+          profilePhoto: fbUser.photoURL || existingProfile?.profilePhoto || adminSeed.photoURL,
+          role: 'admin',
+          schoolId: SCHOOL_ID,
+          status: 'active',
+          isApproved: true,
+          mustChangePassword: false,
+          lastLoginAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        await setDoc(doc(db, 'users', fbUser.uid), adminProfile, { merge: true });
+        setCurrentUser(fbUser);
+        setUserProfile(adminProfile);
+        setAllUsers(prev => [adminProfile, ...prev.filter(u => u.uid !== adminProfile.uid)]);
+
+        const sessionRes = await createAuthenticatedSession({
+          uid: adminProfile.uid,
+          username: adminProfile.username,
+          role: 'admin',
+          email: adminProfile.email,
+        }).catch(() => ({ success: false, sessionToken: undefined }));
+        if (sessionRes.success && sessionRes.sessionToken) {
+          setSessionToken(sessionRes.sessionToken);
+        }
+
+        addSecurityLog(adminProfile.username, 'admin', 'SUCCESS', 'LOGIN', `Admin Google Sign-In verified (${fbUser.email})`);
+        return { success: true, user: adminProfile, requiresApproval: false };
+      }
+
+      // Handle Existing Teacher Google Sign-In
+      if (existingProfile?.role === 'teacher') {
+        const teacherProfile: UserProfile = {
+          ...existingProfile,
+          uid: fbUser.uid,
+          email: fbUser.email || existingProfile.email,
+          emailVerified: Boolean(fbUser.emailVerified),
+          photoURL: existingProfile.photoURL || fbUser.photoURL || undefined,
+          profilePhoto: existingProfile.profilePhoto || fbUser.photoURL || undefined,
+          role: 'teacher',
+          lastLoginAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        await setDoc(doc(db, 'users', fbUser.uid), teacherProfile, { merge: true });
+        setCurrentUser(fbUser);
+        setUserProfile(teacherProfile);
+        setAllUsers(prev => [teacherProfile, ...prev.filter(u => u.uid !== teacherProfile.uid)]);
+
+        const sessionRes = await createAuthenticatedSession({
+          uid: teacherProfile.uid,
+          username: teacherProfile.username,
+          role: 'teacher',
+          email: teacherProfile.email,
+        }).catch(() => ({ success: false, sessionToken: undefined }));
+        if (sessionRes.success && sessionRes.sessionToken) {
+          setSessionToken(sessionRes.sessionToken);
+        }
+
+        addSecurityLog(teacherProfile.username, 'teacher', 'SUCCESS', 'LOGIN', `Teacher Google Sign-In verified (${fbUser.email})`);
+        return { success: true, user: teacherProfile, requiresApproval: false };
+      }
+
+      if (preferredRole === 'admin') {
+        await signOut(auth).catch(() => {});
+        return {
+          success: false,
+          error: 'यह Google ईमेल प्रधानाध्यापक (Admin) के रूप में अधिकृत नहीं है।'
+        };
+      }
+
+      if (preferredRole === 'teacher') {
+        await signOut(auth).catch(() => {});
+        return {
+          success: false,
+          error: 'यह Google ईमेल सक्रिय शिक्षक खाते से जुड़ा नहीं है। कृपया पहले शिक्षक पंजीकरण कराएं या यूज़रनेम/पासवर्ड से लॉगिन करें।'
+        };
+      }
 
       const resolvedName = (
         (details?.fullName && details.fullName.trim()) ||
@@ -1404,8 +1572,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updatedAt: new Date().toISOString()
         };
       } else {
-        // Strict Uniqueness Check for new Google registration:
-        // Check if phone or admission number is already taken by another student
+        // Strict Uniqueness Check for new Google registration
         if (phoneFromDetails && phoneFromDetails.length >= 7) {
           const duplicatePhoneUser = await findExistingAccountRecord({ phone: phoneFromDetails });
           if (duplicatePhoneUser) {
@@ -1505,8 +1672,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Persist to Firestore
       try {
-        await setDoc(doc(db, 'students', fbUser.uid), studentDocData, { merge: true });
         await setDoc(doc(db, 'users', fbUser.uid), finalProfile, { merge: true });
+        await setDoc(doc(db, 'students', fbUser.uid), studentDocData, { merge: true });
       } catch (err) {
         console.warn("Error saving student to Firestore:", err);
       }
@@ -1529,6 +1696,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const filtered = prev.filter(u => u.uid !== finalProfile.uid && (finalProfile.email ? normalizeEmail(u.email) !== normalizeEmail(finalProfile.email) : true));
         return [finalProfile, ...filtered];
       });
+
+      const sessionRes = await createAuthenticatedSession({
+        uid: finalProfile.uid,
+        username: finalProfile.username,
+        role: 'student',
+        email: finalProfile.email,
+        studentId: finalProfile.studentId,
+        admissionNumber: finalProfile.admissionNumber,
+      }).catch(() => ({ success: false, sessionToken: undefined }));
+      if (sessionRes.success && sessionRes.sessionToken) {
+        setSessionToken(sessionRes.sessionToken);
+      }
 
       addSecurityLog(
         finalProfile.username || finalProfile.name,
@@ -3007,6 +3186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userProfile,
         role: userProfile?.role || null,
         isAuthenticated: !!userProfile,
+        authReady,
         loading,
         sessionToken,
         allUsers,

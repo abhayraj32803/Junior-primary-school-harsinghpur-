@@ -50,7 +50,9 @@ import {
   Globe,
   Bell,
   MousePointerClick,
-  ExternalLink
+  ExternalLink,
+  GripVertical,
+  RotateCcw
 } from 'lucide-react';
 import { AdminVisitorCounterWidget } from './AdminVisitorCounterWidget';
 import { AdminEducationalVideos } from './AdminEducationalVideos';
@@ -61,6 +63,13 @@ import {
   DEFAULT_HOMEPAGE_FACILITIES, 
   getFacilityIconComponent 
 } from '../../utils/facilityIconUtils';
+import { 
+  HOMEPAGE_SECTIONS_REGISTRY, 
+  DEFAULT_HOMEPAGE_SECTION_ORDER, 
+  DEFAULT_HOMEPAGE_VISIBILITY, 
+  getResolvedSectionOrder, 
+  getResolvedSectionVisibility 
+} from '../../utils/homepageSectionsUtils';
 import { HomepageFacilityItem } from '../../types';
 
 interface SectionVisibility {
@@ -225,15 +234,34 @@ export const AdminHomepage: React.FC = () => {
   // Track if cropping single banner vs a specific carousel slide
   const [activeCropSlideIndex, setActiveCropSlideIndex] = useState<number | null>(null);
 
-  // Section visibility
-  const [visibility, setVisibility] = useState<SectionVisibility>(() => {
+  // Section visibility & Vertical Ordering State
+  const [visibility, setVisibility] = useState<Record<string, boolean>>(() => {
     try {
+      if (settings.homepageSectionVisibility) {
+        return getResolvedSectionVisibility(settings.homepageSectionVisibility);
+      }
       const saved = localStorage.getItem('sms_homepage_sections_visibility');
-      return saved ? JSON.parse(saved) : DEFAULT_VISIBILITY;
+      return saved ? getResolvedSectionVisibility(JSON.parse(saved)) : DEFAULT_HOMEPAGE_VISIBILITY;
     } catch {
-      return DEFAULT_VISIBILITY;
+      return DEFAULT_HOMEPAGE_VISIBILITY;
     }
   });
+
+  const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
+    try {
+      if (settings.homepageSectionOrder && settings.homepageSectionOrder.length > 0) {
+        return getResolvedSectionOrder(settings.homepageSectionOrder);
+      }
+      const saved = localStorage.getItem('sms_homepage_sections_order');
+      return saved ? getResolvedSectionOrder(JSON.parse(saved)) : DEFAULT_HOMEPAGE_SECTION_ORDER;
+    } catch {
+      return DEFAULT_HOMEPAGE_SECTION_ORDER;
+    }
+  });
+
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [orderSaveFeedback, setOrderSaveFeedback] = useState<string>('');
 
   // Cropper Modal state
   const [cropperOpen, setCropperOpen] = useState(false);
@@ -292,6 +320,12 @@ export const AdminHomepage: React.FC = () => {
     if (settings.homepageFacilities && settings.homepageFacilities.length === 6) {
       setHomepageFacilities(settings.homepageFacilities);
     }
+    if (settings.homepageSectionOrder && settings.homepageSectionOrder.length > 0) {
+      setSectionOrder(getResolvedSectionOrder(settings.homepageSectionOrder));
+    }
+    if (settings.homepageSectionVisibility) {
+      setVisibility(getResolvedSectionVisibility(settings.homepageSectionVisibility));
+    }
   }, [settings]);
 
   // Preview Carousel Auto-Rotation Timer
@@ -311,12 +345,115 @@ export const AdminHomepage: React.FC = () => {
     }
   }, [carouselImages.length, previewSlideIndex]);
 
-  const toggleSection = (key: keyof SectionVisibility) => {
-    setVisibility(prev => {
-      const next = { ...prev, [key]: !prev[key] };
-      localStorage.setItem('sms_homepage_sections_visibility', JSON.stringify(next));
+  // Drag and drop handlers for Vertical Ordering
+  const handleDragStart = (index: number, e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    // leave as is until dragEnd or drop
+  };
+
+  const handleDrop = (targetIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    setSectionOrder(prev => {
+      const next = [...prev];
+      const [movedItem] = next.splice(draggedIndex, 1);
+      next.splice(targetIndex, 0, movedItem);
+      try {
+        localStorage.setItem('sms_homepage_sections_order', JSON.stringify(next));
+      } catch (err) {
+        console.error(err);
+      }
       return next;
     });
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setOrderSaveFeedback(language === 'hi' ? 'खंडों का क्रम बदल दिया गया है (सहेजने के लिए Save बटन दबाएं)' : 'Section order updated (Click Save to persist)');
+    setTimeout(() => setOrderSaveFeedback(''), 3000);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Accessible move section button (Move Up / Move Down)
+  const moveSection = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sectionOrder.length) return;
+
+    setSectionOrder(prev => {
+      const next = [...prev];
+      const temp = next[index];
+      next[index] = next[targetIndex];
+      next[targetIndex] = temp;
+      try {
+        localStorage.setItem('sms_homepage_sections_order', JSON.stringify(next));
+      } catch (err) {
+        console.error(err);
+      }
+      return next;
+    });
+
+    setOrderSaveFeedback(language === 'hi' ? 'खंड का क्रम बदला गया' : 'Section position updated');
+    setTimeout(() => setOrderSaveFeedback(''), 2500);
+  };
+
+  // Reset to default sequence
+  const handleResetSectionOrder = () => {
+    setSectionOrder([...DEFAULT_HOMEPAGE_SECTION_ORDER]);
+    try {
+      localStorage.setItem('sms_homepage_sections_order', JSON.stringify(DEFAULT_HOMEPAGE_SECTION_ORDER));
+    } catch {}
+    setOrderSaveFeedback(language === 'hi' ? 'मूल डिफ़ॉल्ट क्रम बहाल किया गया' : 'Reset to default sequence');
+    setTimeout(() => setOrderSaveFeedback(''), 3000);
+  };
+
+  const toggleSection = (key: string) => {
+    setVisibility(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem('sms_homepage_sections_visibility', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const setAllSectionsVisibility = (visible: boolean) => {
+    setVisibility(prev => {
+      const next: Record<string, boolean> = {};
+      sectionOrder.forEach(key => {
+        next[key] = visible;
+      });
+      try {
+        localStorage.setItem('sms_homepage_sections_visibility', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setOrderSaveFeedback(
+      visible 
+        ? (language === 'hi' ? 'सभी अनुभाग सक्रिय किए गए' : 'All sections set to visible')
+        : (language === 'hi' ? 'सभी अनुभाग छिपाए गए' : 'All sections hidden')
+    );
+    setTimeout(() => setOrderSaveFeedback(''), 2500);
   };
 
   // Handle local file selection -> open Cropper Modal
@@ -478,6 +615,7 @@ export const AdminHomepage: React.FC = () => {
     setIsSaving(true);
     try {
       localStorage.setItem('sms_homepage_sections_visibility', JSON.stringify(visibility));
+      localStorage.setItem('sms_homepage_sections_order', JSON.stringify(sectionOrder));
       
       const effectiveMainImage = carouselEnabled && carouselImages.length > 0 
         ? carouselImages[0] 
@@ -508,16 +646,16 @@ export const AdminHomepage: React.FC = () => {
           heroBannerSecondaryCtaLink: secondaryCtaLink,
           heroBannerSecondaryCtaIcon: secondaryCtaIcon,
           homepageFacilities: homepageFacilities,
+          homepageSectionOrder: sectionOrder,
+          homepageSectionVisibility: visibility,
         },
         {
-          field: 'Homepage Hero Banner, CTA, Carousel & Facilities Settings',
+          field: 'Homepage Hero Banner, CTA, Carousel, Facilities & Section Ordering',
           previousValue: settings.heroBannerCarouselEnabled ? 'Carousel Active' : 'Single Banner',
-          newValue: carouselEnabled 
-            ? `Carousel (${carouselImages.length} slides, ${carouselInterval}s interval), CTA: [${ctaTextEn} -> ${ctaLink}], Facilities: ${homepageFacilities.map(f => `${f.nameEn} (${f.icon})`).join(', ')}` 
-            : `Single Banner (${bannerRatio}), CTA: [${ctaTextEn} -> ${ctaLink}], Facilities: ${homepageFacilities.map(f => `${f.nameEn} (${f.icon})`).join(', ')}`,
+          newValue: `Sections: [${sectionOrder.join(' -> ')}], Carousel (${carouselImages.length} slides, ${carouselInterval}s interval), CTA: [${ctaTextEn} -> ${ctaLink}]`,
           source: 'Headmaster Administrative Panel',
           status: 'VERIFIED_CURRENT',
-          notes: `Updated hero banner, CTA button ("${ctaTextEn}" -> ${ctaLink}), carousel mode (${carouselEnabled ? 'Enabled' : 'Disabled'}), ${carouselImages.length} slides, and 6 Facilities Icons (${homepageFacilities.map(f => f.icon).join(', ')}) by ${userProfile?.name || 'Admin'}`
+          notes: `Updated homepage vertical section order (${sectionOrder.length} sections), visibility settings, hero banner, CTA button ("${ctaTextEn}" -> ${ctaLink}), carousel mode, and facilities by ${userProfile?.name || 'Admin'}`
         }
       );
 
@@ -602,7 +740,7 @@ export const AdminHomepage: React.FC = () => {
           { id: 'videos', labelHi: 'कक्षा 1-8 शैक्षिक वीडियो', labelEn: 'Educational Videos', icon: Video, badge: 'Class 1-8' },
           { id: 'banner', labelHi: 'बैनर व कैरोसेल', labelEn: 'Banner & Carousel', icon: ImageIcon },
           { id: 'cta', labelHi: 'कॉल-टू-एक्शन (CTA बटन)', labelEn: 'Hero CTA Buttons', icon: MousePointerClick, badge: 'Custom' },
-          { id: 'visibility', labelHi: 'अनुभाग दृश्यता', labelEn: 'Sections Visibility', icon: Eye },
+          { id: 'visibility', labelHi: 'अनुभाग क्रम व दृश्यता', labelEn: 'Section Order & Visibility', icon: Layers, badge: 'Drag & Drop' },
           { id: 'visitor', labelHi: 'विजिटर एनालिटिक्स', labelEn: 'Visitor Traffic', icon: Activity }
         ].map(tab => {
           const IconComp = tab.icon;
@@ -2129,167 +2267,217 @@ export const AdminHomepage: React.FC = () => {
         </div>
         )}
 
-        {/* SECTION VISIBILITY TOGGLES */}
+        {/* SECTION DRAG-AND-DROP ORDERING & VISIBILITY CONTROLS */}
         {(activeSectionTab === 'all' || activeSectionTab === 'visibility') && (
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
-          <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
-              <Layers className="w-4 h-4" />
+          
+          {/* Header & Quick Action Bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 border border-amber-500/20">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                  {language === 'hi' ? 'होमपेज खंड क्रम व दृश्यता नियंत्रण' : 'Homepage Section Ordering & Visibility'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {language === 'hi' 
+                    ? 'अनुभागों को ड्रैग-एंड-ड्रॉप (Drag & Drop) द्वारा ऊपर-नीचे व्यवस्थित करें और दृश्यता टॉगल करें।'
+                    : 'Reorder homepage sections vertically using drag-and-drop or arrows, and toggle visibility on or off.'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-black text-slate-900">
-                {language === 'hi' ? 'होमपेज खंड दृश्यता नियंत्रण (Homepage Section Toggles)' : 'Homepage Section Visibility Controls'}
-              </h3>
-              <p className="text-xs text-slate-500">
-                {language === 'hi' 
-                  ? 'सार्वजनिक वेबसाइट पर जिन अनुभागों को दिखाना या छिपाना चाहते हैं, उन्हें चालू या बंद करें।'
-                  : 'Toggle sections ON or OFF to control what is displayed to public visitors.'}
-              </p>
+
+            {/* Quick Action Toolbar */}
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              {/* Active count badge */}
+              <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>
+                  {sectionOrder.filter(id => visibility[id] !== false).length} / {sectionOrder.length} {language === 'hi' ? 'सक्रिय' : 'Active'}
+                </span>
+              </span>
+
+              {/* Reset to Default Sequence Button */}
+              <button
+                type="button"
+                onClick={handleResetSectionOrder}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all hover:border-slate-300"
+                title={language === 'hi' ? 'मूल डिफ़ॉल्ट क्रम बहाल करें' : 'Reset to original section sequence'}
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                <span>{language === 'hi' ? 'डिफ़ॉल्ट क्रम' : 'Reset Order'}</span>
+              </button>
+
+              {/* Show All */}
+              <button
+                type="button"
+                onClick={() => setAllSectionsVisibility(true)}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all border border-slate-200/60"
+              >
+                <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{language === 'hi' ? 'सभी दिखाएं' : 'Show All'}</span>
+              </button>
+
+              {/* Hide All */}
+              <button
+                type="button"
+                onClick={() => setAllSectionsVisibility(false)}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all border border-slate-200/60"
+              >
+                <EyeOff className="w-3.5 h-3.5 text-rose-500" />
+                <span>{language === 'hi' ? 'सभी छिपाएं' : 'Hide All'}</span>
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            
-            {/* Toggle 1: Hero Quick Stats */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-xs text-slate-900">Hero Metrics Strip</div>
-                <div className="text-[11px] text-slate-500">UDISE, Enrolled students, Class 1-8</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSection('heroStats')}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
-                  visibility.heroStats ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
-                }`}
-              >
-                {visibility.heroStats ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </button>
+          {/* Feedback Toast if reordered */}
+          {orderSaveFeedback && (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/90 text-amber-900 text-xs font-bold flex items-center gap-2 shadow-2xs animate-fade-in">
+              <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>{orderSaveFeedback}</span>
             </div>
+          )}
 
-            {/* Toggle 2: Principal Message */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-xs text-slate-900">Head Teacher Desk</div>
-                <div className="text-[11px] text-slate-500">Smt. Kiran Shakya Welcome Message</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSection('principalMessage')}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
-                  visibility.principalMessage ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
-                }`}
-              >
-                {visibility.principalMessage ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </button>
-            </div>
+          {/* Helpful Tip */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-2.5 text-xs text-slate-600">
+            <Info className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              {language === 'hi' 
+                ? 'संकेत: किसी भी खंड को ऊपर या नीचे ले जाने के लिए बाईं ग्रिप (⋮⋮) से पकड़कर ड्रैग करें या Move Up/Down बटन दबाएं। लाइव होमपेज पर खंड ऊपर से नीचे इसी क्रम में प्रदर्शित होंगे।'
+                : 'Tip: Grab the left grip handle (⋮⋮) to drag vertically, or click Move Up/Down. Sections will appear on the live homepage from top to bottom in this exact sequence.'}
+            </span>
+          </div>
 
-            {/* Toggle 3: Notice Ticker */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-xs text-slate-900">Circulars & Announcements</div>
-                <div className="text-[11px] text-slate-500">Live notice board ticker</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSection('noticeTicker')}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
-                  visibility.noticeTicker ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
-                }`}
-              >
-                {visibility.noticeTicker ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </button>
-            </div>
+          {/* Draggable Vertical Section List */}
+          <div className="space-y-3">
+            {sectionOrder.map((sectionId, index) => {
+              const def = HOMEPAGE_SECTIONS_REGISTRY[sectionId];
+              if (!def) return null;
+              const isVisible = visibility[sectionId] !== false;
+              const isDragging = draggedIndex === index;
+              const isOver = dragOverIndex === index;
+              const IconComp = def.icon;
 
-            {/* Toggle: Educational & Motivational Videos (Class 1 to 8) */}
-            <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
-                  <Video className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{language === 'hi' ? 'कक्षा 1-8 प्रेरक वीडियो ग्रिड' : 'Class 1-8 Motivation Videos'}</span>
+              return (
+                <div
+                  key={sectionId}
+                  draggable
+                  onDragStart={(e) => handleDragStart(index, e)}
+                  onDragOver={(e) => handleDragOver(index, e)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(index, e)}
+                  onDragEnd={handleDragEnd}
+                  className={`group rounded-2xl p-4 sm:p-5 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border select-none ${
+                    isDragging 
+                      ? 'opacity-40 border-2 border-dashed border-amber-500 bg-amber-50/50 scale-[0.99] shadow-inner' 
+                      : isOver
+                        ? 'border-2 border-amber-500 bg-amber-50/70 ring-4 ring-amber-400/25 shadow-lg scale-[1.01]'
+                        : isVisible
+                          ? 'bg-white hover:bg-slate-50/90 border-slate-200/90 shadow-xs hover:shadow-md'
+                          : 'bg-slate-100/70 border-slate-200 opacity-60'
+                  }`}
+                >
+                  {/* Left: Drag Handle, Order #, Icon, Info */}
+                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                    
+                    {/* Drag Grip Handle */}
+                    <div 
+                      className="cursor-grab active:cursor-grabbing p-1.5 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-200/80 transition-colors shrink-0"
+                      title={language === 'hi' ? 'क्रम बदलने के लिए ऊपर-नीचे खींचें' : 'Drag vertically to reorder'}
+                    >
+                      <GripVertical className="w-5 h-5" />
+                    </div>
+
+                    {/* Order Number Badge */}
+                    <div className="w-8 h-8 rounded-xl bg-slate-900 text-amber-300 font-mono font-black text-xs flex items-center justify-center shrink-0 shadow-xs border border-slate-800">
+                      #{index + 1}
+                    </div>
+
+                    {/* Section Icon Box */}
+                    <div className={`w-11 h-11 rounded-2xl ${def.iconBg} flex items-center justify-center shrink-0 font-bold shadow-2xs`}>
+                      <IconComp className="w-5 h-5" />
+                    </div>
+
+                    {/* Titles & Description */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-black text-slate-900 tracking-tight">
+                          {language === 'hi' ? def.nameHi : def.nameEn}
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">
+                          {language === 'hi' ? def.badgeHi : def.badgeEn}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+                        {language === 'hi' ? def.descHi : def.descEn}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right: Status Pill, Move Up/Down buttons, Visibility Eye Toggle */}
+                  <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                    
+                    {/* Status Pill */}
+                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1.5 ${
+                      isVisible 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${isVisible ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                      <span>{isVisible ? (language === 'hi' ? 'सक्रिय' : 'Visible') : (language === 'hi' ? 'छिपा हुआ' : 'Hidden')}</span>
+                    </span>
+
+                    {/* Move Up Button */}
+                    <button
+                      type="button"
+                      onClick={() => moveSection(index, 'up')}
+                      disabled={index === 0}
+                      className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs hover:text-slate-900"
+                      title={language === 'hi' ? 'ऊपर ले जाएं' : 'Move Up'}
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+
+                    {/* Move Down Button */}
+                    <button
+                      type="button"
+                      onClick={() => moveSection(index, 'down')}
+                      disabled={index === sectionOrder.length - 1}
+                      className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs hover:text-slate-900"
+                      title={language === 'hi' ? 'नीचे ले जाएं' : 'Move Down'}
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
+
+                    {/* Visibility Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => toggleSection(sectionId)}
+                      className={`px-3 py-2 rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5 text-xs font-bold ${
+                        isVisible
+                          ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/25'
+                          : 'bg-slate-200 hover:bg-slate-300 text-slate-600'
+                      }`}
+                      title={isVisible ? (language === 'hi' ? 'होमपेज से छिपाने के लिए क्लिक करें' : 'Click to hide from homepage') : (language === 'hi' ? 'होमपेज पर दिखाने के लिए क्लिक करें' : 'Click to show on homepage')}
+                    >
+                      {isVisible ? (
+                        <>
+                          <Eye className="w-4 h-4" />
+                          <span className="hidden md:inline">{language === 'hi' ? 'दिख रहा है' : 'Shown'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="w-4 h-4" />
+                          <span className="hidden md:inline">{language === 'hi' ? 'छिपा है' : 'Hidden'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-                <div className="text-[11px] text-slate-500">
-                  {language === 'hi' ? 'यूट्यूब वीडियो, FLN, विज्ञान प्रयोग व कलाम विचार' : 'YouTube curriculum videos & inspiration'}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSection('educationalVideos')}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
-                  visibility.educationalVideos !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
-                }`}
-              >
-                {visibility.educationalVideos !== false ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </button>
-            </div>
-
-            {/* Toggle 4: Facilities Preview */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-xs text-slate-900">School Facilities</div>
-                <div className="text-[11px] text-slate-500">Drinking water, playground, ICT</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSection('facilitiesPreview')}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
-                  visibility.facilitiesPreview ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
-                }`}
-              >
-                {visibility.facilitiesPreview ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </button>
-            </div>
-
-            {/* Toggle 5: Schemes Preview */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-xs text-slate-900">Government Schemes</div>
-                <div className="text-[11px] text-slate-500">PM POSHAN, DBT, Uniforms</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSection('schemesPreview')}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
-                  visibility.schemesPreview ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
-                }`}
-              >
-                {visibility.schemesPreview ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </button>
-            </div>
-
-            {/* Toggle 6: Gallery Preview */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-xs text-slate-900">Photo Gallery Highlights</div>
-                <div className="text-[11px] text-slate-500">Recent events & celebrations</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSection('galleryPreview')}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
-                  visibility.galleryPreview ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
-                }`}
-              >
-                {visibility.galleryPreview ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </button>
-            </div>
-
-            {/* Toggle 7: Useful Government Links */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-xs text-slate-900">Official Portal Links</div>
-                <div className="text-[11px] text-slate-500">UDISE+, Shala Kosh, Basic Shiksha</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSection('officialLinks')}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
-                  visibility.officialLinks ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
-                }`}
-              >
-                {visibility.officialLinks ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </button>
-            </div>
+              );
+            })}
           </div>
         </div>
         )}

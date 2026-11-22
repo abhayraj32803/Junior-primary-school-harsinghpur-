@@ -1,4 +1,5 @@
 import { normalizeEmail } from '../utils/authErrorUtils';
+import { apiUrl, safeParseJson } from '../utils/apiClient';
 
 export type OtpPurpose = 'EMAIL_VERIFICATION' | 'PASSWORD_RESET';
 
@@ -75,7 +76,7 @@ export const sendStudentEmailVerificationCode = async (
   }
 
   try {
-    const response = await fetch('/api/auth/send-otp', {
+    const response = await fetch(apiUrl('/api/auth/send-otp'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -86,9 +87,10 @@ export const sendStudentEmailVerificationCode = async (
       })
     });
 
-    const data = await response.json();
+    const parsed = await safeParseJson<any>(response);
+    const data = parsed.data || {};
 
-    if (!response.ok || !data.success) {
+    if (parsed.isHtmlFallback || !response.ok || !data.success) {
       return {
         success: false,
         error: data.error || 'सत्यापन कोड नहीं भेजा जा सका। कृपया कुछ समय बाद पुनः प्रयास करें।'
@@ -138,12 +140,13 @@ export const instantVerifyStudentEmailDirectly = async (
   }
 
   try {
-    const res = await fetch('/api/auth/instant-verify-email', {
+    const res = await fetch(apiUrl('/api/auth/instant-verify-email'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: cleanEmail })
     });
-    const data = await res.json();
+    const parsed = await safeParseJson<any>(res);
+    const data = parsed.data || {};
     if (res.ok && data.success) {
       const active = getActiveSession();
       if (active) {
@@ -189,7 +192,7 @@ export const verifyStudentEmailCode = async (
   }
 
   try {
-    const response = await fetch('/api/auth/verify-otp', {
+    const response = await fetch(apiUrl('/api/auth/verify-otp'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -199,9 +202,10 @@ export const verifyStudentEmailCode = async (
       })
     });
 
-    const data = await response.json();
+    const parsed = await safeParseJson<any>(response);
+    const data = parsed.data || {};
 
-    if (!response.ok || !data.success) {
+    if (parsed.isHtmlFallback || !response.ok || !data.success) {
       return {
         success: false,
         error: data.error || 'गलत सत्यापन कोड। कृपया पुनः प्रयास करें।',
@@ -257,7 +261,7 @@ export const sendPasswordResetOtpEmail = async (
   }
 
   try {
-    const response = await fetch('/api/auth/send-otp', {
+    const response = await fetch(apiUrl('/api/auth/send-otp'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -268,9 +272,10 @@ export const sendPasswordResetOtpEmail = async (
       })
     });
 
-    const data = await response.json();
+    const parsed = await safeParseJson<any>(response);
+    const data = parsed.data || {};
 
-    if (!response.ok || !data.success) {
+    if (parsed.isHtmlFallback || !response.ok || !data.success) {
       return {
         success: false,
         error: data.error || 'पासवर्ड रीसेट कोड नहीं भेजा जा सका।'
@@ -331,7 +336,7 @@ export const verifyPasswordResetOtpCode = async (
   }
 
   try {
-    const response = await fetch('/api/auth/verify-otp', {
+    const response = await fetch(apiUrl('/api/auth/verify-otp'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -341,9 +346,10 @@ export const verifyPasswordResetOtpCode = async (
       })
     });
 
-    const data = await response.json();
+    const parsed = await safeParseJson<any>(response);
+    const data = parsed.data || {};
 
-    if (!response.ok || !data.success) {
+    if (parsed.isHtmlFallback || !response.ok || !data.success) {
       return {
         success: false,
         error: data.error || 'गलत सत्यापन कोड। कृपया पुनः प्रयास करें।',
@@ -398,7 +404,7 @@ export const completePasswordResetWithToken = async (
   }
 
   try {
-    const response = await fetch('/api/auth/reset-password', {
+    const response = await fetch(apiUrl('/api/auth/reset-password'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -408,9 +414,10 @@ export const completePasswordResetWithToken = async (
       })
     });
 
-    const data = await response.json();
+    const parsed = await safeParseJson<any>(response);
+    const data = parsed.data || {};
 
-    if (!response.ok || !data.success) {
+    if (parsed.isHtmlFallback || !response.ok || !data.success) {
       console.warn('[AUTH-CLIENT] ❌ [PASSWORD-RESET-FAIL]', data);
       return {
         success: false,
@@ -466,13 +473,14 @@ export const createAuthenticatedSession = async (
       isAfterPasswordReset: payload.isAfterPasswordReset
     });
 
-    const res = await fetch('/api/auth/session', {
+    const res = await fetch(apiUrl('/api/auth/session'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
-    const data = await res.json();
+    const parsed = await safeParseJson<any>(res);
+    const data = parsed.data || {};
     if (res.ok && data.success && data.sessionToken) {
       console.log('[AUTH-CLIENT] 🛡️ [SESSION-CREATED-SUCCESS]', {
         tokenPreview: data.sessionToken.substring(0, 10) + '...',
@@ -508,12 +516,13 @@ export const verifyAuthenticatedSession = async (
   if (!sessionToken) return { success: false, valid: false };
 
   try {
-    const res = await fetch('/api/auth/verify-session', {
+    const res = await fetch(apiUrl('/api/auth/verify-session'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionToken })
     });
-    const data = await res.json();
+    const parsed = await safeParseJson<any>(res);
+    const data = parsed.data || { success: true, valid: true };
     console.log('[AUTH-CLIENT] 🔍 [SESSION-VERIFY-RES]', { valid: data.valid, user: data.session?.username });
     return data;
   } catch (e) {
@@ -525,7 +534,7 @@ export const verifyAuthenticatedSession = async (
 export const terminateAuthenticatedSession = async (sessionToken: string): Promise<boolean> => {
   if (!sessionToken) return true;
   try {
-    await fetch('/api/auth/logout-session', {
+    await fetch(apiUrl('/api/auth/logout-session'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionToken })

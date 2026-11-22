@@ -6,6 +6,7 @@ import { ForcePasswordChangeModal } from './components/common/ForcePasswordChang
 import { ResetPasswordActionModal } from './components/common/ResetPasswordActionModal';
 import { UserProfileDropdown } from './components/common/UserProfileDropdown';
 import { UserAvatar } from './components/common/UserAvatar';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Public Pages
 import { PublicNavbar } from './components/public/PublicNavbar';
@@ -81,10 +82,23 @@ const SchoolAppInner: React.FC = () => {
   const screenSize = useScreenSize();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
-  // Public navigation state with history tracking and session persistence
+  // Public navigation state with URL query parameter detection (for payment callbacks & deep links)
   const [publicPageHistory, setPublicPageHistory] = useState<string[]>([]);
   const [publicPage, setPublicPage] = useState<string>(() => {
     try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('order_id')) {
+          sessionStorage.setItem('sms_current_view_page', 'donation');
+          return 'donation';
+        }
+        const pageParam = params.get('page');
+        if (pageParam && pageParam.trim()) {
+          const cleanPage = pageParam.trim().toLowerCase();
+          sessionStorage.setItem('sms_current_view_page', cleanPage);
+          return cleanPage;
+        }
+      }
       const saved = sessionStorage.getItem('sms_current_view_page');
       if (saved) return saved;
     } catch {
@@ -685,11 +699,13 @@ const SchoolAppInner: React.FC = () => {
 
 export function App() {
   return (
-    <AuthProvider>
-      <SchoolProvider>
-        <SchoolAppInner />
-      </SchoolProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <SchoolProvider>
+          <SchoolAppInner />
+        </SchoolProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

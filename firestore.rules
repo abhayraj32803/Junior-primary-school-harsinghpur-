@@ -2,6 +2,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ===============================================================
+    // Assumed Data Model (Composite JHS Harsinghpur Gova ERP)
+    // ===============================================================
+    // - /users/{userId}: UserProfile (uid, name, email, role, status, ...)
+    // - /students/{studentId}: Student (id, admissionNumber, name, classNumber, sectionName, rollNumber, status, ...)
+    // - /teachers/{teacherId}: Teacher (id, employeeId, name, email, designation, status)
+    // - /classes/{classId}, /sections/{sectionId}, /subjects/{subjectId}, /teacherAssignments/{assignmentId}
+    // - /attendance/{attendanceId}, /examinations/{examId}, /marks/{markId}
+    // - /homework/{homeworkId}, /submissions/{submissionId}, /timetable/{timetableId}
+    // - /notices/{noticeId}, /documents/{documentId}
+    // - /auditLogs/{logId}, /verificationLogs/{logId}, /securityLogs/{logId}
+    // - /registrationRequests/{requestId}, /emailVerifications/{verificationId}
+    // - /settings/{settingId}, /facilities/{facilityId}, /governmentSchemes/{schemeId}
+    // - /gallery/{galleryId}, /publicDocuments/{docId}, /donations/{donationId}
+    // - /test/{docId}: Read-only connectivity probe (/test/connection)
+    // ===============================================================
+
     // Default-Deny Catch-All Rule
     match /{document=**} {
       allow read, write: if false;
@@ -20,6 +37,23 @@ service cloud.firestore {
       return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, maxLen) {
+      return !(field in request.resource.data) ||
+        request.resource.data[field] == null ||
+        (request.resource.data[field] is string && request.resource.data[field].size() <= maxLen);
+    }
+
+    function hasNoShadowPrivilegeFlags(data) {
+      return !('isSuperAdmin' in data) &&
+        !('superAdmin' in data) &&
+        !('adminOverride' in data) &&
+        !('bypassRules' in data);
+    }
+
     function userExists() {
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
@@ -30,82 +64,148 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'ngoaarya159@gmail.com' ||
-        request.auth.token.email == 'admin@school.gov.in' ||
-        (userExists() && getUserDoc().role == 'admin') ||
-        request.auth.token.role == 'admin'
+        (request.auth.token.email == 'ngoaarya159@gmail.com' && request.auth.token.email_verified == true) ||
+        (userExists() && getUserDoc().role == 'admin' && getUserDoc().status == 'active')
       );
     }
 
     function isTeacher() {
       return isSignedIn() && (
         isAdmin() ||
-        (userExists() && getUserDoc().role == 'teacher')
+        (userExists() && getUserDoc().role == 'teacher' && getUserDoc().status == 'active')
       );
     }
 
     function isStudentOwner(studentData) {
       return isSignedIn() && (
         (studentData.userId != null && studentData.userId == request.auth.uid) ||
+        (studentData.uid != null && studentData.uid == request.auth.uid) ||
         (userExists() && studentData.admissionNumber != null && studentData.admissionNumber == getUserDoc().admissionNumber) ||
         (userExists() && getUserDoc().linkedEntityId != null && getUserDoc().linkedEntityId == studentData.id)
       );
     }
 
+    // Domain Entity Validators
+    function isValidUserPayload(data) {
+      return hasNoShadowPrivilegeFlags(data) &&
+        data.keys().hasAll(['uid', 'name', 'role', 'status']) &&
+        isValidString(data.uid, 1, 128) &&
+        isValidString(data.name, 1, 150) &&
+        data.role in ['admin', 'teacher', 'student'] &&
+        data.status in ['active', 'inactive', 'pending', 'suspended', 'disabled'] &&
+        isValidOptionalString('email', 150) &&
+        isValidOptionalString('phone', 30) &&
+        isValidOptionalString('username', 80);
+    }
+
+    function isValidStudentPayload(data) {
+      return hasNoShadowPrivilegeFlags(data) &&
+        data.keys().hasAll(['id', 'name', 'status']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.name, 1, 150) &&
+        data.status in ['active', 'inactive', 'transferred'] &&
+        isValidOptionalString('admissionNumber', 60) &&
+        isValidOptionalString('studentId', 60) &&
+        isValidOptionalString('rollNumber', 30);
+    }
+
+    function isValidRegistrationRequest(data) {
+      return hasNoShadowPrivilegeFlags(data) &&
+        data.keys().hasAll(['id', 'requestedRole', 'fullName', 'preferredUsername', 'status']) &&
+        isValidString(data.id, 1, 128) &&
+        data.requestedRole in ['teacher', 'student'] &&
+        isValidString(data.fullName, 1, 150) &&
+        isValidString(data.preferredUsername, 1, 60) &&
+        data.status == 'PENDING' &&
+        isValidOptionalString('email', 150) &&
+        isValidOptionalString('phone', 30);
+    }
+
+    function isValidDonationPayload(data) {
+      return hasNoShadowPrivilegeFlags(data) &&
+        data.keys().hasAll(['id', 'receiptNumber', 'donorName', 'amount', 'status', 'createdAt']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.receiptNumber, 1, 60) &&
+        isValidString(data.donorName, 1, 150) &&
+        data.amount is number && data.amount > 0 && data.amount <= 10000000 &&
+        data.status in ['SUCCESS', 'PENDING', 'FAILED', 'REFUNDED'];
+    }
+
+    function isValidAuditLogPayload(data) {
+      return data.keys().hasAll(['id', 'userId', 'action', 'entity', 'timestamp']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.userId, 1, 128) &&
+        isValidString(data.action, 1, 120) &&
+        isValidString(data.entity, 1, 120) &&
+        isValidOptionalString('details', 1000);
+    }
+
+    // 0. Startup Connectivity Probe (/test/connection)
+    match /test/{docId} {
+      allow get: if docId == 'connection';
+      allow list, write: if false;
+    }
+
     // 1. User Profiles Collection (/users/{userId})
-    // EXPLICITLY DENIED to unauthorized users. Only matching user (by UID) or authorized admins can read/write.
     match /users/{userId} {
       allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
-      
+
       allow list: if isAdmin() || (
         isSignedIn() && resource.data.uid == request.auth.uid
       );
 
-      allow create: if isValidId(userId) && (isOwner(userId) || isAdmin());
-      
-      allow update: if isValidId(userId) && (
-        (isOwner(userId) && 
-          request.resource.data.role == resource.data.role && 
-          request.resource.data.status == resource.data.status &&
-          request.resource.data.uid == resource.data.uid) || 
-        isAdmin()
+      allow create: if isValidId(userId) && isValidUserPayload(request.resource.data) && (
+        isAdmin() ||
+        (isOwner(userId) &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.role == 'student' &&
+          request.resource.data.status in ['active', 'pending'])
       );
-      
+
+      allow update: if isValidId(userId) && isValidUserPayload(request.resource.data) && (
+        isAdmin() ||
+        (isOwner(userId) &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.status == resource.data.status &&
+          request.resource.data.uid == resource.data.uid &&
+          (!('isApproved' in request.resource.data) || request.resource.data.isApproved == resource.data.isApproved))
+      );
+
       allow delete: if isValidId(userId) && isAdmin();
     }
 
     // 1b. Registration Requests (/registrationRequests/{requestId})
-    // Public visitors can create a request with status 'PENDING'.
-    // Only Head Teacher / Admin can list, read details, and approve/reject (update status).
     match /registrationRequests/{requestId} {
       allow get, list: if isAdmin();
-      allow create: if isValidId(requestId) && request.resource.data.status == 'PENDING';
+      allow create: if isValidId(requestId) && isValidRegistrationRequest(request.resource.data);
       allow update, delete: if isValidId(requestId) && isAdmin();
     }
 
     // 1c. Security Logs (/securityLogs/{logId})
     match /securityLogs/{logId} {
       allow read: if isAdmin();
-      allow create: if isValidId(logId);
+      allow create: if isValidId(logId) &&
+        request.resource.data.keys().hasAll(['id', 'username', 'status', 'action', 'timestamp']) &&
+        isValidString(request.resource.data.id, 1, 128) &&
+        isValidString(request.resource.data.username, 1, 120) &&
+        request.resource.data.status in ['SUCCESS', 'FAILED', 'BLOCKED'];
       allow update, delete: if false; // immutable
     }
 
     // 1d. Student Email Verification Codes (/emailVerifications/{verificationId})
-    // Used for 6-digit OTP email verification for student onboarding & profile validation
     match /emailVerifications/{verificationId} {
-      allow get: if isValidId(verificationId);
-      allow create, update: if isValidId(verificationId);
+      allow get: if isValidId(verificationId) && (isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid));
       allow list, delete: if isAdmin();
+      allow create, update: if isValidId(verificationId) && isSignedIn() && (
+        isAdmin() || request.resource.data.uid == request.auth.uid
+      );
     }
 
     // 2. Student Records Collection (/students/{studentId})
-    // EXPLICITLY DENIED to unassigned or unauthorized users.
-    // Read: Only authorized admins, assigned teachers, or the specific student owning the record.
-    // Write: Authorized admins, teachers, or the verified student owning the record.
     match /students/{studentId} {
       allow get: if isValidId(studentId) && (
-        isAdmin() || 
-        isTeacher() || 
+        isAdmin() ||
+        isTeacher() ||
         isOwner(studentId) ||
         isStudentOwner(resource.data)
       );
@@ -119,31 +219,31 @@ service cloud.firestore {
         )
       );
 
-      allow create: if isValidId(studentId) && (
-        isAdmin() || 
-        isTeacher() || 
-        isOwner(studentId) ||
-        (isSignedIn() && request.resource.data.uid == request.auth.uid)
+      allow create: if isValidId(studentId) && isValidStudentPayload(request.resource.data) && (
+        isAdmin() ||
+        isTeacher() ||
+        (isOwner(studentId) &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.userId == request.auth.uid)
       );
-      
-      allow update: if isValidId(studentId) && (
-        isAdmin() || 
+
+      allow update: if isValidId(studentId) && isValidStudentPayload(request.resource.data) && (
+        isAdmin() ||
         (isTeacher() && (
           request.resource.data.admissionNumber == resource.data.admissionNumber &&
           request.resource.data.id == resource.data.id
         )) ||
-        (isOwner(studentId) && (
-          request.resource.data.role == 'student'
-        )) ||
-        (isStudentOwner(resource.data) && (
-          request.resource.data.role == 'student'
+        ((isOwner(studentId) || isStudentOwner(resource.data)) && (
+          (!('role' in request.resource.data) || request.resource.data.role == 'student') &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.status == resource.data.status
         ))
       );
 
       allow delete: if isValidId(studentId) && isAdmin();
     }
 
-    // 3. Faculty / Teachers Directory
+    // 3. Faculty / Teachers Directory (Public portal directory)
     match /teachers/{teacherId} {
       allow read: if true;
       allow write: if isValidId(teacherId) && isAdmin();
@@ -177,12 +277,14 @@ service cloud.firestore {
         isTeacher() ||
         (userExists() && resource.data.classNumber == getUserDoc().classNumber)
       );
-      
+
       allow list: if isAdmin() || isTeacher() || (
         isSignedIn() && userExists() && resource.data.classNumber == getUserDoc().classNumber
       );
 
-      allow create, update: if isValidId(attendanceId) && isTeacher();
+      allow create, update: if isValidId(attendanceId) && isTeacher() &&
+        request.resource.data.keys().hasAll(['id', 'studentId', 'classNumber', 'date', 'status']) &&
+        request.resource.data.status in ['present', 'absent', 'late', 'half_day'];
       allow delete: if isValidId(attendanceId) && isAdmin();
     }
 
@@ -207,7 +309,12 @@ service cloud.firestore {
         )
       );
 
-      allow create, update: if isValidId(markId) && isTeacher();
+      allow create, update: if isValidId(markId) && isTeacher() &&
+        request.resource.data.keys().hasAll(['id', 'studentId', 'examId', 'subjectId', 'marksObtained', 'maximumMarks']) &&
+        request.resource.data.marksObtained is number &&
+        request.resource.data.maximumMarks is number &&
+        request.resource.data.marksObtained >= 0 &&
+        request.resource.data.maximumMarks > 0;
       allow delete: if isValidId(markId) && isAdmin();
     }
 
@@ -244,8 +351,8 @@ service cloud.firestore {
       );
 
       allow update: if isValidId(submissionId) && (
-        isTeacher() || 
-        isAdmin() || 
+        isTeacher() ||
+        isAdmin() ||
         (isSignedIn() && (
           request.resource.data.studentId == request.auth.uid ||
           (userExists() && request.resource.data.studentAdmissionNo == getUserDoc().admissionNumber)
@@ -278,14 +385,20 @@ service cloud.firestore {
       allow write: if isValidId(documentId) && (isAdmin() || isTeacher());
     }
 
-    // 11. Tamper-Proof Audit Logs
+    // 11. Tamper-Proof Audit & Verification Logs
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      allow create: if isValidId(logId) && isSignedIn();
+      allow create: if isValidId(logId) && isSignedIn() && isValidAuditLogPayload(request.resource.data);
       allow update, delete: if false; // strictly immutable
     }
 
-    // 12. School Configuration Settings
+    match /verificationLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(logId) && isAdmin();
+      allow update, delete: if false; // strictly immutable
+    }
+
+    // 12. School Configuration Settings (Public Website Config)
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isValidId(settingId) && isAdmin();
@@ -316,13 +429,10 @@ service cloud.firestore {
     }
 
     // 17. College Donations & Receipts (/donations/{donationId})
-    // Public visitors can create donation entries when making a donation, or verify receipt by ID.
-    // Reading individual donation receipts by ID is public (for tax receipt verification & transparency).
-    // Listing full ledger or updating/deleting donation records is restricted to Admins.
     match /donations/{donationId} {
       allow get: if isValidId(donationId);
       allow list: if isAdmin();
-      allow create: if isValidId(donationId);
+      allow create: if isValidId(donationId) && isValidDonationPayload(request.resource.data);
       allow update, delete: if isValidId(donationId) && isAdmin();
     }
   }

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useSchool } from '../../context/SchoolContext';
-import { DonationRecord, DonationReasonConfig, RazorpayPaymentConfig } from '../../types';
-import { testRazorpayApiKeys } from '../../utils/razorpay';
+import { DonationRecord, DonationReasonConfig, CashfreePaymentConfig } from '../../types';
+import { fetchPublicCashfreeConfig } from '../../utils/cashfree';
 import { DonationReceiptModal } from '../public/DonationReceiptModal';
-import { AdminRazorpaySecureSettings } from './settings/AdminRazorpaySecureSettings';
+import { AdminCashfreeSettings } from './settings/AdminCashfreeSettings';
 import { 
   CreditCard, 
   Key, 
@@ -34,19 +34,19 @@ interface AdminDonationsProps {
 export const AdminDonations: React.FC<AdminDonationsProps> = ({ onNavigateToVault }) => {
   const { settings, donations, updatePaymentConfig, language } = useSchool();
 
-  // Active Razorpay config state
-  const currentConfig = settings.paymentConfig || {
-    keyId: '',
-    keySecret: '',
+  // Active Cashfree config state (keys are kept strictly on backend vault)
+  const currentConfig: CashfreePaymentConfig = settings.paymentConfig || {
+    enabled: true,
+    isEnabled: true,
+    environment: 'sandbox',
     merchantName: settings.schoolName || 'Composite Junior High School',
     currency: 'INR',
-    isEnabled: true,
     taxExemptionNumber: '80G-AAACT1234F-2025',
     donationReasons: []
   };
 
-  const [keyId, setKeyId] = useState(currentConfig.keyId || '');
-  const [isEnabled, setIsEnabled] = useState(currentConfig.isEnabled !== false);
+  const [gatewayEnv, setGatewayEnv] = useState<'sandbox' | 'production'>(currentConfig.environment || 'sandbox');
+  const [isEnabled, setIsEnabled] = useState(currentConfig.isEnabled !== false && currentConfig.enabled !== false);
 
   // Reasons management state
   const [reasons, setReasons] = useState<DonationReasonConfig[]>(() => {
@@ -134,13 +134,24 @@ export const AdminDonations: React.FC<AdminDonationsProps> = ({ onNavigateToVaul
   // Sync state if settings update
   React.useEffect(() => {
     if (settings.paymentConfig) {
-      setKeyId(settings.paymentConfig.keyId || '');
-      setIsEnabled(settings.paymentConfig.isEnabled !== false);
       if (settings.paymentConfig.donationReasons && settings.paymentConfig.donationReasons.length > 0) {
         setReasons(settings.paymentConfig.donationReasons);
       }
     }
   }, [settings.paymentConfig]);
+
+  // Sync authoritative Cashfree mode/status from backend vault
+  React.useEffect(() => {
+    let active = true;
+    fetchPublicCashfreeConfig().then((cfg) => {
+      if (!active || !cfg) return;
+      setGatewayEnv(cfg.environment || 'sandbox');
+      setIsEnabled(Boolean(cfg.isEnabled));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Reason Modal actions
   const handleOpenAddReason = () => {
@@ -208,7 +219,9 @@ export const AdminDonations: React.FC<AdminDonationsProps> = ({ onNavigateToVaul
     const matchesSearch = !q || 
       d.donorName.toLowerCase().includes(q) ||
       d.receiptNumber.toLowerCase().includes(q) ||
-      (d.razorpayPaymentId && d.razorpayPaymentId.toLowerCase().includes(q)) ||
+      (d.cashfreePaymentId && d.cashfreePaymentId.toLowerCase().includes(q)) ||
+      (d.cashfreeOrderId && d.cashfreeOrderId.toLowerCase().includes(q)) ||
+      (d.cashfreeBankReference && d.cashfreeBankReference.toLowerCase().includes(q)) ||
       (d.donorEmail && d.donorEmail.toLowerCase().includes(q)) ||
       (d.donorPhone && d.donorPhone.toLowerCase().includes(q)) ||
       (d.panNumber && d.panNumber.toLowerCase().includes(q));
@@ -227,15 +240,15 @@ export const AdminDonations: React.FC<AdminDonationsProps> = ({ onNavigateToVaul
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 mb-1">
             <CreditCard className="w-3.5 h-3.5 text-amber-600" />
-            <span>Razorpay Payment Gateway & Donations Hub</span>
+            <span>Cashfree Payment Gateway & Donations Hub</span>
           </div>
           <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            {language === 'hi' ? 'कॉलेज दान एवं रेज़रपे गेटवे प्रबंधन' : 'College Donations & Razorpay Gateway Controls'}
+            {language === 'hi' ? 'विद्यालय दान एवं Cashfree गेटवे प्रबंधन' : 'College Donations & Cashfree Gateway Controls'}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {language === 'hi'
-              ? 'यहाँ से आप कभी भी अपनी Razorpay API Key व Secret बदल सकते हैं, नए दान उद्देश्य जोड़ सकते हैं एवं दान रसीदें देख सकते हैं।'
-              : 'Configure your active Razorpay Key ID and Secret anytime, manage customized donation causes, and review donation receipts.'}
+              ? 'यहाँ से आप सुरक्षित रूप से अपनी Cashfree API Keys प्रबंधित कर सकते हैं, दान उद्देश्य जोड़ सकते हैं एवं 80G दान रसीदें देख सकते हैं।'
+              : 'Securely configure Cashfree PG v3 credentials, manage customized donation causes, and review official 80G receipts.'}
           </p>
         </div>
 
@@ -283,14 +296,14 @@ export const AdminDonations: React.FC<AdminDonationsProps> = ({ onNavigateToVaul
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Current Gateway Mode</span>
           <div className="text-lg font-black text-slate-900 truncate">
-            {keyId.startsWith('rzp_live_') ? 'Production (Live)' : keyId ? 'Sandbox (Test)' : 'Simulation Mode'}
+            {gatewayEnv === 'production' ? 'Production (Live)' : 'Sandbox (Test)'}
           </div>
-          <div className="text-[10px] text-slate-400 font-mono truncate">{keyId || 'No Key Configured'}</div>
+          <div className="text-[10px] text-slate-400 font-mono truncate">Cashfree PG v3 (Server Vault)</div>
         </div>
       </div>
 
-      {/* 1. Secure Razorpay Gateway API Configuration Section */}
-      <AdminRazorpaySecureSettings />
+      {/* 1. Secure Cashfree Gateway API Configuration Section */}
+      <AdminCashfreeSettings />
 
       {/* 2. Donation Causes & Reasons Management Section */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
@@ -391,7 +404,7 @@ export const AdminDonations: React.FC<AdminDonationsProps> = ({ onNavigateToVaul
             <p className="text-xs text-slate-500">
               {language === 'hi'
                 ? 'सभी प्राप्त दानों की सूची, रसीद संख्या, डोनर विवरण एवं प्रिंट करने योग्य 80G रसीदें।'
-                : 'Audited log of all contributions received via Razorpay with donor contact & downloadable receipts.'}
+                : 'Audited log of all contributions received via Cashfree with donor contact & downloadable receipts.'}
             </p>
           </div>
 
@@ -462,7 +475,7 @@ export const AdminDonations: React.FC<AdminDonationsProps> = ({ onNavigateToVaul
                     ₹{d.amount.toLocaleString('en-IN')}
                   </td>
                   <td className="p-3 font-mono text-[11px] text-slate-500">
-                    {d.razorpayPaymentId || 'Direct'}
+                    {d.cashfreePaymentId || d.cashfreeOrderId || 'Direct'}
                   </td>
                   <td className="p-3 text-slate-500 whitespace-nowrap">
                     {new Date(d.createdAt).toLocaleDateString('en-IN', {
